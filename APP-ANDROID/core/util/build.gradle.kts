@@ -38,6 +38,9 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.core.splashscreen)
+    
+    // SECURITY: For encrypted token storage
+    implementation(libs.security.crypto)
 
     // Nếu viết Kotlin và cần các tiện ích KTX, có thể thêm (không bắt buộc):
     // implementation(libs.androidx.core.ktx)

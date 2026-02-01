@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const { notFound, errorHandler } = require('./middlewares/error');
 
 // Routers
@@ -21,12 +22,51 @@ const adminRoutes = require('./modules/admin/admin.routes');
 
 const app = express();
 
+// ========== SECURITY: CORS Whitelist ==========
+const allowedOrigins = [
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
+    'https://uithealthcare.id.vn'
+];
+
+// ========== SECURITY: Rate Limiting ==========
+// Strict limiter for auth endpoints (prevent brute force)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts per window
+    message: { success: false, message: 'Quá nhiều lần thử, vui lòng thử lại sau 15 phút' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau' },
+});
+
 // Core middlewares
 app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
+
+// Apply rate limiters
+app.use('/api/', apiLimiter);
+app.use('/api/auth', authLimiter);
 
 // Serve static files (admin frontend)
 app.use(express.static('public'));

@@ -189,7 +189,12 @@ function verifyMomoSignature(params) {
 
 // -------------- HANDLE MOMO IPN ----------------
 async function handleMomoIPN(body, opts = {}) {
-  const { skipVerify = false } = opts;
+  const { skipVerify = false, isReturn = false } = opts;
+
+  // SECURITY: Log when verification is skipped (for audit trail)
+  if (skipVerify) {
+    console.warn(`[SECURITY] MoMo signature verification skipped for ${isReturn ? 'return URL' : 'unknown source'}. OrderId: ${body?.orderId || 'N/A'}`);
+  }
 
   if (!skipVerify && !verifyMomoSignature(body)) {
     return { ok: false, code: 97, msg: 'Signature mismatch' };

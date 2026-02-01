@@ -39,6 +39,23 @@ async function login(email, password) {
  * Trả JWT để đăng nhập luôn.
  */
 async function register({ email, password, fullName, role = 'PATIENT', specialty }) {
+  // ========== SECURITY: Password Strength Validation ==========
+  // Requires: 8+ chars, uppercase, lowercase, number, special char
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!passwordRegex.test(password)) {
+    const err = new Error('Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt (@$!%*?&)');
+    err.status = 400;
+    throw err;
+  }
+
+  // ========== SECURITY: Prevent Role Escalation ==========
+  // Only PATIENT role is allowed for public registration
+  // DOCTOR and ADMIN accounts must be created by admin
+  const safeRole = 'PATIENT';
+  if (role !== 'PATIENT') {
+    console.warn(`[SECURITY] Blocked role escalation attempt: ${email} tried to register as ${role}`);
+  }
+
   // 1) Email unique
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) {
@@ -47,30 +64,16 @@ async function register({ email, password, fullName, role = 'PATIENT', specialty
     throw err;
   }
 
-  // 2) Tạo user
+  // 2) Tạo user với role an toàn (luôn là PATIENT)
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { email, password: hashed, fullName, role }
+    data: { email, password: hashed, fullName, role: safeRole }
   });
 
-  // 3) Tạo profile theo role
-  if (role === 'PATIENT') {
-    await prisma.patientProfile.create({
-      data: { userId: user.id } // ✅ không có id riêng
-    });
-  } else if (role === 'DOCTOR') {
-    const allowed = (config.specialties || []).map(s => s.name);
-    const chosen = allowed.length
-      ? (allowed.includes(specialty) ? specialty : allowed[0])
-      : (specialty || 'GENERAL');
-
-    await prisma.doctorProfile.create({
-      data: {
-        userId: user.id,
-        specialty: chosen
-      }
-    });
-  }
+  // 3) Tạo PatientProfile (vì chỉ cho phép PATIENT)
+  await prisma.patientProfile.create({
+    data: { userId: user.id }
+  });
 
   // 4) JWT
   const token = jwt.sign(

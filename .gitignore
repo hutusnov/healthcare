@@ -1,3 +1,56 @@
-# macOS system file
-.DS_Store
+# =============================================
+# KHÔNG ĐƯỢC COMMIT LÊN PUBLIC REPO
+# =============================================
 
+# Environment files (chứa secrets)
+.env
+.env.*
+!.env.example
+
+# Private keys / Certificates
+*.pem
+*.key
+*.p12
+*.keystore
+*.jks
+google-services.json
+
+# IDE configs có thể chứa paths
+.idea/
+.vscode/settings.json
+
+# Node modules
+**/node_modules/
+
+# Python venv
+**/venv/
+**/__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+*.apk
+*.aab
+
+# Logs
+*.log
+npm-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test files có thể chứa tokens
+test-api.http
+test-api.sh
+
+# Database files
+*.db
+*.sqlite
+
+# Temporary files
+*.tmp
+*.temp

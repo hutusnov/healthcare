@@ -41,7 +41,8 @@ async function momoReturn(req, res) {
     console.log('MoMo RETURN query =', req.query);
 
     // dùng skipVerify vì query string không đủ field để verify chuẩn như IPN
-    const result = await svc.handleMomoIPN(req.query, { skipVerify: true });
+    // SECURITY: isReturn flag enables audit logging for skipped verification
+    const result = await svc.handleMomoIPN(req.query, { skipVerify: true, isReturn: true });
 
     if (!result.ok) {
       return R.badRequest(res, result.msg || 'Payment update failed');
