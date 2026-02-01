@@ -19,6 +19,7 @@ const userRoutes = require('./modules/users/users.routes');
 const careProfileRoutes = require('./modules/careProfiles/careProfiles.routes');
 const locationRoutes = require('./modules/locations/locations.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
+const ocrRoutes = require('./modules/ocr/ocr.routes');
 
 const app = express();
 
@@ -85,6 +86,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/care-profiles', careProfileRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ocr', ocrRoutes);
 
 // Errors (always last)
 app.use(notFound);

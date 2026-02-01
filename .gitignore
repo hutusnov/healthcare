@@ -23,6 +23,7 @@ google-services.json
 **/node_modules/
 
 # Python venv
+medusa_env
 **/venv/
 **/__pycache__/
 *.pyc
