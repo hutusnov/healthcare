@@ -30,12 +30,12 @@ const upload = multer({
 async function ocrCCCD(req, res) {
     try {
         if (!req.file) {
-            return R.error(res, 'No file uploaded', 400);
+            return R.badRequest(res, 'No file uploaded');
         }
 
         const result = await ocrWithGoogleVision(req.file.buffer);
 
-        return R.success(res, {
+        return R.ok(res, {
             filename: req.file.originalname,
             ...result
         });
@@ -46,7 +46,7 @@ async function ocrCCCD(req, res) {
         const isProduction = process.env.NODE_ENV === 'production';
         const message = isProduction ? 'OCR processing failed' : error.message;
 
-        return R.error(res, message, 500);
+        return R.error(res, message);
     }
 }
 
@@ -57,7 +57,7 @@ async function ocrCCCD(req, res) {
 function healthCheck(req, res) {
     const hasApiKey = !!process.env.GOOGLE_CLOUD_VISION_API_KEY;
 
-    return R.success(res, {
+    return R.ok(res, {
         status: 'ok',
         provider: 'Google Cloud Vision',
         configured: hasApiKey
