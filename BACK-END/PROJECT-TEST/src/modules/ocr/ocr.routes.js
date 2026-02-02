@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../../middlewares/auth');
+const auth = require('../../middlewares/auth');
 const ocrController = require('./ocr.controller');
 
 // Health check (public)
@@ -13,7 +13,7 @@ router.get('/health', ocrController.healthCheck);
 // OCR CCCD (requires authentication)
 router.post(
     '/cccd',
-    authenticate,
+    auth,
     ocrController.upload.single('file'),
     ocrController.ocrCCCD
 );
