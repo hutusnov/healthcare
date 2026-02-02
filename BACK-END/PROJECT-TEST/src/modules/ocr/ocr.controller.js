@@ -5,7 +5,7 @@
 
 const multer = require('multer');
 const { ocrWithGoogleVision } = require('../../services/vision-ocr.service');
-const R = require('../../utils/response');
+const R = require('../../utils/apiResponse');
 
 // Configure multer for memory storage
 const upload = multer({
