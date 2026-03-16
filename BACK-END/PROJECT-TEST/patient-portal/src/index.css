@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Google Font - Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #10141f 0%, #1a2234 50%, #151b29 100%);
+}
+
+/* Custom scrollbar - Dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a2234;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0066e6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0052b3;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 102, 230, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 102, 230, 0.8);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(26, 34, 52, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #0066e6 0%, #00e6b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Button hover effects */
+.btn-primary {
+  @apply bg-primary-600 hover:bg-primary-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 20px rgba(0, 102, 230, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  @apply bg-secondary-600 hover:bg-secondary-500 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300;
+}
+
+/* Card styles */
+.card {
+  @apply bg-dark-200 rounded-xl border border-dark-100 p-6 transition-all duration-300;
+}
+
+.card:hover {
+  border-color: rgba(0, 102, 230, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Input styles */
+.input {
+  @apply w-full bg-dark-300 border border-dark-100 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all duration-300;
+}
+
+.input:focus {
+  box-shadow: 0 0 10px rgba(0, 102, 230, 0.3);
+}

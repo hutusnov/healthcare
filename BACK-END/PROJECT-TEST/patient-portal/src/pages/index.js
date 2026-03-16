@@ -1,0 +1,13 @@
+export { Home } from './Home';
+export { Login } from './Login';
+export { Register } from './Register';
+export { Dashboard } from './Dashboard';
+export { Profile } from './Profile';
+export { Doctors } from './Doctors';
+export { DoctorDetail } from './DoctorDetail';
+export { Appointments } from './Appointments';
+export { BookAppointment } from './BookAppointment';
+export { Payment } from './Payment';
+export { PaymentReturn } from './PaymentReturn';
+export { Notifications } from './Notifications';
+export { OCRScan } from './OCRScan';

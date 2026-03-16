@@ -1,3 +1,5 @@
-const Joi = require('joi');
-const momoCreate = Joi.object({ appointmentId: Joi.string().required() });
+const { z } = require('zod');
+
+const momoCreate = z.object({ appointmentId: z.string().min(1) });
+
 module.exports = { momoCreate };

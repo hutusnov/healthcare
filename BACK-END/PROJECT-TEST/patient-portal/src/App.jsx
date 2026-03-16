@@ -1,0 +1,69 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { PublicLayout } from './components/layout/PublicLayout';
+import { DashboardLayout } from './components/layout/DashboardLayout';
+
+// Public pages
+import { Home } from './pages/Home';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { Doctors } from './pages/Doctors';
+import { DoctorDetail } from './pages/DoctorDetail';
+
+// Protected pages
+import { Dashboard } from './pages/Dashboard';
+import { Profile } from './pages/Profile';
+import { Appointments } from './pages/Appointments';
+import { BookAppointment } from './pages/BookAppointment';
+import { Payment } from './pages/Payment';
+import { PaymentReturn } from './pages/PaymentReturn';
+import { Notifications } from './pages/Notifications';
+import { OCRScan } from './pages/OCRScan';
+
+function App() {
+    return (
+        <BrowserRouter>
+            <AuthProvider>
+                <Routes>
+                    {/* Public routes with PublicLayout */}
+                    <Route element={<PublicLayout />}>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/doctors" element={<Doctors />} />
+                        <Route path="/doctors/:id" element={<DoctorDetail />} />
+                    </Route>
+
+                    {/* Protected routes with DashboardLayout */}
+                    <Route
+                        path="/dashboard/*"
+                        element={
+                            <ProtectedRoute>
+                                <DashboardLayout>
+                                    <Routes>
+                                        <Route path="/" element={<Dashboard />} />
+                                        <Route path="/profile" element={<Profile />} />
+                                        <Route path="/appointments" element={<Appointments />} />
+                                        <Route path="/book" element={<BookAppointment />} />
+                                        <Route path="/payment/:appointmentId" element={<Payment />} />
+                                        <Route path="/notifications" element={<Notifications />} />
+                                        <Route path="/ocr" element={<OCRScan />} />
+                                    </Routes>
+                                </DashboardLayout>
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    {/* Payment return (can be accessed without full auth) */}
+                    <Route path="/payment/return" element={<PaymentReturn />} />
+
+                    {/* Fallback */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </AuthProvider>
+        </BrowserRouter>
+    );
+}
+
+export default App;

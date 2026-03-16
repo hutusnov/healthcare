@@ -57,7 +57,7 @@ model User {
 
 model PatientProfile {
   userId           String    @id
-  user             User      @relation(fields: [userId], references: [id])
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dob              DateTime?
   gender           String?
   medicalHistory   Json?
@@ -72,7 +72,7 @@ model PatientProfile {
 
 model DoctorProfile {
   userId          String   @id
-  user            User     @relation(fields: [userId], references: [id])
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty       String
   bio             String?
   yearsExperience Int?
@@ -96,12 +96,13 @@ model DoctorSlot {
 
   @@index([doctorId, start, end])
   @@index([doctorId, start, isBooked])
+  @@unique([doctorId, start, end])
 }
 
 model CareProfile {
   id        String   @id @default(cuid())
   ownerId   String
-  owner     User     @relation("OwnerCareProfiles", fields: [ownerId], references: [id])
+  owner     User     @relation("OwnerCareProfiles", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // Bắt buộc theo UI
   fullName  String
@@ -164,6 +165,10 @@ model Appointment {
    examResult    String?  @db.Text   // <--- mới: kết quả khám (nullable)
   payment Payment?
   treatmentPlan String?  @db.Text        // hướng dẫn điều trị
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
 }
 
 model Payment {
@@ -183,7 +188,7 @@ model Payment {
 model Notification {
   id        String    @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
   body      String
@@ -195,7 +200,7 @@ model Notification {
 model PasswordReset {
   id        String    @id @default(cuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   codeHash  String // bcrypt hash của mã 6 số
   expiresAt DateTime
   usedAt    DateTime?

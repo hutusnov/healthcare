@@ -188,15 +188,9 @@ function verifyMomoSignature(params) {
 
 
 // -------------- HANDLE MOMO IPN ----------------
-async function handleMomoIPN(body, opts = {}) {
-  const { skipVerify = false, isReturn = false } = opts;
-
-  // SECURITY: Log when verification is skipped (for audit trail)
-  if (skipVerify) {
-    console.warn(`[SECURITY] MoMo signature verification skipped for ${isReturn ? 'return URL' : 'unknown source'}. OrderId: ${body?.orderId || 'N/A'}`);
-  }
-
-  if (!skipVerify && !verifyMomoSignature(body)) {
+// SECURITY: skipVerify removed — IPN must ALWAYS verify signatures
+async function handleMomoIPN(body) {
+  if (!verifyMomoSignature(body)) {
     return { ok: false, code: 97, msg: 'Signature mismatch' };
   }
 
@@ -297,6 +291,43 @@ async function handleMomoIPN(body, opts = {}) {
 
   return { ok: true, code: 0, msg: 'OK' };
 }
+
+
+// ================== READ-ONLY PAYMENT STATUS ==================
+// Used by momoReturn to display status WITHOUT mutating the database
+async function getPaymentStatus(orderId) {
+  if (!orderId || !orderId.startsWith('APPT_')) {
+    return { ok: false, msg: 'Invalid orderId' };
+  }
+
+  const core = orderId.substring('APPT_'.length);
+  const [appointmentId] = core.split('_');
+
+  const appt = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: {
+      id: true,
+      status: true,
+      paymentStatus: true,
+      service: true,
+      scheduledAt: true,
+      payment: { select: { amount: true, provider: true, status: true } },
+    },
+  });
+
+  if (!appt) return { ok: false, msg: 'Appointment not found' };
+
+  return {
+    ok: true,
+    appointmentId: appt.id,
+    appointmentStatus: appt.status,
+    paymentStatus: appt.paymentStatus,
+    service: appt.service,
+    scheduledAt: appt.scheduledAt,
+    payment: appt.payment,
+  };
+}
+
 
 // ================== FAKE PAYMENT ==================
 
@@ -437,6 +468,7 @@ async function confirmFakePayment({ appointmentId }) {
 module.exports = {
   createMoMoForAppointment,
   handleMomoIPN,
+  getPaymentStatus,
   createFakePayment,
   confirmFakePayment,
 };

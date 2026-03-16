@@ -1,23 +1,27 @@
-const Joi = require('joi');
+const { z } = require('zod');
 
-const login = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
+const login = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
 });
 
-const register = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
-  fullName: Joi.string().min(2).required(),
-  role: Joi.string().valid('PATIENT','DOCTOR','ADMIN').default('PATIENT'),
-  specialty: Joi.string().min(2).when('role', { is: 'DOCTOR', then: Joi.required(), otherwise: Joi.forbidden() }),
-});
+const register = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  fullName: z.string().min(2),
+  role: z.enum(['PATIENT', 'DOCTOR', 'ADMIN']).default('PATIENT'),
+  specialty: z.string().min(2).optional(),
+}).refine(
+  (data) => data.role !== 'DOCTOR' || (data.specialty && data.specialty.length >= 2),
+  { message: 'specialty is required for DOCTOR role', path: ['specialty'] }
+);
 
-const requestReset = Joi.object({ email: Joi.string().email().required() });
-const reset = Joi.object({
-  email: Joi.string().email().required(),
-  code: Joi.string().length(6).required(),
-  newPassword: Joi.string().min(6).required(),
+const requestReset = z.object({ email: z.string().email() });
+
+const reset = z.object({
+  email: z.string().email(),
+  code: z.string().length(6),
+  newPassword: z.string().min(6),
 });
 
 module.exports = { login, register, requestReset, reset };

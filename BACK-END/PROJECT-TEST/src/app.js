@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { notFound, errorHandler } = require('./middlewares/error');
+const { register, metricsMiddleware } = require('./utils/metrics');
 
 // Routers
 const authRoutes = require('./modules/auth/auth.routes');
@@ -70,6 +71,15 @@ app.use('/api/auth', authLimiter);
 
 // Serve static files (admin frontend)
 app.use(express.static('public'));
+
+// Prometheus metrics endpoint (before rate limiting)
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+
+// Request metrics tracking
+app.use(metricsMiddleware);
 
 // Health
 app.get('/api/health', (req, res) => res.json({ ok: true }));
