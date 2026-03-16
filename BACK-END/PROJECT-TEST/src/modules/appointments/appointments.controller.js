@@ -55,6 +55,10 @@ async function cancel(req, res) {
 async function calendar(req, res) {
   const { month, specialty } = req.query;
   if (!month) return R.badRequest(res, 'month is required (YYYY-MM)');
+  // Strict validation: must match YYYY-MM format
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return R.badRequest(res, 'month must be in YYYY-MM format (e.g. 2026-03)');
+  }
   try {
     const days = await svc.daysWithAvailability({ specialty, month });
     return R.ok(res, days);

@@ -1,12 +1,12 @@
-// Generic Joi validator
+// src/middlewares/validate.js
+// Generic Zod validator middleware
 module.exports = (schema, where = 'body') => (req, res, next) => {
   const data = req[where];
-  const { error, value } = schema.validate(data, { abortEarly: false, stripUnknown: true });
-  if (error) {
-    const details = error.details.map(d => d.message);
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const details = result.error.issues.map(i => i.message);
     return res.status(422).json({ success: false, message: 'Validation error', details });
   }
-  req[where] = value; // đã strip các field thừa
+  req[where] = result.data; // cleaned/transformed data
   next();
 };
-

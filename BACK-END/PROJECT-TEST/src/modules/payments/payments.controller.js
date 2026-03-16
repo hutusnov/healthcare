@@ -36,20 +36,28 @@ async function momoNotify(req, res) {
 }
 
 // RETURN URL từ MoMo (browser redirect sau khi thanh toán xong)
+// SECURITY: This is READ-ONLY — it does NOT alter payment state.
+// State is only altered by the IPN webhook (momoNotify) which verifies MoMo signatures.
 async function momoReturn(req, res) {
   try {
-    console.log('MoMo RETURN query =', req.query);
+    const { orderId, resultCode } = req.query;
 
-    // dùng skipVerify vì query string không đủ field để verify chuẩn như IPN
-    // SECURITY: isReturn flag enables audit logging for skipped verification
-    const result = await svc.handleMomoIPN(req.query, { skipVerify: true, isReturn: true });
-
-    if (!result.ok) {
-      return R.badRequest(res, result.msg || 'Payment update failed');
+    if (!orderId) {
+      return R.badRequest(res, 'Missing orderId');
     }
 
-    // Sau này m có thể redirect về app/web riêng, giờ trả JSON cho dễ debug
-    return R.ok(res, result, 'Payment updated via return');
+    // Read-only: just look up current status from the database
+    const status = await svc.getPaymentStatus(orderId);
+
+    if (!status.ok) {
+      return R.badRequest(res, status.msg || 'Payment not found');
+    }
+
+    // Return the current state for the frontend to display
+    return R.ok(res, {
+      ...status,
+      momoResultCode: resultCode,
+    }, 'Payment status retrieved');
   } catch (e) {
     console.error('MoMo return error:', e);
     return R.badRequest(res, e.message || 'Error');

@@ -1,48 +1,35 @@
 // src/modules/careProfiles/careProfiles.validation.js
-const Joi = require('joi');
+const { z } = require('zod');
 
 // Base fields (UI yêu cầu)
-const base = {
-  // Bắt buộc
-  fullName: Joi.string().min(2).required().messages({
-    'any.required': 'Tên đầy đủ không được để trống',
-    'string.empty': 'Tên đầy đủ không được để trống',
-    
-  }),
-  relation: Joi.string().min(1).required().messages({
-    'any.required': 'Quan hệ không được để trống',
-    'string.empty': 'Quan hệ không được để trống',
-    
-  }),
-  dob: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required().messages({
-    'any.required': 'Ngày sinh không được để trống',
-    'string.empty': 'Ngày sinh không được để trống',
-    
-  }),
+const baseFields = {
+  fullName: z.string().min(2, 'Tên đầy đủ không được để trống'),
+  relation: z.string().min(1, 'Quan hệ không được để trống'),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày sinh không hợp lệ'),
 
-  // Optional, nhập gì cũng được
-  phone: Joi.any().optional(),
-  country: Joi.any().optional(),
-  gender: Joi.any().optional(),
-  email: Joi.any().optional(),
-  insuranceNo: Joi.any().optional(),
-  note: Joi.any().optional(),
+  // Optional
+  phone: z.any().optional(),
+  country: z.any().optional(),
+  gender: z.any().optional(),
+  email: z.any().optional(),
+  insuranceNo: z.any().optional(),
+  note: z.any().optional(),
 };
 
 // Nhóm địa chỉ theo "tên"
 const nameAddressFields = {
-  province: Joi.string(),
-  district: Joi.string(),
-  ward: Joi.string(),
-  address: Joi.string(), // số nhà, đường...
+  province: z.string().optional(),
+  district: z.string().optional(),
+  ward: z.string().optional(),
+  address: z.string().optional(),
 };
 
 // Nhóm địa chỉ theo "mã"
 const codeAddressFields = {
-  provinceCode: Joi.string(),
-  districtCode: Joi.string(),
-  wardCode: Joi.string(),
-  addressDetail: Joi.string(), // số nhà, đường...
+  provinceCode: z.string().optional(),
+  districtCode: z.string().optional(),
+  wardCode: z.string().optional(),
+  addressDetail: z.string().optional(),
 };
 
 /**
@@ -52,98 +39,57 @@ const codeAddressFields = {
  *    (A) province + district + ward + address
  *    (B) provinceCode + districtCode + wardCode + addressDetail
  */
-const create = Joi.object({
-  ...base,
+const create = z.object({
+  ...baseFields,
   ...nameAddressFields,
   ...codeAddressFields,
-}).custom((value, helpers) => {
+}).refine((value) => {
   const hasCodes = !!(value.provinceCode || value.districtCode || value.wardCode || value.addressDetail);
   if (hasCodes) {
-    if (!value.provinceCode || !value.districtCode || !value.wardCode || !value.addressDetail) {
-      return helpers.error('any.custom', {
-        message: 'provinceCode, districtCode, wardCode, addressDetail are required when using codes',
-      });
-    }
-  } else {
-    if (!value.province || !value.district || !value.ward || !value.address) {
-      return helpers.error('any.custom', {
-        message: 'province, district, ward, address are required',
-      });
-    }
+    return !!(value.provinceCode && value.districtCode && value.wardCode && value.addressDetail);
   }
-  return value;
+  return !!(value.province && value.district && value.ward && value.address);
+}, {
+  message: 'Phải cung cấp đầy đủ province/district/ward/address hoặc provinceCode/districtCode/wardCode/addressDetail',
 });
 
 /**
- * Cập nhật:
- * - Cho phép partial update.
- * - Nếu cung cấp 1 phần nhóm địa chỉ thì yêu cầu đủ cả nhóm được chọn (để dữ liệu không nửa tên nửa mã).
+ * Cập nhật: Cho phép partial update
  */
-const update = Joi.object({
-  // tất cả optional cho update
-  fullName: Joi.string().min(2),
-  relation: Joi.string().min(1),
-
-  phone: Joi.string().pattern(/^[0-9+\s\-().]{6,20}$/),
-  country: Joi.string().min(2),
-
-  gender: Joi.string().valid('male', 'female', 'other'),
-  dob: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/),
-
-  email: Joi.string().email().allow('', null),
-  insuranceNo: Joi.string().allow('', null),
-  note: Joi.string().allow('', null),
-
+const update = z.object({
+  fullName: z.string().min(2).optional(),
+  relation: z.string().min(1).optional(),
+  phone: z.string().regex(/^[0-9+\s\-().]{6,20}$/).optional(),
+  country: z.string().min(2).optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  email: z.string().email().optional().nullable(),
+  insuranceNo: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
   ...nameAddressFields,
   ...codeAddressFields,
-}).custom((value, helpers) => {
-  const hasAnyName =
-    value.province !== undefined ||
-    value.district !== undefined ||
-    value.ward !== undefined ||
-    value.address !== undefined;
+}).refine((value) => {
+  const hasAnyCode = !!(value.provinceCode || value.districtCode || value.wardCode || value.addressDetail);
+  const hasAnyName = !!(value.province || value.district || value.ward || value.address);
 
-  const hasAnyCode =
-    value.provinceCode !== undefined ||
-    value.districtCode !== undefined ||
-    value.wardCode !== undefined ||
-    value.addressDetail !== undefined;
-
-  // Nếu user update theo nhóm "mã"
   if (hasAnyCode) {
-    if (!value.provinceCode || !value.districtCode || !value.wardCode || !value.addressDetail) {
-      return helpers.error('any.custom', {
-        message: 'When updating by codes, provinceCode, districtCode, wardCode, addressDetail must all be provided',
-      });
-    }
-    // Nếu đã chọn nhóm mã, bạn có thể enforce không cho trộn nhóm tên (optional):
-    // if (hasAnyName) {
-    //   return helpers.error('any.custom', { message: 'Do not mix name-address with code-address in one update' });
-    // }
+    return !!(value.provinceCode && value.districtCode && value.wardCode && value.addressDetail);
   }
-
-  // Nếu user update theo nhóm "tên"
-  if (hasAnyName && !hasAnyCode) {
-    if (!value.province || !value.district || !value.ward || !value.address) {
-      return helpers.error('any.custom', {
-        message: 'When updating by names, province, district, ward, address must all be provided',
-      });
-    }
+  if (hasAnyName) {
+    return !!(value.province && value.district && value.ward && value.address);
   }
-
-  return value;
+  return true;
+}, {
+  message: 'Khi cập nhật địa chỉ, phải cung cấp đầy đủ nhóm province hoặc nhóm provinceCode',
 });
 
 /* -------------------- WRAPPERS -------------------- */
 function run(schema, payload) {
-  const { error, value } = schema.validate(payload, {
-    abortEarly: false,
-    stripUnknown: true,
-  });
+  const result = schema.safeParse(payload);
   return {
-    ok: !error,
-    errors: error ? error.details.map(d => d.message) : [],
-    value,
+    ok: result.success,
+    errors: result.success ? [] : result.error.issues.map(i => i.message),
+    value: result.success ? result.data : payload,
   };
 }
 

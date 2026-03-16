@@ -1,0 +1,25 @@
+# Prometheus Configuration for UIT Healthcare
+# Scrape interval: every 15 seconds
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Backend API metrics
+  - job_name: 'backend-api'
+    static_configs:
+      - targets: ['backend:4000']
+    metrics_path: '/metrics'
+
+  # OCR Service health
+  - job_name: 'ocr-service'
+    static_configs:
+      - targets: ['ocr:8001']
+    metrics_path: '/health'
+    scrape_interval: 30s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

@@ -9,7 +9,7 @@ return R.ok(res, data);
 }
 
 async function getAll(req, res) {
-const data = await svc.getAll();
+const data = await svc.getAll(req.query);
 return R.ok(res, data);
 }
 
