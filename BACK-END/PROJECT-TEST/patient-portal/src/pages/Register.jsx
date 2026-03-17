@@ -7,6 +7,7 @@ import { Mail, Lock, Eye, EyeOff, User, Phone } from 'lucide-react';
 export const Register = () => {
     const { register } = useAuth();
     const navigate = useNavigate();
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -31,8 +32,8 @@ export const Register = () => {
             return;
         }
 
-        if (formData.password.length < 8) {
-            setError('Mật khẩu phải có ít nhất 8 ký tự');
+        if (!passwordRegex.test(formData.password)) {
+            setError('Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.');
             return;
         }
 

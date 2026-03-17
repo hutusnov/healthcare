@@ -20,6 +20,7 @@ const userRoutes = require('./modules/users/users.routes');
 const careProfileRoutes = require('./modules/careProfiles/careProfiles.routes');
 const locationRoutes = require('./modules/locations/locations.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
+const publicRoutes = require('./modules/public/public.routes');
 
 const app = express();
 
@@ -115,6 +116,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/care-profiles', careProfileRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes);
 
 // Errors
 app.use(notFound);
