@@ -20,7 +20,6 @@ const userRoutes = require('./modules/users/users.routes');
 const careProfileRoutes = require('./modules/careProfiles/careProfiles.routes');
 const locationRoutes = require('./modules/locations/locations.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
-const publicRoutes = require('./modules/public/public.routes');
 
 const app = express();
 
@@ -28,41 +27,35 @@ const app = express();
 const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
-    process.env.PATIENT_PORTAL_URL || 'http://localhost:5174',
     'https://uithealthcare.id.vn'
 ];
 
 // ========== SECURITY: Rate Limiting ==========
-const authLimiter = rateLimit(
-{
-    windowMs: 15 * 60 * 1000,
-    max: 10,
+// Strict limiter for auth endpoints (prevent brute force)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // 10 attempts per window
     message: { success: false, message: 'Quá nhiều lần thử, vui lòng thử lại sau 15 phút' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-const apiLimiter = rateLimit(
-{
-    windowMs: 1 * 60 * 1000,
-    max: 100,
+// General API rate limiter
+const apiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
     message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau' },
 });
 
 // Core middlewares
 app.use(helmet());
-app.use(cors(
-{
-    origin: (origin, callback) =>
-    {
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, Postman, curl)
         if (!origin) return callback(null, true);
-
-        if (allowedOrigins.includes(origin))
-        {
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
-        }
-        else
-        {
+        } else {
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -76,34 +69,20 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/', apiLimiter);
 app.use('/api/auth', authLimiter);
 
-// Serve static files
+// Serve static files (admin frontend)
 app.use(express.static('public'));
 
-// Prometheus metrics endpoint
-app.get('/metrics', async (req, res) =>
-{
-    res.set('Content-Type', register.contentType);
-    res.end(await register.metrics());
+// Prometheus metrics endpoint (before rate limiting)
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Request metrics tracking
 app.use(metricsMiddleware);
 
-// Root redirect
-app.get('/', (req, res) =>
-{
-    res.redirect('/api/health');
-});
-
 // Health
-app.get('/api/health', (req, res) =>
-{
-    res.status(200).json(
-    {
-        success: true,
-        message: 'Server is running'
-    });
-});
+app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -116,9 +95,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/care-profiles', careProfileRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/public', publicRoutes);
 
-// Errors
+// Errors (always last)
 app.use(notFound);
 app.use(errorHandler);
 

@@ -65,15 +65,7 @@ async function getAppointments(userId) {
   await cleanupExpiredForPatient(userId);
   return prisma.appointment.findMany({
     where: { patientId: userId },
-    include: {
-      doctor: {
-        include: {
-          doctor: true,
-        },
-      },
-      payment: true,
-      careProfile: true,
-    },
+    include: { doctor: true, payment: true, careProfile: true },
     orderBy: { scheduledAt: 'desc' },
   });
 }
@@ -86,11 +78,7 @@ async function getPaidAppointments(userId) {
       paymentStatus: 'PAID',
     },
     include: {
-      doctor: {
-        include: {
-          doctor: true,
-        },
-      },
+      doctor: true,
       payment: true,
       careProfile: true,
     },
@@ -125,11 +113,7 @@ async function getUpcomingAppointmentReminders(
       },
     },
     include: {
-      doctor: {
-        include: {
-          doctor: true,
-        },
-      },
+      doctor: true,
       careProfile: true,
       payment: true,
     },
@@ -154,8 +138,6 @@ async function getUpcomingAppointmentReminders(
             fullName: appt.doctor.fullName,
             email: appt.doctor.email,
             phone: appt.doctor.phone,
-            specialty: appt.doctor.doctor?.specialty || null,
-            clinicName: appt.doctor.doctor?.clinicName || null,
           }
         : null,
       careProfile: appt.careProfile
@@ -185,11 +167,7 @@ async function getAppointmentResults(userId) {
       examResult: { not: null },
     },
     include: {
-      doctor: {
-        include: {
-          doctor: true,
-        },
-      },
+      doctor: true,
       careProfile: true,
     },
     orderBy: { scheduledAt: 'desc' },
@@ -208,8 +186,6 @@ async function getAppointmentResults(userId) {
           id: appt.doctor.id,
           fullName: appt.doctor.fullName,
           email: appt.doctor.email,
-          specialty: appt.doctor.doctor?.specialty || null,
-          clinicName: appt.doctor.doctor?.clinicName || null,
         }
       : null,
     careProfile: appt.careProfile

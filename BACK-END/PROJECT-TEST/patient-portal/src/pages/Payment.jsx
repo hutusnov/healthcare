@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { patientAPI, paymentAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Loading } from '../components/common';
-import { CreditCard, Calendar, Clock, User, ArrowRight } from 'lucide-react';
+import { CreditCard, Calendar, Clock, User, CheckCircle, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { getApiData, getListData, normalizeAppointment } from '../utils/normalize';
+import { vi } from 'date-fns/locale';
 
 export const Payment = () => {
     const { appointmentId } = useParams();
+    const navigate = useNavigate();
     const [appointment, setAppointment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
@@ -20,18 +21,18 @@ export const Payment = () => {
     const loadAppointment = async () => {
         try {
             const response = await patientAPI.getAppointments();
-            const appointments = getListData(getApiData(response)).map(normalizeAppointment);
-            const selected = appointments.find((item) => item.id === appointmentId);
+            const appointments = response.data?.data || response.data || [];
+            const apt = appointments.find(a => a.id === parseInt(appointmentId));
 
-            if (!selected) {
-                setError('Khong tim thay lich hen');
+            if (!apt) {
+                setError('Không tìm thấy lịch hẹn');
                 return;
             }
 
-            setAppointment(selected);
+            setAppointment(apt);
         } catch (err) {
-            console.error('Loi khi tai lich hen:', err);
-            setError('Khong the tai thong tin lich hen');
+            console.error('Lỗi khi tải lịch hẹn:', err);
+            setError('Không thể tải thông tin lịch hẹn');
         } finally {
             setLoading(false);
         }
@@ -43,31 +44,31 @@ export const Payment = () => {
 
         try {
             const response = await paymentAPI.createMomoPayment(appointmentId);
-            const payUrl = getApiData(response)?.payUrl;
+            const payUrl = response.data?.data?.payUrl || response.data?.payUrl;
 
             if (payUrl) {
                 window.location.href = payUrl;
             } else {
-                setError('Khong the tao lien ket thanh toan');
+                setError('Không thể tạo liên kết thanh toán');
             }
         } catch (err) {
-            console.error('Loi thanh toan:', err);
-            setError(err.response?.data?.message || 'Khong the khoi tao thanh toan');
+            console.error('Lỗi thanh toán:', err);
+            setError(err.response?.data?.message || 'Không thể khởi tạo thanh toán');
         } finally {
             setProcessing(false);
         }
     };
 
     if (loading) {
-        return <Loading fullScreen text="Dang tai thong tin thanh toan..." />;
+        return <Loading fullScreen text="Đang tải thông tin thanh toán..." />;
     }
 
     if (!appointment) {
         return (
             <div className="text-center py-12">
-                <Alert type="error" message={error || 'Khong tim thay lich hen'} />
+                <Alert type="error" message={error || 'Không tìm thấy lịch hẹn'} />
                 <Link to="/dashboard/appointments" className="text-primary-400 hover:text-primary-300 mt-4 inline-block">
-                    ← Quay lai danh sach lich hen
+                    ← Quay lại danh sách lịch hẹn
                 </Link>
             </div>
         );
@@ -76,15 +77,16 @@ export const Payment = () => {
     return (
         <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
             <div>
-                <h1 className="text-2xl font-bold text-white">Thanh toan</h1>
-                <p className="text-gray-400 mt-1">Hoan tat thanh toan de xac nhan lich hen</p>
+                <h1 className="text-2xl font-bold text-white">Thanh toán</h1>
+                <p className="text-gray-400 mt-1">Hoàn tất thanh toán để xác nhận lịch hẹn</p>
             </div>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
 
+            {/* Order Summary */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Chi tiet lich hen</CardTitle>
+                    <CardTitle>Chi tiết lịch hẹn</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4 p-4 bg-dark-300 rounded-lg">
@@ -92,8 +94,12 @@ export const Payment = () => {
                             <User className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                            <p className="text-white font-semibold">BS. {appointment.doctor?.fullName || 'Bac si'}</p>
-                            <p className="text-primary-400 text-sm">{appointment.doctor?.specialty || appointment.service}</p>
+                            <p className="text-white font-semibold">
+                                BS. {appointment.doctor?.user?.fullName || appointment.doctorName || 'Bác sĩ'}
+                            </p>
+                            <p className="text-primary-400 text-sm">
+                                {appointment.doctor?.specialty || 'Đa khoa'}
+                            </p>
                         </div>
                     </div>
 
@@ -101,18 +107,18 @@ export const Payment = () => {
                         <div className="flex items-center gap-3 p-3 bg-dark-300 rounded-lg">
                             <Calendar className="w-5 h-5 text-blue-400" />
                             <div>
-                                <p className="text-gray-400 text-xs">Ngay kham</p>
+                                <p className="text-gray-400 text-xs">Ngày khám</p>
                                 <p className="text-white font-medium">
-                                    {appointment.scheduledAt ? format(appointment.scheduledAt, 'dd/MM/yyyy') : 'N/A'}
+                                    {appointment.date ? format(new Date(appointment.date), 'dd/MM/yyyy') : 'N/A'}
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-dark-300 rounded-lg">
                             <Clock className="w-5 h-5 text-green-400" />
                             <div>
-                                <p className="text-gray-400 text-xs">Gio kham</p>
+                                <p className="text-gray-400 text-xs">Giờ khám</p>
                                 <p className="text-white font-medium">
-                                    {appointment.scheduledAt ? format(appointment.scheduledAt, 'HH:mm') : 'N/A'}
+                                    {appointment.slot?.startTime || appointment.time || 'N/A'}
                                 </p>
                             </div>
                         </div>
@@ -120,29 +126,33 @@ export const Payment = () => {
                 </CardContent>
             </Card>
 
+            {/* Price */}
             <Card>
                 <CardContent>
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-gray-400">Phi kham</span>
-                        <span className="text-white">{appointment.paymentAmount.toLocaleString('vi-VN')}d</span>
+                        <span className="text-gray-400">Phí khám</span>
+                        <span className="text-white">
+                            {(appointment.doctor?.consultationFee || 300000).toLocaleString()}đ
+                        </span>
                     </div>
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-gray-400">Phi dich vu</span>
-                        <span className="text-white">0d</span>
+                        <span className="text-gray-400">Phí dịch vụ</span>
+                        <span className="text-white">0đ</span>
                     </div>
                     <hr className="border-dark-100 my-2" />
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-white font-semibold">Tong cong</span>
+                        <span className="text-white font-semibold">Tổng cộng</span>
                         <span className="text-2xl font-bold gradient-text">
-                            {appointment.paymentAmount.toLocaleString('vi-VN')}d
+                            {(appointment.doctor?.consultationFee || 300000).toLocaleString()}đ
                         </span>
                     </div>
                 </CardContent>
             </Card>
 
+            {/* Payment Methods */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Phuong thuc thanh toan</CardTitle>
+                    <CardTitle>Phương thức thanh toán</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button
@@ -154,27 +164,31 @@ export const Payment = () => {
                             <span className="text-[#ae2070] font-bold text-lg">M</span>
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="text-white font-semibold">Vi MoMo</p>
-                            <p className="text-white/70 text-sm">Thanh toan qua vi dien tu MoMo</p>
+                            <p className="text-white font-semibold">Ví MoMo</p>
+                            <p className="text-white/70 text-sm">Thanh toán qua ví điện tử MoMo</p>
                         </div>
                         <ArrowRight className="w-5 h-5 text-white" />
                     </button>
 
-                    <button disabled className="w-full flex items-center gap-4 p-4 bg-dark-300 rounded-lg opacity-50 cursor-not-allowed">
+                    <button
+                        disabled
+                        className="w-full flex items-center gap-4 p-4 bg-dark-300 rounded-lg opacity-50 cursor-not-allowed"
+                    >
                         <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
                             <CreditCard className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="text-white font-semibold">The tin dung/Ghi no</p>
-                            <p className="text-gray-500 text-sm">Sap co</p>
+                            <p className="text-white font-semibold">Thẻ tín dụng/Ghi nợ</p>
+                            <p className="text-gray-500 text-sm">Sắp có</p>
                         </div>
                     </button>
                 </CardContent>
             </Card>
 
+            {/* Back Button */}
             <div className="text-center">
                 <Link to="/dashboard/appointments" className="text-gray-400 hover:text-white">
-                    ← Quay lai danh sach lich hen
+                    ← Quay lại danh sách lịch hẹn
                 </Link>
             </div>
         </div>

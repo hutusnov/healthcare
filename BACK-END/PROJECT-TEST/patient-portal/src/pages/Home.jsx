@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/common';
-import { publicAPI } from '../services/api';
 import {
     Calendar,
     Shield,
@@ -15,81 +13,45 @@ import {
     Baby,
     ArrowRight
 } from 'lucide-react';
-import { getApiData } from '../utils/normalize';
 
 const specialties = [
-    { name: 'TIM M?CH', icon: Heart, color: 'from-red-500 to-pink-500' },
-    { name: 'TH?N KINH', icon: Brain, color: 'from-purple-500 to-indigo-500' },
-    { name: 'M?T', icon: Eye, color: 'from-blue-500 to-cyan-500' },
-    { name: 'B?NH L? C?T S?NG', icon: Bone, color: 'from-orange-500 to-amber-500' },
-    { name: 'HUY?T H?C', icon: Baby, color: 'from-green-500 to-emerald-500' },
-    { name: 'KHAM VA TU VAN DINH DUONG', icon: Stethoscope, color: 'from-primary-500 to-secondary-500' },
+    { name: 'Nội khoa', icon: Heart, color: 'from-red-500 to-pink-500' },
+    { name: 'Thần kinh', icon: Brain, color: 'from-purple-500 to-indigo-500' },
+    { name: 'Mắt', icon: Eye, color: 'from-blue-500 to-cyan-500' },
+    { name: 'Cơ xương khớp', icon: Bone, color: 'from-orange-500 to-amber-500' },
+    { name: 'Nhi khoa', icon: Baby, color: 'from-green-500 to-emerald-500' },
+    { name: 'Đa khoa', icon: Stethoscope, color: 'from-primary-500 to-secondary-500' },
 ];
 
 const features = [
     {
         icon: Calendar,
-        title: 'Dat lich de dang',
-        description: 'Chon bac si va lich bac si phu hop chi trong vai buoc don gian.',
+        title: 'Đặt lịch dễ dàng',
+        description: 'Chọn bác sĩ và khung giờ phù hợp chỉ trong vài bước đơn giản.',
     },
     {
         icon: Shield,
-        title: 'Bao mat thong tin',
-        description: 'Thong tin y te cua ban duoc bao ve an toan trong suot qua trinh su dung.',
+        title: 'Bảo mật thông tin',
+        description: 'Thông tin y tế của bạn được mã hóa và bảo vệ an toàn tuyệt đối.',
     },
     {
         icon: Clock,
-        title: 'Tiet kiem thoi gian',
-        description: 'Khong can xep hang, den dung lich hen va chu dong theo doi ho so kham.',
+        title: 'Tiết kiệm thời gian',
+        description: 'Không cần xếp hàng, đến đúng giờ hẹn và được khám ngay.',
     },
     {
         icon: Star,
-        title: 'Bac si chat luong',
-        description: 'Doi ngu bac si chuyen khoa voi du lieu va lich hen duoc cap nhat thuc te.',
+        title: 'Bác sĩ chất lượng',
+        description: 'Đội ngũ bác sĩ giàu kinh nghiệm, được đánh giá cao.',
     },
 ];
 
-const defaultStats = {
-    doctorCount: 0,
-    patientCount: 0,
-    appointmentCount: 0,
-    averageRating: 0,
-};
-
-const formatCount = (value) => Number(value || 0).toLocaleString('vi-VN');
-
 export const Home = () => {
-    const [stats, setStats] = useState(defaultStats);
-
-    useEffect(() => {
-        const loadStats = async () => {
-            try {
-                const response = await publicAPI.getHomeStats();
-                const payload = getApiData(response);
-                setStats({
-                    doctorCount: Number(payload?.doctorCount || 0),
-                    patientCount: Number(payload?.patientCount || 0),
-                    appointmentCount: Number(payload?.appointmentCount || 0),
-                    averageRating: Number(payload?.averageRating || 0),
-                });
-            } catch (error) {
-                console.error('Khong the tai thong ke trang chu:', error);
-            }
-        };
-
-        loadStats();
-    }, []);
-
-    const statCards = [
-        { value: formatCount(stats.doctorCount), label: 'Bac si' },
-        { value: formatCount(stats.patientCount), label: 'Benh nhan' },
-        { value: formatCount(stats.appointmentCount), label: 'Lich kham' },
-        { value: stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '0.0', label: 'Danh gia' },
-    ];
-
     return (
         <div className="min-h-screen">
+            {/* Hero Section */}
             <section className="relative overflow-hidden py-20 lg:py-32">
+                {/* Background Effects */}
                 <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary-600/20 rounded-full blur-3xl"></div>
                     <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary-600/20 rounded-full blur-3xl"></div>
@@ -98,32 +60,38 @@ export const Home = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                     <div className="text-center max-w-3xl mx-auto">
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                            <span className="gradient-text">Cham soc suc khoe</span>
+                            <span className="gradient-text">Chăm sóc sức khỏe</span>
                             <br />
-                            <span className="text-white">thong minh va tien loi</span>
+                            <span className="text-white">thông minh và tiện lợi</span>
                         </h1>
                         <p className="text-gray-400 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
-                            Dat lich kham voi cac bac si chuyen khoa hang dau.
-                            Theo doi suc khoe va quan ly lich hen moi luc, moi noi.
+                            Đặt lịch khám với các bác sĩ chuyên khoa hàng đầu.
+                            Theo dõi sức khỏe và quản lý lịch hẹn mọi lúc, mọi nơi.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link to="/register">
                                 <Button size="xl" className="group">
-                                    Bat dau ngay
+                                    Bắt đầu ngay
                                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
                             <Link to="/doctors">
                                 <Button variant="outline" size="xl">
-                                    Xem danh sach bac si
+                                    Xem danh sách bác sĩ
                                 </Button>
                             </Link>
                         </div>
                     </div>
 
+                    {/* Stats */}
                     <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {statCards.map((stat) => (
-                            <div key={stat.label} className="card text-center">
+                        {[
+                            { value: '50+', label: 'Bác sĩ' },
+                            { value: '10k+', label: 'Bệnh nhân' },
+                            { value: '20k+', label: 'Lịch khám' },
+                            { value: '4.9', label: 'Đánh giá' },
+                        ].map((stat, index) => (
+                            <div key={index} className="card text-center">
                                 <div className="text-3xl font-bold gradient-text mb-1">{stat.value}</div>
                                 <div className="text-gray-400 text-sm">{stat.label}</div>
                             </div>
@@ -132,12 +100,13 @@ export const Home = () => {
                 </div>
             </section>
 
+            {/* Specialties Section */}
             <section className="py-16 bg-dark-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-white mb-4">Chuyen khoa</h2>
+                        <h2 className="text-3xl font-bold text-white mb-4">Chuyên khoa</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Da dang cac chuyen khoa dap ung moi nhu cau kham chua benh cua ban
+                            Đa dạng các chuyên khoa đáp ứng mọi nhu cầu khám chữa bệnh của bạn
                         </p>
                     </div>
 
@@ -158,12 +127,13 @@ export const Home = () => {
                 </div>
             </section>
 
+            {/* Features Section */}
             <section className="py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-white mb-4">Tai sao chon chung toi?</h2>
+                        <h2 className="text-3xl font-bold text-white mb-4">Tại sao chọn chúng tôi?</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Trai nghiem dich vu y te hien dai voi nhieu tien ich vuot troi
+                            Trải nghiệm dịch vụ y tế hiện đại với nhiều tiện ích vượt trội
                         </p>
                     </div>
 
@@ -181,19 +151,21 @@ export const Home = () => {
                 </div>
             </section>
 
+            {/* CTA Section */}
             <section className="py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 to-secondary-600 p-8 md:p-12">
+                        <div className="absolute inset-0 bg-[url('data:image/svg+xml,...')] opacity-10"></div>
                         <div className="relative text-center">
                             <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                                San sang cham soc suc khoe cua ban?
+                                Sẵn sàng chăm sóc sức khỏe của bạn?
                             </h2>
                             <p className="text-white/80 mb-6 max-w-xl mx-auto">
-                                Dang ky ngay hom nay de trai nghiem dich vu dat lich kham hien dai nhat.
+                                Đăng ký ngay hôm nay để trải nghiệm dịch vụ đặt lịch khám hiện đại nhất.
                             </p>
                             <Link to="/register">
                                 <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-primary-600">
-                                    Dang ky mien phi
+                                    Đăng ký miễn phí
                                 </Button>
                             </Link>
                         </div>

@@ -1,0 +1,11 @@
+-- AlterTable
+ALTER TABLE `CareProfile` ADD COLUMN `address` VARCHAR(191) NULL,
+    ADD COLUMN `country` VARCHAR(191) NULL,
+    ADD COLUMN `district` VARCHAR(191) NULL,
+    ADD COLUMN `email` VARCHAR(191) NULL,
+    ADD COLUMN `ethnicity` VARCHAR(191) NULL,
+    ADD COLUMN `nationalId` VARCHAR(191) NULL,
+    ADD COLUMN `occupation` VARCHAR(191) NULL,
+    ADD COLUMN `phone` VARCHAR(191) NULL,
+    ADD COLUMN `province` VARCHAR(191) NULL,
+    ADD COLUMN `ward` VARCHAR(191) NULL;

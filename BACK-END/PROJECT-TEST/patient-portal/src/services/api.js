@@ -49,7 +49,6 @@ export const patientAPI = {
     getProfile: () => api.get('/patient/profile'),
     updateProfile: (data) => api.post('/patient/profile', data),
     getAppointments: () => api.get('/patient/appointments'),
-    getAppointmentResults: () => api.get('/patient/appointments/results'),
 };
 
 // Doctor APIs
@@ -60,16 +59,12 @@ export const doctorAPI = {
     getAvailable: (params) => api.get('/doctors/available', { params }),
 };
 
-export const publicAPI = {
-    getHomeStats: () => api.get('/public/stats'),
-};
-
 // Appointment APIs
 export const appointmentAPI = {
     getAvailableSlots: (doctorId, date) =>
-        api.get('/appointments/available', { params: date ? { doctorId, day: date } : { doctorId } }),
+        api.get('/appointments/available', { params: { doctorId, date } }),
     book: (data) => api.post('/appointments/book', data),
-    cancel: (id, reason) => api.post(`/appointments/${id}/cancel`, reason ? { reason } : {}),
+    cancel: (id) => api.post(`/appointments/${id}/cancel`),
     getCalendar: (params) => api.get('/appointments/calendar', { params }),
 };
 
