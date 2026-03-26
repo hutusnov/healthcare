@@ -26,6 +26,7 @@ COPY --from=builder /app/prisma ./prisma
 
 # Copy application source
 COPY src ./src
+COPY public ./public
 COPY package.json ./
 
 # Health check

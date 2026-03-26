@@ -32,6 +32,8 @@ services:
       NODE_ENV: development
       PORT: 4000
       DATABASE_URL: postgresql://postgres:postgres@db:5432/project_test
+      OCR_SERVICE_URL: http://ocr:8001
+      OCR_API_KEY: dev_ocr_key_change_in_production
       JWT_SECRET: dev_secret_change_in_production_32chars_min
       JWT_EXPIRES: 7d
       FRONTEND_URL: http://localhost:5173
@@ -40,11 +42,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ocr:
+        condition: service_healthy
 
   # Python OCR Microservice
   ocr:
     build:
-      context: ../OCR
+      context: ../../OCR
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:

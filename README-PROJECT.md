@@ -290,14 +290,14 @@ pip install -r requirements.txt
 ### 9.2. Chạy server OCR
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ### 9.3. Test API OCR trên local
 
 Mở trình duyệt truy cập:
 
-- http://localhost:8000/docs
+- http://localhost:8001/docs
 
 Tại đây có thể test các endpoint OCR.
 
@@ -325,20 +325,20 @@ Giải thích:
   - Là `10.0.3.2` nếu chạy trên **máy ảo Genymotion**.  
 - `PORT`:
   - `4000` cho backend **Node.js**.  
-  - `8000` cho server **OCR**.
+  - `8001` cho server **OCR**.
 
 Ví dụ:
 
 ```text
 http://192.168.1.10:4000
-http://192.168.1.10:8000
+http://192.168.1.10:8001
 ```
 
 hoặc trên Genymotion:
 
 ```text
 http://10.0.3.2:4000
-http://10.0.3.2:8000
+http://10.0.3.2:8001
 ```
 
 Đảm bảo các URL trong `ApiConfig` trùng với IP/port backend và OCR bạn đang chạy.
