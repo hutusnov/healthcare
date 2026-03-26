@@ -4,73 +4,6 @@ metadata:
   name: uit-healthcare
 ---
 # ============================
-# PostgreSQL — StatefulSet
-# ============================
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: uit-healthcare
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_DB
-              value: project_test
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: db-secret
-                  key: username
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: db-secret
-                  key: password
-          volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "postgres"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-  volumeClaimTemplates:
-    - metadata:
-        name: pgdata
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: uit-healthcare
-spec:
-  ports:
-    - port: 5432
-  selector:
-    app: postgres
-  clusterIP: None
-
----
-# ============================
 # Backend API — Deployment
 # ============================
 apiVersion: apps/v1
@@ -94,7 +27,8 @@ spec:
     spec:
       containers:
         - name: api
-          image: uit-healthcare-api:latest
+          image: ghcr.io/hutusnov/healthcare-backend:develop-latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 4000
           env:
@@ -102,6 +36,9 @@ spec:
               value: production
             - name: PORT
               value: "4000"
+            # Data layer runs outside K3s on data-core-node.
+            # Create backend-secret.database-url with a value like:
+            # postgresql://project:<password>@192.168.100.83:5432/project_test
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -164,9 +101,12 @@ spec:
       labels:
         app: ocr-service
     spec:
+      nodeSelector:
+        workload-role: ocr
       containers:
         - name: ocr
-          image: uit-healthcare-ocr:latest
+          image: ghcr.io/hutusnov/healthcare-ocr:develop-latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8001
           env:

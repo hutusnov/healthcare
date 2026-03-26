@@ -1,27 +1,27 @@
-name: UIT Healthcare — DevSecOps Pipeline
+name: UIT Healthcare DevSecOps Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: hutusnov
+  BACKEND_IMAGE_NAME: healthcare-backend
+  OCR_IMAGE_NAME: healthcare-ocr
 
 jobs:
-  # ============================================================
-  # Stage 1: SAST — Static Application Security Testing
-  # ============================================================
   sast-scan:
-    name: 🔍 SAST Scan
+    name: SAST Scan
     runs-on: ubuntu-latest
     permissions:
       security-events: write
     steps:
       - uses: actions/checkout@v4
 
-      # npm audit — dependency vulnerability scan
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,7 +35,6 @@ jobs:
         working-directory: BACK-END/PROJECT-TEST/patient-portal
         run: npm audit --audit-level=high --omit=dev || true
 
-      # Semgrep — SAST for code patterns
       - name: Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
         with:
@@ -47,11 +46,8 @@ jobs:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         continue-on-error: true
 
-  # ============================================================
-  # Stage 2: BUILD — Compile and Lint
-  # ============================================================
   backend-build:
-    name: 🔨 Build Backend
+    name: Build Backend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +59,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: BACK-END/PROJECT-TEST/package-lock.json
 
       - name: Install dependencies
@@ -76,7 +72,7 @@ jobs:
         run: node -c src/app.js && node -c src/server.js
 
   patient-portal-build:
-    name: 🔨 Build Patient Portal
+    name: Build Patient Portal
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,7 +84,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: BACK-END/PROJECT-TEST/patient-portal/package-lock.json
 
       - name: Install dependencies
@@ -101,28 +97,59 @@ jobs:
           VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
           VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
 
-  # ============================================================
-  # Stage 3: DOCKER BUILD + IMAGE SCANNING (Trivy)
-  # ============================================================
   docker-security:
-    name: 🐳 Docker Build & Trivy Scan
+    name: Docker Build Push and Trivy Scan
     runs-on: ubuntu-latest
     needs: [sast-scan, backend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'push'
     permissions:
+      contents: read
+      packages: write
       security-events: write
-
     steps:
       - uses: actions/checkout@v4
 
-      # Build Docker images
+      - name: Set image tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "tag=main-latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=develop-latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Backend image
-        run: docker build -t uit-healthcare-api:latest ./BACK-END/PROJECT-TEST
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.tag }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }} \
+            ./BACK-END/PROJECT-TEST
 
       - name: Build OCR image
-        run: docker build -t uit-healthcare-ocr:latest ./OCR
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.OCR_IMAGE_NAME }}:${{ steps.meta.outputs.tag }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.OCR_IMAGE_NAME }}:${{ github.sha }} \
+            ./OCR
 
-      # Trivy — scan Docker images for CVEs
+      - name: Push Backend image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Push OCR image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.OCR_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.OCR_IMAGE_NAME }}:${{ github.sha }}
+
       - name: Install Trivy
         run: |
           sudo apt-get install -y wget
@@ -130,19 +157,17 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update && sudo apt-get install -y trivy
 
-      - name: Trivy Scan — Backend API
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table uit-healthcare-api:latest
+      - name: Trivy Scan Backend API
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
 
-      - name: Trivy Scan — OCR Service
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table uit-healthcare-ocr:latest
+      - name: Trivy Scan OCR Service
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.OCR_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
 
-      # Filesystem scan (for secrets, misconfigurations)
       - name: Trivy Filesystem Scan
         run: trivy fs --severity HIGH,CRITICAL --exit-code 0 --format table .
 
-      # Upload SARIF for GitHub Security tab (optional)
-      - name: Trivy SARIF — Backend
-        run: trivy image --format sarif --output trivy-backend.sarif uit-healthcare-api:latest
+      - name: Trivy SARIF Backend
+        run: trivy image --format sarif --output trivy-backend.sarif ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
         continue-on-error: true
 
       - name: Upload Trivy SARIF
@@ -151,48 +176,14 @@ jobs:
           sarif_file: trivy-backend.sarif
         continue-on-error: true
 
-  # ============================================================
-  # Stage 4: DEPLOY (configure per platform)
-  # ============================================================
   deploy:
-    name: 🚀 Deploy
+    name: Deploy
     runs-on: ubuntu-latest
     needs: [docker-security, patient-portal-build]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
-
     steps:
       - uses: actions/checkout@v4
 
-      # ---- DigitalOcean Deployment ----
-      # Uncomment and configure for your DO setup:
-      #
-      # - name: Install doctl
-      #   uses: digitalocean/action-doctl@v2
-      #   with:
-      #     token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      #
-      # - name: Login to DO Container Registry
-      #   run: doctl registry login
-      #
-      # - name: Tag & Push Backend
-      #   run: |
-      #     docker build -t uit-healthcare-api:latest ./BACK-END/PROJECT-TEST
-      #     docker tag uit-healthcare-api:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:${{ github.sha }}
-      #     docker tag uit-healthcare-api:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:latest
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:${{ github.sha }}
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:latest
-      #
-      # - name: Tag & Push OCR
-      #   run: |
-      #     docker build -t uit-healthcare-ocr:latest ./OCR
-      #     docker tag uit-healthcare-ocr:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:${{ github.sha }}
-      #     docker tag uit-healthcare-ocr:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:latest
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:${{ github.sha }}
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:latest
-      #
-      # - name: Deploy to App Platform
-      #   run: doctl apps create-deployment ${{ secrets.DO_APP_ID }}
-
       - name: Deploy placeholder
-        run: echo "🚀 Deployment stage ready — configure your platform above"
+        run: echo "Deployment stage ready - connect GHCR images to K3s rollout"
