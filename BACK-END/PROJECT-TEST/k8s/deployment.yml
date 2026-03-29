@@ -25,6 +25,8 @@ spec:
         prometheus.io/port: "4000"
         prometheus.io/path: "/metrics"
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: ai-ocr-worker
       containers:
         - name: api
           image: ghcr.io/hutusnov/healthcare-backend:develop-latest
