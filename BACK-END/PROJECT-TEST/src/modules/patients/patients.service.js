@@ -1,11 +1,33 @@
 const prisma = require('../../config/db');
 const UNPAID_EXPIRE_MINUTES = 10;
 const REMINDER_WINDOW_DEFAULT_MINUTES = 5;
+const safeUserSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+};
+const safeDoctorInclude = {
+  doctor: true,
+  select: {
+    id: true,
+    email: true,
+    fullName: true,
+    phone: true,
+    role: true,
+    createdAt: true,
+    updatedAt: true,
+    doctor: true,
+  }
+};
 
 async function getProfile(userId) {
   return prisma.patientProfile.findUnique({
     where: { userId },
-    include: { user: true },
+    include: { user: { select: safeUserSelect } },
   });
 }
 
@@ -67,9 +89,7 @@ async function getAppointments(userId) {
     where: { patientId: userId },
     include: {
       doctor: {
-        include: {
-          doctor: true,
-        },
+        ...safeDoctorInclude,
       },
       payment: true,
       careProfile: true,
@@ -87,9 +107,7 @@ async function getPaidAppointments(userId) {
     },
     include: {
       doctor: {
-        include: {
-          doctor: true,
-        },
+        ...safeDoctorInclude,
       },
       payment: true,
       careProfile: true,
@@ -126,9 +144,7 @@ async function getUpcomingAppointmentReminders(
     },
     include: {
       doctor: {
-        include: {
-          doctor: true,
-        },
+        ...safeDoctorInclude,
       },
       careProfile: true,
       payment: true,
@@ -186,9 +202,7 @@ async function getAppointmentResults(userId) {
     },
     include: {
       doctor: {
-        include: {
-          doctor: true,
-        },
+        ...safeDoctorInclude,
       },
       careProfile: true,
     },
