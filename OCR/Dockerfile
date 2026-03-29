@@ -2,6 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+ENV PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True
 ENV DISABLE_MODEL_SOURCE_CHECK=True
 
 # System dependencies for OpenCV

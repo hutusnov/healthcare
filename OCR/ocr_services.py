@@ -1,5 +1,6 @@
 import os
 
+os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 os.environ.setdefault("DISABLE_MODEL_SOURCE_CHECK", "True")
 
 from paddleocr import TextDetection
