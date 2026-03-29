@@ -2,6 +2,8 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
+ENV DISABLE_MODEL_SOURCE_CHECK=True
+
 # System dependencies for OpenCV
 RUN apt-get update && \
     apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && \
@@ -19,6 +21,7 @@ COPY data ./data
 
 # Security: run as non-root user
 RUN useradd -m -r appuser
+RUN mkdir -p /tmp/ocr-output && chown -R appuser:appuser /app /tmp/ocr-output
 USER appuser
 
 # Health check
