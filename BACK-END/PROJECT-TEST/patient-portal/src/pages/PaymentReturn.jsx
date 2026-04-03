@@ -1,31 +1,11 @@
-import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Card, Button } from '../components/common';
 import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
 
 export const PaymentReturn = () => {
     const [searchParams] = useSearchParams();
-    const [status, setStatus] = useState('loading');
-
-    useEffect(() => {
-        const resultCode = searchParams.get('resultCode');
-        const message = searchParams.get('message');
-
-        // MoMo result codes: 0 = success, other = failed
-        if (resultCode === '0') {
-            setStatus('success');
-        } else {
-            setStatus('failed');
-        }
-    }, [searchParams]);
-
-    if (status === 'loading') {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full"></div>
-            </div>
-        );
-    }
+    const resultCode = searchParams.get('resultCode');
+    const status = resultCode === '0' ? 'success' : 'failed';
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
