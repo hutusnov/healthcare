@@ -20,6 +20,8 @@ spec:
         - name: api
           image: placeholder.local/healthcare-backend:latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 4000
           env:

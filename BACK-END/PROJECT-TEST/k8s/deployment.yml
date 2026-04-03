@@ -31,6 +31,8 @@ spec:
         - name: api
           image: ghcr.io/hutusnov/healthcare-backend:develop-latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 4000
           env:
@@ -40,7 +42,7 @@ spec:
               value: "4000"
             # Data layer runs outside K3s on data-core-node.
             # Create backend-secret.database-url with a value like:
-            # postgresql://project:<password>@192.168.100.83:5432/project_test
+            # <database-url>
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -51,6 +53,36 @@ spec:
                 secretKeyRef:
                   name: backend-secret
                   key: jwt-secret
+            - name: MOMO_PARTNER_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-partner-code
+            - name: MOMO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-access-key
+            - name: MOMO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-secret-key
+            - name: MOMO_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-endpoint
+            - name: MOMO_RETURN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-return-url
+            - name: MOMO_NOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-notify-url
           readinessProbe:
             httpGet:
               path: /api/health
@@ -109,6 +141,8 @@ spec:
         - name: ocr
           image: ghcr.io/hutusnov/healthcare-ocr:develop-latest
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 8001
           env:

@@ -29,15 +29,15 @@ COPY src ./src
 COPY public ./public
 COPY package.json ./
 
+# Switch to non-root user
+USER appuser
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:4000/api/health || exit 1
 
 # Expose port
 EXPOSE 4000
-
-# Switch to non-root user
-USER appuser
 
 # Start
 CMD ["node", "src/server.js"]

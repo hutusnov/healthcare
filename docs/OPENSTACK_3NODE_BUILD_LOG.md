@@ -308,7 +308,7 @@ cd ~/healthcare-data && docker compose exec postgres printenv | grep POSTGRES_
 Kết quả:
 
 - `POSTGRES_USER=project`
-- `POSTGRES_PASSWORD=StrongPass123!`
+- `POSTGRES_PASSWORD=<db-password>`
 - `POSTGRES_DB=project_test`
 
 Đây là thông tin rất quan trọng để đồng bộ secret K3s.
@@ -360,7 +360,7 @@ sudo kubectl create namespace uit-healthcare
 
 ```bash
 sudo kubectl -n uit-healthcare create secret generic backend-secret \
-  --from-literal=database-url='postgresql://project:...@192.168.100.83:5432/project_test' \
+  --from-literal=database-url='<database-url>' \
   --from-literal=jwt-secret='...'
 ```
 
@@ -524,14 +524,14 @@ Nguyên nhân:
 ### 9.2 Mật khẩu local và cloud khác nhau
 
 - local nhớ: `Chophuhai130423@`
-- cloud DB thật: `StrongPass123!`
+- cloud DB thật: `<db-password>`
 
 ### 9.3 Tạo lại `backend-secret`
 
 ```bash
 sudo kubectl -n uit-healthcare delete secret backend-secret
 sudo kubectl -n uit-healthcare create secret generic backend-secret \
-  --from-literal=database-url='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' \
+  --from-literal=database-url='<database-url>' \
   --from-literal=jwt-secret='Chophuhai130423@'
 ```
 
@@ -579,7 +579,7 @@ Sau khi sửa password, log backend báo:
 
 ```bash
 cd ~/PROJECT-TEST && chmod +x node_modules/.bin/prisma
-cd ~/PROJECT-TEST && DATABASE_URL='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' npx prisma migrate deploy
+cd ~/PROJECT-TEST && DATABASE_URL='<database-url>' npx prisma migrate deploy
 ```
 
 Kết quả:
@@ -618,7 +618,7 @@ Kết quả:
 Ban đầu chạy:
 
 ```bash
-DATABASE_URL='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' node prisma/seed.js
+DATABASE_URL='<database-url>' node prisma/seed.js
 ```
 
 Gặp lỗi:
@@ -649,7 +649,7 @@ Nguyên nhân:
 
 ```bash
 cd ~/PROJECT-TEST
-DATABASE_URL='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' node prisma/seed.js
+DATABASE_URL='<database-url>' node prisma/seed.js
 ```
 
 Lệnh chạy thành công, không báo lỗi.
@@ -1053,14 +1053,14 @@ docker compose exec postgres printenv | grep POSTGRES_
 
 ```bash
 cd ~/PROJECT-TEST && chmod +x node_modules/.bin/prisma
-cd ~/PROJECT-TEST && DATABASE_URL='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' npx prisma migrate deploy
+cd ~/PROJECT-TEST && DATABASE_URL='<database-url>' npx prisma migrate deploy
 ```
 
 ### 18.8 Seed lại dữ liệu demo
 
 ```bash
 cd ~/PROJECT-TEST
-DATABASE_URL='postgresql://project:StrongPass123%21@192.168.100.83:5432/project_test' node prisma/seed.js
+DATABASE_URL='<database-url>' node prisma/seed.js
 ```
 
 ---

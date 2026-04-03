@@ -96,7 +96,7 @@ Mở file .env và chỉnh:
 NODE_ENV=development
 PORT=4000
 
-DATABASE_URL="postgresql://project:StrongPass!@localhost:5432/project_test"
+DATABASE_URL="<database-url>"
 
 JWT_SECRET=change_this_secret
 JWT_EXPIRES=7d
@@ -155,6 +155,5 @@ pip install -r requirements.txt
 
 ### 5.2 Chạy server OCR
 python -m uvicorn main:app --host 0.0.0.0 --port 8001
-
 
 
