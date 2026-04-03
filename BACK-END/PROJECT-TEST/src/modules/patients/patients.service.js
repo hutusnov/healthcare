@@ -10,18 +10,15 @@ const safeUserSelect = {
   createdAt: true,
   updatedAt: true,
 };
-const safeDoctorInclude = {
+const safeDoctorSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
   doctor: true,
-  select: {
-    id: true,
-    email: true,
-    fullName: true,
-    phone: true,
-    role: true,
-    createdAt: true,
-    updatedAt: true,
-    doctor: true,
-  }
 };
 
 async function getProfile(userId) {
@@ -89,7 +86,7 @@ async function getAppointments(userId) {
     where: { patientId: userId },
     include: {
       doctor: {
-        ...safeDoctorInclude,
+        select: safeDoctorSelect,
       },
       payment: true,
       careProfile: true,
@@ -107,7 +104,7 @@ async function getPaidAppointments(userId) {
     },
     include: {
       doctor: {
-        ...safeDoctorInclude,
+        select: safeDoctorSelect,
       },
       payment: true,
       careProfile: true,
@@ -144,7 +141,7 @@ async function getUpcomingAppointmentReminders(
     },
     include: {
       doctor: {
-        ...safeDoctorInclude,
+        select: safeDoctorSelect,
       },
       careProfile: true,
       payment: true,
@@ -202,7 +199,7 @@ async function getAppointmentResults(userId) {
     },
     include: {
       doctor: {
-        ...safeDoctorInclude,
+        select: safeDoctorSelect,
       },
       careProfile: true,
     },
