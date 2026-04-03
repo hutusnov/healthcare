@@ -326,7 +326,7 @@ jobs:
     name: Deploy AWS EC2 Backend
     runs-on: ubuntu-latest
     needs: [docker-security]
-    if: github.event_name == 'push' && env.ENABLE_AWS_EC2_DEPLOY == 'true' && env.AWS_BACKEND_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.event_name == 'push' && vars.ENABLE_AWS_EC2_DEPLOY == 'true' && vars.AWS_BACKEND_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
