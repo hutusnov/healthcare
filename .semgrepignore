@@ -1,3 +1,9 @@
 # Android launcher activities must be exported to handle MAIN/LAUNCHER.
 # Exclude this manifest from Semgrep to avoid a persistent false positive.
 APP-ANDROID/app/src/main/AndroidManifest.xml
+
+# Ignore vendored dependencies. Scan first-party source instead of tracked node_modules.
+BACK-END/node_modules/
+BACK-END/PROJECT-TEST/node_modules/
+BACK-END/PROJECT-TEST/admin-panel/node_modules/
+BACK-END/PROJECT-TEST/patient-portal/node_modules/
