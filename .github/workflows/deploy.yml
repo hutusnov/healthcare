@@ -433,3 +433,290 @@ jobs:
           fi
 
           aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+
+  deploy-aws-monitoring:
+    name: Deploy AWS Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-aws-ec2]
+    if: github.event_name == 'push' && vars.ENABLE_AWS_MONITORING_DEPLOY == 'true' && vars.AWS_MONITORING_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy monitoring over SSM
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ vars.AWS_MONITORING_INSTANCE_ID }}
+          BACKEND_TARGET: ${{ vars.MONITORING_BACKEND_TARGET }}
+          OCR_TARGET: ${{ vars.MONITORING_OCR_TARGET }}
+          GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          backend_target = os.environ.get("BACKEND_TARGET") or "host.docker.internal:4000"
+          ocr_target = os.environ.get("OCR_TARGET", "").strip()
+          grafana_user = os.environ.get("GRAFANA_ADMIN_USER") or "admin"
+          grafana_password = os.environ.get("GRAFANA_ADMIN_PASSWORD") or "admin"
+
+          prometheus = f"""global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: backend-aws
+              metrics_path: /metrics
+              static_configs:
+                - targets:
+                    - {backend_target}
+
+            - job_name: prometheus
+              static_configs:
+                - targets:
+                    - localhost:9090
+          """
+
+          if ocr_target:
+            prometheus += f"""
+
+            - job_name: ocr-service
+              metrics_path: /metrics
+              static_configs:
+                - targets:
+                    - {ocr_target}
+            """
+
+          compose = """services:
+            prometheus:
+              image: prom/prometheus:v2.53.0
+              container_name: healthcare-prometheus
+              restart: unless-stopped
+              ports:
+                - "9090:9090"
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                - prometheus_data:/prometheus
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              command:
+                - "--config.file=/etc/prometheus/prometheus.yml"
+                - "--storage.tsdb.retention.time=15d"
+
+            grafana:
+              image: grafana/grafana:11.1.0
+              container_name: healthcare-grafana
+              restart: unless-stopped
+              ports:
+                - "3000:3000"
+              env_file:
+                - .env
+              volumes:
+                - grafana_data:/var/lib/grafana
+                - ./grafana/provisioning:/etc/grafana/provisioning:ro
+              depends_on:
+                - prometheus
+                - loki
+
+            loki:
+              image: grafana/loki:3.1.0
+              container_name: healthcare-loki
+              restart: unless-stopped
+              ports:
+                - "3100:3100"
+              volumes:
+                - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+                - loki_data:/loki
+              command:
+                - "-config.file=/etc/loki/local-config.yaml"
+
+            promtail:
+              image: grafana/promtail:3.1.0
+              container_name: healthcare-promtail
+              restart: unless-stopped
+              volumes:
+                - ./promtail-config.yml:/etc/promtail/config.yml:ro
+                - /var/run/docker.sock:/var/run/docker.sock:ro
+              command:
+                - "-config.file=/etc/promtail/config.yml"
+              depends_on:
+                - loki
+
+          volumes:
+            prometheus_data:
+            grafana_data:
+            loki_data:
+          """
+
+          grafana_env = f"""GF_SECURITY_ADMIN_USER={grafana_user}
+          GF_SECURITY_ADMIN_PASSWORD={grafana_password}
+          GF_USERS_ALLOW_SIGN_UP=false
+          """
+
+          loki = """auth_enabled: false
+
+          server:
+            http_listen_port: 3100
+
+          common:
+            ring:
+              instance_addr: 127.0.0.1
+              kvstore:
+                store: inmemory
+            replication_factor: 1
+            path_prefix: /loki
+
+          schema_config:
+            configs:
+              - from: 2024-01-01
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+
+          storage_config:
+            filesystem:
+              directory: /loki/chunks
+
+          limits_config:
+            reject_old_samples: true
+            reject_old_samples_max_age: 168h
+          """
+
+          promtail = """server:
+            http_listen_port: 9080
+
+          positions:
+            filename: /tmp/positions.yaml
+
+          clients:
+            - url: http://loki:3100/loki/api/v1/push
+
+          scrape_configs:
+            - job_name: docker
+              docker_sd_configs:
+                - host: unix:///var/run/docker.sock
+                  refresh_interval: 5s
+              relabel_configs:
+                - source_labels: ['__meta_docker_container_name']
+                  regex: '/(.*)'
+                  target_label: container
+                - source_labels: ['__meta_docker_container_log_stream']
+                  target_label: logstream
+          """
+
+          datasources = """apiVersion: 1
+
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+              editable: true
+
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki:3100
+              editable: true
+          """
+
+          dashboards = """apiVersion: 1
+
+          providers:
+            - name: healthcare
+              orgId: 1
+              folder: Healthcare
+              type: file
+              disableDeletion: false
+              editable: true
+              options:
+                path: /etc/grafana/provisioning/dashboards/json
+          """
+
+          dashboard_json = """{
+            "annotations": { "list": [] },
+            "editable": true,
+            "fiscalYearStartMonth": 0,
+            "graphTooltip": 0,
+            "id": null,
+            "links": [],
+            "liveNow": false,
+            "panels": [
+              {
+                "datasource": { "type": "prometheus", "uid": "grafana" },
+                "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }, "overrides": [] },
+                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+                "id": 1,
+                "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+                "targets": [{ "expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "requests/sec", "refId": "A" }],
+                "title": "Backend Request Rate",
+                "type": "timeseries"
+              },
+              {
+                "datasource": { "type": "prometheus", "uid": "grafana" },
+                "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "ms" }, "overrides": [] },
+                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+                "id": 2,
+                "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+                "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000", "legendFormat": "p95 latency", "refId": "A" }],
+                "title": "Backend p95 Latency",
+                "type": "timeseries"
+              }
+            ],
+            "refresh": "15s",
+            "schemaVersion": 39,
+            "style": "dark",
+            "tags": ["healthcare", "backend"],
+            "templating": { "list": [] },
+            "time": { "from": "now-6h", "to": "now" },
+            "timepicker": {},
+            "timezone": "browser",
+            "title": "Healthcare Backend Overview",
+            "version": 1,
+            "weekStart": ""
+          }"""
+
+          commands = [
+              "set -e",
+              "sudo mkdir -p /opt/healthcare-monitoring/grafana/provisioning/datasources",
+              "sudo mkdir -p /opt/healthcare-monitoring/grafana/provisioning/dashboards/json",
+              "cat > /opt/healthcare-monitoring/docker-compose.yml <<'EOF'\n" + compose + "\nEOF",
+              "cat > /opt/healthcare-monitoring/.env <<'EOF'\n" + grafana_env + "\nEOF",
+              "cat > /opt/healthcare-monitoring/prometheus.yml <<'EOF'\n" + prometheus + "\nEOF",
+              "cat > /opt/healthcare-monitoring/loki-config.yml <<'EOF'\n" + loki + "\nEOF",
+              "cat > /opt/healthcare-monitoring/promtail-config.yml <<'EOF'\n" + promtail + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/dashboards.yml <<'EOF'\n" + dashboards + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/json/backend-overview.json <<'EOF'\n" + dashboard_json + "\nEOF",
+              "cd /opt/healthcare-monitoring && sudo docker compose down --remove-orphans || true",
+              "cd /opt/healthcare-monitoring && sudo docker compose up -d",
+              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && exit 0; sleep 5; done; exit 1",
+          ]
+
+          Path("commands-monitoring.json").write_text(json.dumps({"commands": commands}))
+          PY
+
+          COMMAND_ID="$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy healthcare monitoring from GitHub Actions" \
+            --parameters file://commands-monitoring.json \
+            --query 'Command.CommandId' \
+            --output text)"
+
+          if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+            exit 1
+          fi
+
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json

@@ -1,0 +1,50 @@
+{
+  "Name": "healthcare-public-edge-acl",
+  "Scope": "CLOUDFRONT",
+  "DefaultAction": {
+    "Allow": {}
+  },
+  "VisibilityConfig": {
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "healthcarePublicEdgeAcl",
+    "SampledRequestsEnabled": true
+  },
+  "Rules": [
+    {
+      "Name": "AWS-AWSManagedRulesCommonRuleSet",
+      "Priority": 1,
+      "OverrideAction": {
+        "None": {}
+      },
+      "Statement": {
+        "ManagedRuleGroupStatement": {
+          "VendorName": "AWS",
+          "Name": "AWSManagedRulesCommonRuleSet"
+        }
+      },
+      "VisibilityConfig": {
+        "CloudWatchMetricsEnabled": true,
+        "MetricName": "commonRuleSet",
+        "SampledRequestsEnabled": true
+      }
+    },
+    {
+      "Name": "AWS-AWSManagedRulesKnownBadInputsRuleSet",
+      "Priority": 2,
+      "OverrideAction": {
+        "None": {}
+      },
+      "Statement": {
+        "ManagedRuleGroupStatement": {
+          "VendorName": "AWS",
+          "Name": "AWSManagedRulesKnownBadInputsRuleSet"
+        }
+      },
+      "VisibilityConfig": {
+        "CloudWatchMetricsEnabled": true,
+        "MetricName": "knownBadInputs",
+        "SampledRequestsEnabled": true
+      }
+    }
+  ]
+}
