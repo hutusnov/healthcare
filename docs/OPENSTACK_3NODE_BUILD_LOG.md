@@ -1622,3 +1622,172 @@ mà còn đang tiến dần sang mức:
 - dễ handover
 - dễ vận hành
 - dễ nâng cấp lên production hơn
+
+---
+
+## 31. Chốt kiến trúc hybrid cuối cùng sau khi chuyển backend sang AWS
+
+Sau giai đoạn dựng và dọn hệ thống, kiến trúc runtime cuối cùng đã được chốt lại theo hướng hybrid:
+
+- backend public chạy trên AWS EC2
+- OCR tiếp tục chạy trên K3s/OpenStack
+- PostgreSQL / Redis / RabbitMQ tiếp tục chạy trên `data-core-node`
+- AWS backend đi vào private network OpenStack thông qua `WireGuard-VPN-Node`
+
+### 31.1 Backend AWS đã được đưa lên đường chạy chính
+
+Đã hoàn tất các bước:
+
+- tạo `NodeJS-Backend` trong private subnet AWS
+- cài Docker và Docker Compose
+- kéo image backend từ GHCR
+- chạy backend bằng container trên EC2
+- tạo ALB public để expose backend
+- cấu hình Target Group health check `/api/health`
+
+Kết quả:
+
+- `GET /api/health`: OK
+- `GET /api/public/stats`: OK
+- login patient: OK
+- protected API: OK
+- tạo payment MoMo: OK
+
+### 31.2 VPN AWS -> OpenStack đã thông
+
+Đã hoàn tất:
+
+- attach IAM role để vào SSM cho `WireGuard-VPN-Node`
+- disable `source/destination check`
+- thêm inbound rule cho `VPN-SG` từ `10.0.0.0/16`
+- xác nhận WireGuard handshake OK
+- xác nhận AWS backend chạm được:
+  - `192.168.100.83:5432`
+  - `192.168.100.83:6379`
+  - `192.168.100.83:5672`
+
+Điều này xác nhận backend AWS vẫn dùng đúng data layer trong private network OpenStack.
+
+### 31.3 Pipeline CI/CD cuối cùng đã chạy xanh
+
+Workflow hiện tại đã chạy thành công end-to-end:
+
+- `SAST Scan`
+- `Validate Backend`
+- `Validate Patient Portal`
+- `Validate OCR Service`
+- `Build, Publish, and Scan Images`
+- `Deploy AWS EC2 Backend`
+
+Đã bổ sung job deploy backend AWS theo hướng:
+
+- GitHub Actions
+- build image
+- push GHCR
+- dùng AWS SSM để deploy lên EC2
+
+Như vậy backend AWS không còn phải deploy tay bằng `docker pull` / `docker run` nữa.
+
+### 31.4 Dọn runtime cũ trên K3s
+
+Để kiến trúc khớp với runtime cuối:
+
+- `backend-api` trên K3s đã scale về `0`
+- pod OCR lỗi cũ đã bị xóa
+- chỉ còn `ocr-service` chạy trong namespace `uit-healthcare`
+
+Lệnh đã dùng:
+
+```bash
+sudo kubectl -n uit-healthcare scale deployment/backend-api --replicas=0
+sudo kubectl -n uit-healthcare delete pod ocr-service-97597b8d6-twmhx
+sudo kubectl -n uit-healthcare get pods -o wide
+```
+
+### 31.5 Dọn access key AWS
+
+Trong lúc bật GitHub Actions deploy qua AWS SSM, đã tạo access key mới cho IAM user `huutu`.
+
+Sau khi pipeline rerun vẫn xanh:
+
+- key cũ đã được deactivate
+- key cũ đã được xóa
+
+Điều này giúp tránh tiếp tục dùng key cũ đã lộ trong lúc debug.
+
+### 31.6 Trạng thái hệ thống cuối cùng
+
+Runtime cuối cùng hiện tại:
+
+- AWS:
+  - `ALB` public làm entrypoint
+  - `NodeJS-Backend` là backend chính
+- OpenStack / K3s:
+  - `ocr-service` chạy trên `ai-ocr-worker`
+- OpenStack data layer:
+  - PostgreSQL
+  - Redis
+  - RabbitMQ
+
+Data flow cuối:
+
+```text
+Client
+-> AWS ALB
+-> AWS EC2 backend
+-> WireGuard-VPN-Node
+-> OpenStack private network
+-> PostgreSQL / Redis / RabbitMQ
+
+Client / app / backend
+-> OCR service on K3s/OpenStack
+```
+
+### 31.7 Những việc có thể làm sau này
+
+Nếu muốn tiến thêm theo hướng production hơn:
+
+- đổi `JWT_SECRET` sang secret mạnh hơn
+- gắn domain và HTTPS cho ALB nếu cần public chính thức
+- cập nhật docs để ghi rõ backend runtime chính đã chuyển sang AWS
+- tiếp tục hardening secrets và monitoring
+
+### 31.8 Phân biệt kiến trúc mục tiêu và kiến trúc thực tế
+
+Để tránh nhầm giữa sơ đồ thiết kế và trạng thái runtime hiện tại, cần chốt rõ:
+
+#### Kiến trúc mục tiêu
+
+Theo sơ đồ mục tiêu ban đầu, hệ thống hướng tới:
+
+- `Route 53`
+- `CloudFront`
+- `WAF`
+- backend đa AZ trong private subnets của AWS
+- monitoring riêng với `Prometheus` và `Grafana`
+- backend public ở AWS
+- OCR và data layer ở OpenStack private network
+
+#### Kiến trúc thực tế đã triển khai
+
+Ở thời điểm hiện tại, những gì đã chạy thật là:
+
+- `ALB` public trên AWS
+- một `NodeJS-Backend` EC2 làm backend chính
+- một `WireGuard-VPN-Node` để nối AWS sang OpenStack
+- `ocr-service` vẫn chạy trên K3s/OpenStack
+- PostgreSQL / Redis / RabbitMQ vẫn ở `data-core-node`
+- GitHub Actions đã tự build và tự deploy backend AWS qua SSM
+
+#### Những phần chưa triển khai
+
+Những phần dưới đây vẫn thuộc target architecture, chưa phải runtime hiện tại:
+
+- `Route 53`
+- `CloudFront`
+- `WAF`
+- `Prometheus`
+- `Grafana`
+- backend AWS theo mô hình HA nhiều EC2 / nhiều AZ
+
+Điều này có nghĩa là hệ thống hiện tại đã hoàn tất phần lõi của kiến trúc hybrid, còn các phần trên là nhóm nâng cao theo hướng production và observability.
