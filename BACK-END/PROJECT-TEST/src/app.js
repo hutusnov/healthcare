@@ -29,7 +29,9 @@ const allowedOrigins = [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     process.env.ADMIN_PANEL_URL || 'http://localhost:5173',
     process.env.PATIENT_PORTAL_URL || 'http://localhost:5174',
-    'https://uithealthcare.id.vn'
+    'https://uithealthcare.id.vn',
+    'https://healthcare.htsnov.com',
+    'https://admin.htsnov.com'
 ];
 
 // ========== SECURITY: Rate Limiting ==========
