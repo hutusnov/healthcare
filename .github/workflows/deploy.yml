@@ -1,6 +1,7 @@
 name: UIT Healthcare Hybrid Delivery Pipeline
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, develop]
     paths-ignore:
