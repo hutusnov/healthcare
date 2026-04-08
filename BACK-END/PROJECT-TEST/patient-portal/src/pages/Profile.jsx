@@ -4,6 +4,7 @@ import { patientAPI, careProfileAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Alert, Loading } from '../components/common';
 import { User, Phone, Mail, MapPin, Calendar, Shield, Edit2, Plus, Trash2 } from 'lucide-react';
 import { getApiData, getListData, normalizeCareProfile } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 const emptyCareProfile = {
     id: null,
@@ -15,7 +16,7 @@ const emptyCareProfile = {
     email: '',
     insuranceNo: '',
     note: '',
-    country: 'Viet Nam',
+    country: 'Việt Nam',
     province: '',
     district: '',
     ward: '',
@@ -23,6 +24,7 @@ const emptyCareProfile = {
 };
 
 export const Profile = () => {
+    const { language } = useUI();
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -39,6 +41,112 @@ export const Profile = () => {
         emergencyContact: '',
     });
     const [careProfileForm, setCareProfileForm] = useState(emptyCareProfile);
+
+        const text = language === 'vi'
+                ? {
+                        loadError: 'Không thể tải hồ sơ.',
+                        savePatientSuccess: 'Cập nhật hồ sơ bệnh nhân thành công.',
+                        savePatientError: 'Không thể cập nhật hồ sơ',
+                        saveCareSuccess: 'Cập nhật hồ sơ chăm sóc thành công.',
+                        createCareSuccess: 'Tạo hồ sơ chăm sóc thành công.',
+                        saveCareError: 'Không thể lưu hồ sơ chăm sóc.',
+                        deleteConfirm: 'Bạn có chắc chắn muốn xóa hồ sơ chăm sóc này?',
+                        deleteSuccess: 'Đã xóa hồ sơ chăm sóc.',
+                        deleteError: 'Không thể xóa hồ sơ chăm sóc.',
+                        loading: 'Đang tải hồ sơ...',
+                        pageTitle: 'Hồ sơ cá nhân',
+                        pageSubtitle: 'Quản lý thông tin bệnh nhân và hồ sơ chăm sóc',
+                        patientInfo: 'Thông tin bệnh nhân',
+                        cancel: 'Hủy',
+                        edit: 'Chỉnh sửa',
+                        dob: 'Ngày sinh',
+                        gender: 'Giới tính',
+                        selectGender: 'Chọn giới tính',
+                        male: 'Nam',
+                        female: 'Nữ',
+                        other: 'Khác',
+                        address: 'Địa chỉ',
+                        insuranceNo: 'Số BHYT',
+                        emergencyContact: 'Liên hệ khẩn cấp',
+                        saveChanges: 'Lưu thay đổi',
+                        fullName: 'Họ và tên',
+                        email: 'Email',
+                        phone: 'Số điện thoại',
+                        notUpdated: 'Chưa cập nhật',
+                        careProfiles: 'Hồ sơ chăm sóc',
+                        createProfile: 'Tạo hồ sơ',
+                        editCare: 'Cập nhật hồ sơ chăm sóc',
+                        createCare: 'Tạo hồ sơ chăm sóc mới',
+                        relation: 'Quan hệ',
+                        country: 'Quốc gia',
+                        province: 'Tỉnh/Thành phố',
+                        district: 'Quận/Huyện',
+                        ward: 'Phường/Xã',
+                        detailedAddress: 'Địa chỉ chi tiết',
+                        note: 'Ghi chú',
+                        saveProfile: 'Lưu hồ sơ',
+                        createCareBtn: 'Tạo hồ sơ',
+                        noCareProfiles: 'Chưa có hồ sơ chăm sóc nào',
+                        noCareProfilesDesc: 'Tạo hồ sơ để đặt lịch khám cho bản thân hoặc người thân.',
+                        self: 'Bản thân',
+                        validationName: 'Vui lòng nhập họ và tên.',
+                        validationRelation: 'Vui lòng nhập quan hệ.',
+                        validationDob: 'Vui lòng chọn ngày sinh.',
+                        validationAddress: 'Vui lòng nhập đầy đủ tỉnh/thành, quận/huyện, phường/xã và địa chỉ.',
+                    }
+                : {
+                        loadError: 'Unable to load profile.',
+                        savePatientSuccess: 'Patient profile updated successfully.',
+                        savePatientError: 'Unable to update profile',
+                        saveCareSuccess: 'Care profile updated successfully.',
+                        createCareSuccess: 'Care profile created successfully.',
+                        saveCareError: 'Unable to save care profile.',
+                        deleteConfirm: 'Are you sure you want to delete this care profile?',
+                        deleteSuccess: 'Care profile deleted.',
+                        deleteError: 'Unable to delete care profile.',
+                        loading: 'Loading profile...',
+                        pageTitle: 'Profile',
+                        pageSubtitle: 'Manage patient information and care profiles',
+                        patientInfo: 'Patient information',
+                        cancel: 'Cancel',
+                        edit: 'Edit',
+                        dob: 'Date of birth',
+                        gender: 'Gender',
+                        selectGender: 'Select gender',
+                        male: 'Male',
+                        female: 'Female',
+                        other: 'Other',
+                        address: 'Address',
+                        insuranceNo: 'Health insurance number',
+                        emergencyContact: 'Emergency contact',
+                        saveChanges: 'Save changes',
+                        fullName: 'Full name',
+                        email: 'Email',
+                        phone: 'Phone number',
+                        notUpdated: 'Not updated',
+                        careProfiles: 'Care profiles',
+                        createProfile: 'Create profile',
+                        editCare: 'Update care profile',
+                        createCare: 'Create new care profile',
+                        relation: 'Relationship',
+                        country: 'Country',
+                        province: 'Province/City',
+                        district: 'District',
+                        ward: 'Ward',
+                        detailedAddress: 'Detailed address',
+                        note: 'Note',
+                        saveProfile: 'Save profile',
+                        createCareBtn: 'Create profile',
+                        noCareProfiles: 'No care profiles yet',
+                        noCareProfilesDesc: 'Create a profile to book appointments for yourself or your family.',
+                        self: 'Self',
+                        validationName: 'Please enter full name.',
+                        validationRelation: 'Please enter relationship.',
+                        validationDob: 'Please select date of birth.',
+                        validationAddress: 'Please provide province/city, district, ward, and detailed address.',
+                    };
+
+        const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
     useEffect(() => {
         loadData();
@@ -63,8 +171,8 @@ export const Profile = () => {
             const careItems = getListData(getApiData(careRes)).map(normalizeCareProfile);
             setCareProfiles(careItems);
         } catch (err) {
-            console.error('Loi khi tai ho so:', err);
-            setError('Khong the tai ho so.');
+            console.error('Lỗi khi tải hồ sơ:', err);
+            setError(text.loadError);
         } finally {
             setLoading(false);
         }
@@ -83,11 +191,11 @@ export const Profile = () => {
                 insuranceNumber: profileForm.insuranceNumber || null,
                 emergencyContact: profileForm.emergencyContact || null,
             });
-            setSuccess('Cap nhat ho so benh nhan thanh cong.');
+            setSuccess(text.savePatientSuccess);
             setEditMode(false);
             await loadData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the cap nhat ho so');
+            setError(err.response?.data?.message || text.savePatientError);
         } finally {
             setSaving(false);
         }
@@ -111,7 +219,7 @@ export const Profile = () => {
             email: careProfile.email || '',
             insuranceNo: careProfile.insuranceNo || '',
             note: careProfile.note || '',
-            country: careProfile.country || 'Viet Nam',
+            country: careProfile.country || 'Việt Nam',
             province: careProfile.province || '',
             district: careProfile.district || '',
             ward: careProfile.ward || '',
@@ -128,11 +236,11 @@ export const Profile = () => {
     };
 
     const validateCareProfile = () => {
-        if (!careProfileForm.fullName.trim()) return 'Vui long nhap ho va ten.';
-        if (!careProfileForm.relation.trim()) return 'Vui long nhap quan he.';
-        if (!careProfileForm.dob) return 'Vui long chon ngay sinh.';
+        if (!careProfileForm.fullName.trim()) return text.validationName;
+        if (!careProfileForm.relation.trim()) return text.validationRelation;
+        if (!careProfileForm.dob) return text.validationDob;
         if (!careProfileForm.province.trim() || !careProfileForm.district.trim() || !careProfileForm.ward.trim() || !careProfileForm.address.trim()) {
-            return 'Vui long nhap day du tinh/thanh, quan/huyen, phuong/xa va dia chi.';
+            return text.validationAddress;
         }
         return '';
     };
@@ -167,22 +275,22 @@ export const Profile = () => {
         try {
             if (careProfileMode === 'edit' && careProfileForm.id) {
                 await careProfileAPI.update(careProfileForm.id, payload);
-                setSuccess('Cap nhat ho so cham soc thanh cong.');
+                setSuccess(text.saveCareSuccess);
             } else {
                 await careProfileAPI.create(payload);
-                setSuccess('Tao ho so cham soc thanh cong.');
+                setSuccess(text.createCareSuccess);
             }
             closeCareProfileForm();
             await loadData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the luu ho so cham soc.');
+            setError(err.response?.data?.message || text.saveCareError);
         } finally {
             setSaving(false);
         }
     };
 
     const handleDeleteCareProfile = async (id) => {
-        if (!confirm('Ban co chac chan muon xoa ho so cham soc nay?')) return;
+        if (!confirm(text.deleteConfirm)) return;
 
         setSaving(true);
         setError('');
@@ -190,24 +298,24 @@ export const Profile = () => {
 
         try {
             await careProfileAPI.delete(id);
-            setSuccess('Da xoa ho so cham soc.');
+            setSuccess(text.deleteSuccess);
             await loadData();
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the xoa ho so cham soc.');
+            setError(err.response?.data?.message || text.deleteError);
         } finally {
             setSaving(false);
         }
     };
 
     if (loading) {
-        return <Loading fullScreen text="Dang tai ho so..." />;
+        return <Loading fullScreen text={text.loading} />;
     }
 
     return (
         <div className="space-y-6 animate-fadeIn">
             <div>
-                <h1 className="text-2xl font-bold text-white">Ho so ca nhan</h1>
-                <p className="text-gray-400 mt-1">Quan ly thong tin benh nhan va ho so cham soc</p>
+                <h1 className="text-2xl font-bold text-white">{text.pageTitle}</h1>
+                <p className="text-gray-400 mt-1">{text.pageSubtitle}</p>
             </div>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
@@ -218,46 +326,46 @@ export const Profile = () => {
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                             <User className="w-5 h-5 text-primary-400" />
-                            Thong tin benh nhan
+                            {text.patientInfo}
                         </CardTitle>
                         <Button variant={editMode ? 'ghost' : 'outline'} size="sm" onClick={() => setEditMode(!editMode)}>
-                            {editMode ? 'Huy' : <><Edit2 className="w-4 h-4 mr-1" /> Chinh sua</>}
+                            {editMode ? text.cancel : <><Edit2 className="w-4 h-4 mr-1" /> {text.edit}</>}
                         </Button>
                     </div>
                 </CardHeader>
                 <CardContent>
                     {editMode ? (
                         <div className="grid md:grid-cols-2 gap-4">
-                            <Input label="Ngay sinh" type="date" value={profileForm.dob} onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })} />
+                            <Input label={text.dob} type="date" value={profileForm.dob} onChange={(e) => setProfileForm({ ...profileForm, dob: e.target.value })} />
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Gioi tinh</label>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">{text.gender}</label>
                                 <select
                                     value={profileForm.gender}
                                     onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
                                     className="w-full bg-dark-300 border border-dark-100 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary-500"
                                 >
-                                    <option value="">Chon gioi tinh</option>
-                                    <option value="Nam">Nam</option>
-                                    <option value="Nu">Nu</option>
-                                    <option value="Khac">Khac</option>
+                                    <option value="">{text.selectGender}</option>
+                                    <option value="Nam">{text.male}</option>
+                                    <option value="Nữ">{text.female}</option>
+                                    <option value="Khác">{text.other}</option>
                                 </select>
                             </div>
-                            <Input label="Dia chi" value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} />
-                            <Input label="So BHYT" value={profileForm.insuranceNumber} onChange={(e) => setProfileForm({ ...profileForm, insuranceNumber: e.target.value })} />
+                            <Input label={text.address} value={profileForm.address} onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })} />
+                            <Input label={text.insuranceNo} value={profileForm.insuranceNumber} onChange={(e) => setProfileForm({ ...profileForm, insuranceNumber: e.target.value })} />
                             <div className="md:col-span-2">
-                                <Input label="Lien he khan cap" value={profileForm.emergencyContact} onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })} />
+                                <Input label={text.emergencyContact} value={profileForm.emergencyContact} onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })} />
                             </div>
                             <div className="md:col-span-2">
-                                <Button onClick={handleSavePatientProfile} loading={saving}>Luu thay doi</Button>
+                                <Button onClick={handleSavePatientProfile} loading={saving}>{text.saveChanges}</Button>
                             </div>
                         </div>
                     ) : (
                         <div className="grid md:grid-cols-2 gap-6">
-                            <div className="flex items-center gap-3"><div className="p-2 bg-primary-600/20 rounded-lg"><User className="w-5 h-5 text-primary-400" /></div><div><p className="text-gray-400 text-sm">Ho va ten</p><p className="text-white font-medium">{user?.fullName || 'Chua cap nhat'}</p></div></div>
-                            <div className="flex items-center gap-3"><div className="p-2 bg-green-600/20 rounded-lg"><Mail className="w-5 h-5 text-green-400" /></div><div><p className="text-gray-400 text-sm">Email</p><p className="text-white font-medium">{user?.email || 'Chua cap nhat'}</p></div></div>
-                            <div className="flex items-center gap-3"><div className="p-2 bg-blue-600/20 rounded-lg"><Phone className="w-5 h-5 text-blue-400" /></div><div><p className="text-gray-400 text-sm">So dien thoai</p><p className="text-white font-medium">{user?.phone || 'Chua cap nhat'}</p></div></div>
-                            <div className="flex items-center gap-3"><div className="p-2 bg-purple-600/20 rounded-lg"><Calendar className="w-5 h-5 text-purple-400" /></div><div><p className="text-gray-400 text-sm">Ngay sinh</p><p className="text-white font-medium">{profileForm.dob ? new Date(profileForm.dob).toLocaleDateString('vi-VN') : 'Chua cap nhat'}</p></div></div>
-                            <div className="flex items-center gap-3 md:col-span-2"><div className="p-2 bg-orange-600/20 rounded-lg"><MapPin className="w-5 h-5 text-orange-400" /></div><div><p className="text-gray-400 text-sm">Dia chi</p><p className="text-white font-medium">{profileForm.address || 'Chua cap nhat'}</p></div></div>
+                            <div className="flex items-center gap-3"><div className="p-2 bg-primary-600/20 rounded-lg"><User className="w-5 h-5 text-primary-400" /></div><div><p className="text-gray-400 text-sm">{text.fullName}</p><p className="text-white font-medium">{user?.fullName || text.notUpdated}</p></div></div>
+                            <div className="flex items-center gap-3"><div className="p-2 bg-green-600/20 rounded-lg"><Mail className="w-5 h-5 text-green-400" /></div><div><p className="text-gray-400 text-sm">{text.email}</p><p className="text-white font-medium">{user?.email || text.notUpdated}</p></div></div>
+                            <div className="flex items-center gap-3"><div className="p-2 bg-blue-600/20 rounded-lg"><Phone className="w-5 h-5 text-blue-400" /></div><div><p className="text-gray-400 text-sm">{text.phone}</p><p className="text-white font-medium">{user?.phone || text.notUpdated}</p></div></div>
+                            <div className="flex items-center gap-3"><div className="p-2 bg-purple-600/20 rounded-lg"><Calendar className="w-5 h-5 text-purple-400" /></div><div><p className="text-gray-400 text-sm">{text.dob}</p><p className="text-white font-medium">{profileForm.dob ? new Date(profileForm.dob).toLocaleDateString(dateLocale) : text.notUpdated}</p></div></div>
+                            <div className="flex items-center gap-3 md:col-span-2"><div className="p-2 bg-orange-600/20 rounded-lg"><MapPin className="w-5 h-5 text-orange-400" /></div><div><p className="text-gray-400 text-sm">{text.address}</p><p className="text-white font-medium">{profileForm.address || text.notUpdated}</p></div></div>
                         </div>
                     )}
                 </CardContent>
@@ -268,11 +376,11 @@ export const Profile = () => {
                     <div className="flex items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                             <Shield className="w-5 h-5 text-secondary-400" />
-                            Ho so cham soc ({careProfiles.length})
+                            {text.careProfiles} ({careProfiles.length})
                         </CardTitle>
                         <Button size="sm" onClick={openCreateCareProfile}>
                             <Plus className="w-4 h-4 mr-1" />
-                            Tao ho so
+                            {text.createProfile}
                         </Button>
                     </div>
                 </CardHeader>
@@ -280,23 +388,23 @@ export const Profile = () => {
                     {careProfileMode !== 'closed' && (
                         <div className="mb-6 p-4 bg-dark-300 rounded-lg border border-dark-100">
                             <h3 className="text-white font-semibold mb-4">
-                                {careProfileMode === 'edit' ? 'Cap nhat ho so cham soc' : 'Tao ho so cham soc moi'}
+                                {careProfileMode === 'edit' ? text.editCare : text.createCare}
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
-                                <Input label="Ho va ten" value={careProfileForm.fullName} onChange={(e) => setCareProfileForm({ ...careProfileForm, fullName: e.target.value })} />
-                                <Input label="Quan he" value={careProfileForm.relation} onChange={(e) => setCareProfileForm({ ...careProfileForm, relation: e.target.value })} />
-                                <Input label="Ngay sinh" type="date" value={careProfileForm.dob} onChange={(e) => setCareProfileForm({ ...careProfileForm, dob: e.target.value })} />
-                                <Input label="Gioi tinh" value={careProfileForm.gender} onChange={(e) => setCareProfileForm({ ...careProfileForm, gender: e.target.value })} />
-                                <Input label="So dien thoai" value={careProfileForm.phone} onChange={(e) => setCareProfileForm({ ...careProfileForm, phone: e.target.value })} />
-                                <Input label="Email" type="email" value={careProfileForm.email} onChange={(e) => setCareProfileForm({ ...careProfileForm, email: e.target.value })} />
-                                <Input label="So BHYT" value={careProfileForm.insuranceNo} onChange={(e) => setCareProfileForm({ ...careProfileForm, insuranceNo: e.target.value })} />
-                                <Input label="Quoc gia" value={careProfileForm.country} onChange={(e) => setCareProfileForm({ ...careProfileForm, country: e.target.value })} />
-                                <Input label="Tinh/Thanh pho" value={careProfileForm.province} onChange={(e) => setCareProfileForm({ ...careProfileForm, province: e.target.value })} />
-                                <Input label="Quan/Huyen" value={careProfileForm.district} onChange={(e) => setCareProfileForm({ ...careProfileForm, district: e.target.value })} />
-                                <Input label="Phuong/Xa" value={careProfileForm.ward} onChange={(e) => setCareProfileForm({ ...careProfileForm, ward: e.target.value })} />
-                                <Input label="Dia chi chi tiet" value={careProfileForm.address} onChange={(e) => setCareProfileForm({ ...careProfileForm, address: e.target.value })} />
+                                <Input label={text.fullName} value={careProfileForm.fullName} onChange={(e) => setCareProfileForm({ ...careProfileForm, fullName: e.target.value })} />
+                                <Input label={text.relation} value={careProfileForm.relation} onChange={(e) => setCareProfileForm({ ...careProfileForm, relation: e.target.value })} />
+                                <Input label={text.dob} type="date" value={careProfileForm.dob} onChange={(e) => setCareProfileForm({ ...careProfileForm, dob: e.target.value })} />
+                                <Input label={text.gender} value={careProfileForm.gender} onChange={(e) => setCareProfileForm({ ...careProfileForm, gender: e.target.value })} />
+                                <Input label={text.phone} value={careProfileForm.phone} onChange={(e) => setCareProfileForm({ ...careProfileForm, phone: e.target.value })} />
+                                <Input label={text.email} type="email" value={careProfileForm.email} onChange={(e) => setCareProfileForm({ ...careProfileForm, email: e.target.value })} />
+                                <Input label={text.insuranceNo} value={careProfileForm.insuranceNo} onChange={(e) => setCareProfileForm({ ...careProfileForm, insuranceNo: e.target.value })} />
+                                <Input label={text.country} value={careProfileForm.country} onChange={(e) => setCareProfileForm({ ...careProfileForm, country: e.target.value })} />
+                                <Input label={text.province} value={careProfileForm.province} onChange={(e) => setCareProfileForm({ ...careProfileForm, province: e.target.value })} />
+                                <Input label={text.district} value={careProfileForm.district} onChange={(e) => setCareProfileForm({ ...careProfileForm, district: e.target.value })} />
+                                <Input label={text.ward} value={careProfileForm.ward} onChange={(e) => setCareProfileForm({ ...careProfileForm, ward: e.target.value })} />
+                                <Input label={text.detailedAddress} value={careProfileForm.address} onChange={(e) => setCareProfileForm({ ...careProfileForm, address: e.target.value })} />
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Ghi chu</label>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">{text.note}</label>
                                     <textarea
                                         value={careProfileForm.note}
                                         onChange={(e) => setCareProfileForm({ ...careProfileForm, note: e.target.value })}
@@ -305,9 +413,9 @@ export const Profile = () => {
                                 </div>
                                 <div className="md:col-span-2 flex gap-3">
                                     <Button onClick={handleSaveCareProfile} loading={saving}>
-                                        {careProfileMode === 'edit' ? 'Luu ho so' : 'Tao ho so'}
+                                        {careProfileMode === 'edit' ? text.saveProfile : text.createCareBtn}
                                     </Button>
-                                    <Button variant="ghost" onClick={closeCareProfileForm}>Huy</Button>
+                                    <Button variant="ghost" onClick={closeCareProfileForm}>{text.cancel}</Button>
                                 </div>
                             </div>
                         </div>
@@ -316,8 +424,8 @@ export const Profile = () => {
                     {careProfiles.length === 0 ? (
                         <div className="text-center py-8">
                             <Shield className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                            <p className="text-gray-400">Chua co ho so cham soc nao</p>
-                            <p className="text-gray-500 text-sm mt-1">Tao ho so de dat lich kham cho ban than hoac nguoi than.</p>
+                            <p className="text-gray-400">{text.noCareProfiles}</p>
+                            <p className="text-gray-500 text-sm mt-1">{text.noCareProfilesDesc}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -330,8 +438,8 @@ export const Profile = () => {
                                         <div>
                                             <p className="text-white font-medium">{careProfile.fullName}</p>
                                             <p className="text-gray-400 text-sm">
-                                                {careProfile.relation || 'Ban than'}
-                                                {careProfile.dob ? ` • ${new Date(careProfile.dob).toLocaleDateString('vi-VN')}` : ''}
+                                                {careProfile.relation || text.self}
+                                                {careProfile.dob ? ` • ${new Date(careProfile.dob).toLocaleDateString(dateLocale)}` : ''}
                                             </p>
                                             <p className="text-gray-500 text-xs">
                                                 {[careProfile.ward, careProfile.district, careProfile.province].filter(Boolean).join(', ')}

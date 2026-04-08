@@ -16,36 +16,37 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { getApiData } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 const specialties = [
-    { name: 'TIM M?CH', icon: Heart, color: 'from-red-500 to-pink-500' },
-    { name: 'TH?N KINH', icon: Brain, color: 'from-purple-500 to-indigo-500' },
-    { name: 'M?T', icon: Eye, color: 'from-blue-500 to-cyan-500' },
-    { name: 'B?NH L? C?T S?NG', icon: Bone, color: 'from-orange-500 to-amber-500' },
-    { name: 'HUY?T H?C', icon: Baby, color: 'from-green-500 to-emerald-500' },
-    { name: 'KHAM VA TU VAN DINH DUONG', icon: Stethoscope, color: 'from-primary-500 to-secondary-500' },
+    { name: 'TIM MẠCH', icon: Heart, color: 'from-red-500 to-pink-500' },
+    { name: 'THẦN KINH', icon: Brain, color: 'from-purple-500 to-indigo-500' },
+    { name: 'MẮT', icon: Eye, color: 'from-blue-500 to-cyan-500' },
+    { name: 'BỆNH LÝ CỘT SỐNG', icon: Bone, color: 'from-orange-500 to-amber-500' },
+    { name: 'HUYẾT HỌC', icon: Baby, color: 'from-green-500 to-emerald-500' },
+    { name: 'KHÁM VÀ TƯ VẤN DINH DƯỠNG', icon: Stethoscope, color: 'from-primary-500 to-secondary-500' },
 ];
 
 const features = [
     {
         icon: Calendar,
-        title: 'Dat lich de dang',
-        description: 'Chon bac si va lich bac si phu hop chi trong vai buoc don gian.',
+        title: 'Đặt lịch dễ dàng',
+        description: 'Chọn bác sĩ và lịch bác sĩ phù hợp chỉ trong vài bước đơn giản.',
     },
     {
         icon: Shield,
-        title: 'Bao mat thong tin',
-        description: 'Thong tin y te cua ban duoc bao ve an toan trong suot qua trinh su dung.',
+        title: 'Bảo mật thông tin',
+        description: 'Thông tin y tế của bạn được bảo vệ an toàn trong suốt quá trình sử dụng.',
     },
     {
         icon: Clock,
-        title: 'Tiet kiem thoi gian',
-        description: 'Khong can xep hang, den dung lich hen va chu dong theo doi ho so kham.',
+        title: 'Tiết kiệm thời gian',
+        description: 'Không cần xếp hàng, đến đúng lịch hẹn và chủ động theo dõi hồ sơ khám.',
     },
     {
         icon: Star,
-        title: 'Bac si chat luong',
-        description: 'Doi ngu bac si chuyen khoa voi du lieu va lich hen duoc cap nhat thuc te.',
+        title: 'Bác sĩ chất lượng',
+        description: 'Đội ngũ bác sĩ chuyên khoa với dữ liệu và lịch hẹn được cập nhật thực tế.',
     },
 ];
 
@@ -59,7 +60,46 @@ const defaultStats = {
 const formatCount = (value) => Number(value || 0).toLocaleString('vi-VN');
 
 export const Home = () => {
+        const { language } = useUI();
     const [stats, setStats] = useState(defaultStats);
+
+        const text = language === 'vi'
+                ? {
+                        line1: 'Chăm sóc sức khỏe',
+                        line2: 'thông minh và tiện lợi',
+                        subtitle: 'Đặt lịch khám với các bác sĩ chuyên khoa hàng đầu. Theo dõi sức khỏe và quản lý lịch hẹn mọi lúc, mọi nơi.',
+                        ctaStart: 'Bắt đầu ngay',
+                        ctaDoctors: 'Xem danh sách bác sĩ',
+                        statDoctors: 'Bác sĩ',
+                        statPatients: 'Bệnh nhân',
+                        statAppointments: 'Lịch khám',
+                        statRating: 'Đánh giá',
+                        specialtiesTitle: 'Chuyên khoa',
+                        specialtiesDesc: 'Đa dạng các chuyên khoa đáp ứng mọi nhu cầu khám chữa bệnh của bạn',
+                        whyTitle: 'Tại sao chọn chúng tôi?',
+                        whyDesc: 'Trải nghiệm dịch vụ y tế hiện đại với nhiều tiện ích vượt trội',
+                        finalTitle: 'Sẵn sàng chăm sóc sức khỏe của bạn?',
+                        finalDesc: 'Đăng ký ngay hôm nay để trải nghiệm dịch vụ đặt lịch khám hiện đại nhất.',
+                        finalBtn: 'Đăng ký miễn phí',
+                    }
+                : {
+                        line1: 'Smart Healthcare',
+                        line2: 'made simple',
+                        subtitle: 'Book appointments with top specialists. Track your health and manage schedules anywhere, anytime.',
+                        ctaStart: 'Get Started',
+                        ctaDoctors: 'Browse Doctors',
+                        statDoctors: 'Doctors',
+                        statPatients: 'Patients',
+                        statAppointments: 'Appointments',
+                        statRating: 'Rating',
+                        specialtiesTitle: 'Specialties',
+                        specialtiesDesc: 'A wide range of specialties for your healthcare needs',
+                        whyTitle: 'Why choose us?',
+                        whyDesc: 'Experience modern healthcare with practical features',
+                        finalTitle: 'Ready to take care of your health?',
+                        finalDesc: 'Sign up today to experience modern appointment booking.',
+                        finalBtn: 'Sign Up Free',
+                    };
 
     useEffect(() => {
         const loadStats = async () => {
@@ -73,7 +113,7 @@ export const Home = () => {
                     averageRating: Number(payload?.averageRating || 0),
                 });
             } catch (error) {
-                console.error('Khong the tai thong ke trang chu:', error);
+                console.error('Không thể tải thống kê trang chủ:', error);
             }
         };
 
@@ -81,10 +121,10 @@ export const Home = () => {
     }, []);
 
     const statCards = [
-        { value: formatCount(stats.doctorCount), label: 'Bac si' },
-        { value: formatCount(stats.patientCount), label: 'Benh nhan' },
-        { value: formatCount(stats.appointmentCount), label: 'Lich kham' },
-        { value: stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '0.0', label: 'Danh gia' },
+        { value: formatCount(stats.doctorCount), label: text.statDoctors },
+        { value: formatCount(stats.patientCount), label: text.statPatients },
+        { value: formatCount(stats.appointmentCount), label: text.statAppointments },
+        { value: stats.averageRating > 0 ? stats.averageRating.toFixed(1) : '0.0', label: text.statRating },
     ];
 
     return (
@@ -98,24 +138,23 @@ export const Home = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
                     <div className="text-center max-w-3xl mx-auto">
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-                            <span className="gradient-text">Cham soc suc khoe</span>
+                            <span className="gradient-text">{text.line1}</span>
                             <br />
-                            <span className="text-white">thong minh va tien loi</span>
+                            <span className="text-white">{text.line2}</span>
                         </h1>
                         <p className="text-gray-400 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
-                            Dat lich kham voi cac bac si chuyen khoa hang dau.
-                            Theo doi suc khoe va quan ly lich hen moi luc, moi noi.
+                            {text.subtitle}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link to="/register">
                                 <Button size="xl" className="group">
-                                    Bat dau ngay
+                                    {text.ctaStart}
                                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>
                             <Link to="/doctors">
                                 <Button variant="outline" size="xl">
-                                    Xem danh sach bac si
+                                    {text.ctaDoctors}
                                 </Button>
                             </Link>
                         </div>
@@ -135,9 +174,9 @@ export const Home = () => {
             <section className="py-16 bg-dark-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-white mb-4">Chuyen khoa</h2>
+                        <h2 className="text-3xl font-bold text-white mb-4">{text.specialtiesTitle}</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Da dang cac chuyen khoa dap ung moi nhu cau kham chua benh cua ban
+                            {text.specialtiesDesc}
                         </p>
                     </div>
 
@@ -161,9 +200,9 @@ export const Home = () => {
             <section className="py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-white mb-4">Tai sao chon chung toi?</h2>
+                        <h2 className="text-3xl font-bold text-white mb-4">{text.whyTitle}</h2>
                         <p className="text-gray-400 max-w-2xl mx-auto">
-                            Trai nghiem dich vu y te hien dai voi nhieu tien ich vuot troi
+                            {text.whyDesc}
                         </p>
                     </div>
 
@@ -186,14 +225,14 @@ export const Home = () => {
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 to-secondary-600 p-8 md:p-12">
                         <div className="relative text-center">
                             <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                                San sang cham soc suc khoe cua ban?
+                                {text.finalTitle}
                             </h2>
                             <p className="text-white/80 mb-6 max-w-xl mx-auto">
-                                Dang ky ngay hom nay de trai nghiem dich vu dat lich kham hien dai nhat.
+                                {text.finalDesc}
                             </p>
                             <Link to="/register">
                                 <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-primary-600">
-                                    Dang ky mien phi
+                                    {text.finalBtn}
                                 </Button>
                             </Link>
                         </div>

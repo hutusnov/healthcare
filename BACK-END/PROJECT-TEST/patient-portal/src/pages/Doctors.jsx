@@ -4,9 +4,39 @@ import { doctorAPI } from '../services/api';
 import { Card, Loading, Input } from '../components/common';
 import { Search, MapPin, Star, Clock, ChevronRight } from 'lucide-react';
 import { getApiData, getDoctorFee, getListData, normalizeDoctor } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 export const Doctors = () => {
+    const { language } = useUI();
     const [searchParams, setSearchParams] = useSearchParams();
+            const text = language === 'vi'
+                    ? {
+                            title: 'Tìm bác sĩ',
+                            subtitle: 'Tìm kiếm và đặt lịch khám với các bác sĩ chuyên khoa',
+                            placeholder: 'Tìm theo tên bác sĩ...',
+                            all: 'Tất cả',
+                            found: 'Tìm thấy',
+                            doctor: 'bác sĩ',
+                            emptyTitle: 'Không tìm thấy bác sĩ',
+                            emptyDesc: 'Thử với từ khóa khác hoặc đổi chuyên khoa.',
+                            years: 'năm KN',
+                            detail: 'Xem chi tiết',
+                            loading: 'Đang tải danh sách bác sĩ...',
+                        }
+                    : {
+                            title: 'Find doctors',
+                            subtitle: 'Search and book appointments with specialists',
+                            placeholder: 'Search by doctor name...',
+                            all: 'All',
+                            found: 'Found',
+                            doctor: 'doctors',
+                            emptyTitle: 'No doctors found',
+                            emptyDesc: 'Try another keyword or specialty.',
+                            years: 'years exp',
+                            detail: 'View details',
+                            loading: 'Loading doctors...',
+                        };
+
     const [doctors, setDoctors] = useState([]);
     const [specialties, setSpecialties] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,7 +61,7 @@ export const Doctors = () => {
             const data = getListData(getApiData(specialtiesRes));
             setSpecialties(data);
         } catch (err) {
-            console.error('Loi khi tai chuyen khoa:', err);
+            console.error('Lỗi khi tải chuyên khoa:', err);
         }
     };
 
@@ -48,7 +78,7 @@ export const Doctors = () => {
             const data = getListData(getApiData(response)).map(normalizeDoctor);
             setDoctors(data);
         } catch (err) {
-            console.error('Loi khi tim kiem bac si:', err);
+            console.error('Lỗi khi tìm kiếm bác sĩ:', err);
             setDoctors([]);
         } finally {
             setLoading(false);
@@ -59,8 +89,8 @@ export const Doctors = () => {
         <div className="min-h-screen py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-2">Tim bac si</h1>
-                    <p className="text-gray-400">Tim kiem va dat lich kham voi cac bac si chuyen khoa</p>
+                    <h1 className="text-3xl font-bold text-white mb-2">{text.title}</h1>
+                    <p className="text-gray-400">{text.subtitle}</p>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-4 mb-8">
@@ -68,7 +98,7 @@ export const Doctors = () => {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                         <Input
                             type="text"
-                            placeholder="Tim theo ten bac si..."
+                            placeholder={text.placeholder}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10"
@@ -82,7 +112,7 @@ export const Doctors = () => {
                                 : 'bg-dark-200 text-gray-400 hover:bg-dark-100'
                                 }`}
                         >
-                            Tat ca
+                            {text.all}
                         </button>
                         {specialties.map((spec) => (
                             <button
@@ -100,18 +130,18 @@ export const Doctors = () => {
                 </div>
 
                 {loading ? (
-                    <Loading fullScreen text="Dang tai danh sach bac si..." />
+                    <Loading fullScreen text={text.loading} />
                 ) : (
                     <>
                         <p className="text-gray-400 mb-4">
-                            Tim thay <span className="text-white font-medium">{doctors.length}</span> bac si
+                            {text.found} <span className="text-white font-medium">{doctors.length}</span> {text.doctor}
                         </p>
 
                         {doctors.length === 0 ? (
                             <div className="text-center py-16">
                                 <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                                <h3 className="text-white text-xl font-medium mb-2">Khong tim thay bac si</h3>
-                                <p className="text-gray-400">Thu voi tu khoa khac hoac doi chuyen khoa.</p>
+                                <h3 className="text-white text-xl font-medium mb-2">{text.emptyTitle}</h3>
+                                <p className="text-gray-400">{text.emptyDesc}</p>
                             </div>
                         ) : (
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -131,7 +161,7 @@ export const Doctors = () => {
                                                         <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                                                         <span>{doctor.rating || '0.0'}</span>
                                                         <span className="mx-1">•</span>
-                                                        <span>{doctor.yearsExperience || 0} nam KN</span>
+                                                        <span>{doctor.yearsExperience || 0} {text.years}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -143,12 +173,12 @@ export const Doctors = () => {
                                                 </div>
                                                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                                                     <Clock className="w-4 h-4" />
-                                                    <span>{getDoctorFee(doctor).toLocaleString('vi-VN')}d</span>
+                                                    <span>{getDoctorFee(doctor).toLocaleString('vi-VN')}đ</span>
                                                 </div>
                                             </div>
 
                                             <div className="mt-4 pt-4 border-t border-dark-100 flex items-center justify-between">
-                                                <span className="text-primary-400 text-sm">Xem chi tiet</span>
+                                                <span className="text-primary-400 text-sm">{text.detail}</span>
                                                 <ChevronRight className="w-4 h-4 text-primary-400 group-hover:translate-x-1 transition-transform" />
                                             </div>
                                         </Card>

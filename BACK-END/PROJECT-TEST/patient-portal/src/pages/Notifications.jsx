@@ -4,9 +4,12 @@ import { Card, Loading, Alert } from '../components/common';
 import { Bell, Calendar, CreditCard, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { getApiData, getListData, normalizeNotification } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 export const Notifications = () => {
+    const { language } = useUI();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -15,15 +18,35 @@ export const Notifications = () => {
         loadNotifications();
     }, []);
 
-    const loadNotifications = async () => {
-        try {
+            console.error('Lỗi khi tải thông báo:', err);
+            setError(language === 'vi' ? 'Không thể tải thông báo' : 'Unable to load notifications');
             const response = await notificationAPI.getAll();
             const data = getListData(getApiData(response)).map(normalizeNotification);
             setNotifications(data);
         } catch (err) {
+
+    const text = language === 'vi'
+        ? {
+            loading: 'Đang tải thông báo...',
+            title: 'Thông báo',
+            subtitle: 'Cập nhật mới nhất về lịch hẹn và thanh toán',
+            emptyTitle: 'Chưa có thông báo',
+            emptyDesc: 'Bạn sẽ nhận được thông báo khi có cập nhật mới',
+            defaultTitle: 'Thông báo',
+          }
+        : {
+            loading: 'Loading notifications...',
+            title: 'Notifications',
+            subtitle: 'Latest updates about appointments and payments',
+            emptyTitle: 'No notifications yet',
+            emptyDesc: 'You will receive notifications when there are new updates',
+            defaultTitle: 'Notification',
+          };
+
+    const locale = language === 'vi' ? vi : enUS;
             console.error('Loi khi tai thong bao:', err);
             setError('Khong the tai thong bao');
-        } finally {
+        return <Loading fullScreen text={text.loading} />;
             setLoading(false);
         }
     };
@@ -61,8 +84,8 @@ export const Notifications = () => {
     return (
         <div className="space-y-6 animate-fadeIn">
             <div>
-                <h1 className="text-2xl font-bold text-white">Thong bao</h1>
-                <p className="text-gray-400 mt-1">Cap nhat moi nhat ve lich hen va thanh toan</p>
+                <h1 className="text-2xl font-bold text-white">{text.title}</h1>
+                <p className="text-gray-400 mt-1">{text.subtitle}</p>
             </div>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
@@ -71,8 +94,8 @@ export const Notifications = () => {
                 <Card>
                     <div className="text-center py-12">
                         <Bell className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                        <h3 className="text-white text-xl font-medium mb-2">Chua co thong bao</h3>
-                        <p className="text-gray-400">Ban se nhan duoc thong bao khi co cap nhat moi</p>
+                        <h3 className="text-white text-xl font-medium mb-2">{text.emptyTitle}</h3>
+                        <p className="text-gray-400">{text.emptyDesc}</p>
                     </div>
                 </Card>
             ) : (
@@ -90,11 +113,11 @@ export const Notifications = () => {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-start justify-between gap-2">
                                             <h3 className={`font-medium ${!notification.isRead ? 'text-white' : 'text-gray-300'}`}>
-                                                {notification.title || 'Thong bao'}
+                                                {notification.title || text.defaultTitle}
                                             </h3>
                                             <span className="text-xs text-gray-500 flex-shrink-0">
                                                 {notification.createdAt
-                                                    ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale: vi })
+                                                    ? formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true, locale })
                                                     : ''}
                                             </span>
                                         </div>

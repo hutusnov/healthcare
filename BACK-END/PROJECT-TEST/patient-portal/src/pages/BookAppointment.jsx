@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, Check, Shield } from 'lucide-react';
 import { doctorAPI, appointmentAPI, careProfileAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Loading } from '../components/common';
@@ -13,6 +14,7 @@ import {
     normalizeDoctor,
     normalizeSlot,
 } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 const STEP_PROFILE = 1;
 const STEP_DOCTOR = 2;
@@ -20,8 +22,88 @@ const STEP_SLOT = 3;
 const STEP_CONFIRM = 4;
 
 export const BookAppointment = () => {
+    const { language } = useUI();
     const location = useLocation();
     const navigate = useNavigate();
+        const text = language === 'vi'
+                ? {
+                        stepProfile: 'Chọn hồ sơ khám',
+                        stepDoctor: 'Chọn bác sĩ',
+                        stepSlot: 'Chọn lịch bác sĩ',
+                        stepConfirm: 'Xác nhận',
+                        loadError: 'Không thể tải dữ liệu. Vui lòng thử lại.',
+                        selectProfileFirst: 'Vui lòng chọn hồ sơ khám trước khi tiếp tục.',
+                        submitMissing: 'Vui lòng chọn hồ sơ khám, lịch bác sĩ và nhập dịch vụ khám.',
+                        bookingSuccess: 'Đặt lịch thành công. Đang chuyển đến trang thanh toán...',
+                        bookingFailed: 'Không thể đặt lịch. Vui lòng thử lại.',
+                        loading: 'Đang tải...',
+                        title: 'Đặt lịch khám',
+                        subtitle: 'Chọn hồ sơ khám, bác sĩ và lịch bác sĩ phù hợp',
+                        selectProfile: 'Chọn hồ sơ khám',
+                        profileRequired: 'Bạn cần tạo hồ sơ chăm sóc trước khi đặt lịch theo flow backend.',
+                        openProfilePage: 'Mở trang hồ sơ chăm sóc',
+                        self: 'Bản thân',
+                        continue: 'Tiếp tục',
+                        manageProfiles: 'Tạo / Sửa hồ sơ chăm sóc',
+                        selectDoctorAndSpecialty: 'Chọn chuyên khoa và bác sĩ',
+                        back: 'Quay lại',
+                        activeProfile: 'Hồ sơ đang chọn',
+                        specialty: 'Chuyên khoa',
+                        all: 'Tất cả',
+                        selectSlot: 'Chọn lịch bác sĩ',
+                        profileLabel: 'Hồ sơ khám',
+                        availableSlot: 'Lịch bác sĩ còn trống',
+                        noSlot: 'Bác sĩ hiện chưa có lịch trống để đặt.',
+                        confirmBooking: 'Xác nhận đặt lịch',
+                        doctor: 'Bác sĩ',
+                        date: 'Ngày khám',
+                        schedule: 'Lịch bác sĩ',
+                        service: 'Dịch vụ khám',
+                        servicePlaceholder: 'Ví dụ: Khám tổng quát, Tư vấn tim mạch',
+                        submit: 'Xác nhận đặt lịch',
+                        doctorLabel: 'Bác sĩ',
+                    }
+                : {
+                        stepProfile: 'Select profile',
+                        stepDoctor: 'Select doctor',
+                        stepSlot: 'Select schedule',
+                        stepConfirm: 'Confirm',
+                        loadError: 'Unable to load data. Please try again.',
+                        selectProfileFirst: 'Please select a care profile before continuing.',
+                        submitMissing: 'Please select profile, schedule, and enter service.',
+                        bookingSuccess: 'Booking successful. Redirecting to payment...',
+                        bookingFailed: 'Unable to book appointment. Please try again.',
+                        loading: 'Loading...',
+                        title: 'Book appointment',
+                        subtitle: 'Choose profile, doctor, and schedule that fits you',
+                        selectProfile: 'Select profile',
+                        profileRequired: 'You need to create a care profile before booking an appointment.',
+                        openProfilePage: 'Open care profile page',
+                        self: 'Self',
+                        continue: 'Continue',
+                        manageProfiles: 'Create / Edit care profiles',
+                        selectDoctorAndSpecialty: 'Choose specialty and doctor',
+                        back: 'Back',
+                        activeProfile: 'Selected profile',
+                        specialty: 'Specialty',
+                        all: 'All',
+                        selectSlot: 'Choose doctor schedule',
+                        profileLabel: 'Care profile',
+                        availableSlot: 'Available doctor schedules',
+                        noSlot: 'This doctor has no available schedule at the moment.',
+                        confirmBooking: 'Confirm appointment',
+                        doctor: 'Doctor',
+                        date: 'Date',
+                        schedule: 'Schedule',
+                        service: 'Service',
+                        servicePlaceholder: 'Example: General checkup, Cardiology consult',
+                        submit: 'Confirm booking',
+                        doctorLabel: 'Doctor',
+                    };
+
+        const locale = language === 'vi' ? vi : enUS;
+        const currency = (amount) => `${Number(amount || 0).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}đ`;
+
 
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -46,10 +128,10 @@ export const BookAppointment = () => {
         ? doctors.filter((doctor) => doctor.specialty === selectedSpecialty)
         : doctors;
     const steps = [
-        { num: STEP_PROFILE, label: 'Chon ho so kham' },
-        { num: STEP_DOCTOR, label: 'Chon bac si' },
-        { num: STEP_SLOT, label: 'Chon lich bac si' },
-        { num: STEP_CONFIRM, label: 'Xac nhan' },
+        { num: STEP_PROFILE, label: text.stepProfile },
+        { num: STEP_DOCTOR, label: text.stepDoctor },
+        { num: STEP_SLOT, label: text.stepSlot },
+        { num: STEP_CONFIRM, label: text.stepConfirm },
     ];
 
     useEffect(() => {
@@ -87,8 +169,8 @@ export const BookAppointment = () => {
                 }
             }
         } catch (err) {
-            console.error('Loi khi tai du lieu:', err);
-            setError('Khong the tai du lieu. Vui long thu lai.');
+            console.error('Lỗi khi tải dữ liệu:', err);
+            setError(text.loadError);
         } finally {
             setLoading(false);
         }
@@ -107,14 +189,14 @@ export const BookAppointment = () => {
                 }
             }
         } catch (err) {
-            console.error('Loi khi tai lich trong:', err);
+            console.error('Lỗi khi tải lịch trống:', err);
             setAvailableSlots([]);
         }
     };
 
     const goToDoctorStep = () => {
         if (!selectedCareProfile) {
-            setError('Vui long chon ho so kham truoc khi tiep tuc.');
+            setError(text.selectProfileFirst);
             return;
         }
 
@@ -136,7 +218,7 @@ export const BookAppointment = () => {
 
     const handleSubmit = async () => {
         if (!selectedCareProfile || !selectedDoctor || !selectedSlot || !service.trim()) {
-            setError('Vui long chon ho so kham, lich bac si va nhap dich vu kham.');
+            setError(text.submitMissing);
             return;
         }
 
@@ -151,27 +233,27 @@ export const BookAppointment = () => {
             });
 
             const createdAppointment = getApiData(response);
-            setSuccess('Dat lich thanh cong. Dang chuyen den trang thanh toan...');
+            setSuccess(text.bookingSuccess);
 
             setTimeout(() => {
                 navigate(`/dashboard/payment/${createdAppointment.id}`);
             }, 800);
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the dat lich. Vui long thu lai.');
+            setError(err.response?.data?.message || text.bookingFailed);
         } finally {
             setSubmitting(false);
         }
     };
 
     if (loading) {
-        return <Loading fullScreen text="Dang tai..." />;
+        return <Loading fullScreen text={text.loading} />;
     }
 
     return (
         <div className="space-y-6 animate-fadeIn">
             <div>
-                <h1 className="text-2xl font-bold text-white">Dat lich kham</h1>
-                <p className="text-gray-400 mt-1">Chon ho so kham, bac si va lich bac si phu hop</p>
+                <h1 className="text-2xl font-bold text-white">{text.title}</h1>
+                <p className="text-gray-400 mt-1">{text.subtitle}</p>
             </div>
 
             <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -199,17 +281,17 @@ export const BookAppointment = () => {
             {step === STEP_PROFILE && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Chon ho so kham</CardTitle>
+                        <CardTitle>{text.selectProfile}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         {careProfiles.length === 0 ? (
                             <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                                 <p className="text-yellow-300 text-sm">
-                                    Ban can tao ho so cham soc truoc khi dat lich theo flow backend.
+                                    {text.profileRequired}
                                 </p>
                                 <div className="mt-3">
                                     <Button onClick={() => navigate('/dashboard/profile')}>
-                                        Mo trang ho so cham soc
+                                        {text.openProfilePage}
                                     </Button>
                                 </div>
                             </div>
@@ -231,8 +313,8 @@ export const BookAppointment = () => {
                                         <div>
                                             <p className="text-white font-medium">{careProfile.fullName}</p>
                                             <p className="text-gray-400 text-sm">
-                                                {careProfile.relation || 'Ban than'}
-                                                {careProfile.dob ? ` • ${new Date(careProfile.dob).toLocaleDateString('vi-VN')}` : ''}
+                                                {careProfile.relation || text.self}
+                                                {careProfile.dob ? ` • ${new Date(careProfile.dob).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')}` : ''}
                                             </p>
                                         </div>
                                     </div>
@@ -240,9 +322,9 @@ export const BookAppointment = () => {
                             ))}
 
                             <div className="pt-2 flex gap-3 flex-wrap">
-                                <Button onClick={goToDoctorStep}>Tiep tuc</Button>
+                                <Button onClick={goToDoctorStep}>{text.continue}</Button>
                                 <Button variant="outline" onClick={() => navigate('/dashboard/profile')}>
-                                    Tao / Sua ho so cham soc
+                                    {text.manageProfiles}
                                 </Button>
                             </div>
                             </div>
@@ -255,23 +337,23 @@ export const BookAppointment = () => {
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <CardTitle>Chon chuyen khoa va bac si</CardTitle>
+                            <CardTitle>{text.selectDoctorAndSpecialty}</CardTitle>
                             <Button variant="ghost" size="sm" onClick={() => setStep(STEP_PROFILE)}>
-                                <ChevronLeft className="w-4 h-4 mr-1" /> Quay lai
+                                <ChevronLeft className="w-4 h-4 mr-1" /> {text.back}
                             </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
                         {selectedCareProfile && (
                             <div className="mb-6 p-4 bg-dark-300 rounded-lg">
-                                <p className="text-gray-400 text-sm">Ho so dang chon</p>
+                                <p className="text-gray-400 text-sm">{text.activeProfile}</p>
                                 <p className="text-white font-medium">{selectedCareProfile.fullName}</p>
-                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || 'Ban than'}</p>
+                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || text.self}</p>
                             </div>
                         )}
 
                         <div className="mb-6">
-                            <p className="text-sm text-gray-400 mb-2">Chuyen khoa</p>
+                            <p className="text-sm text-gray-400 mb-2">{text.specialty}</p>
                             <div className="flex gap-2 flex-wrap">
                                 <button
                                     onClick={() => setSelectedSpecialty('')}
@@ -280,7 +362,7 @@ export const BookAppointment = () => {
                                         : 'bg-dark-300 text-gray-400 hover:bg-dark-100'
                                         }`}
                                 >
-                                    Tat ca
+                                    {text.all}
                                 </button>
                                 {specialties.map((spec) => (
                                     <button
@@ -314,7 +396,7 @@ export const BookAppointment = () => {
                                         <div>
                                             <p className="text-white font-medium">BS. {doctor.fullName}</p>
                                             <p className="text-primary-400 text-sm">{doctor.specialty}</p>
-                                            <p className="text-gray-400 text-xs mt-1">{getDoctorFee(doctor).toLocaleString('vi-VN')}d</p>
+                                            <p className="text-gray-400 text-xs mt-1">{currency(getDoctorFee(doctor))}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -328,18 +410,18 @@ export const BookAppointment = () => {
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                        <CardTitle>Chon lich bac si</CardTitle>
+                        <CardTitle>{text.selectSlot}</CardTitle>
                             <Button variant="ghost" size="sm" onClick={() => setStep(STEP_DOCTOR)}>
-                                <ChevronLeft className="w-4 h-4 mr-1" /> Quay lai
+                                <ChevronLeft className="w-4 h-4 mr-1" /> {text.back}
                             </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
                         {selectedCareProfile && (
                             <div className="mb-4 p-4 bg-dark-300 rounded-lg">
-                                <p className="text-gray-400 text-sm">Ho so kham</p>
+                                <p className="text-gray-400 text-sm">{text.profileLabel}</p>
                                 <p className="text-white font-medium">{selectedCareProfile.fullName}</p>
-                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || 'Ban than'}</p>
+                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || text.self}</p>
                             </div>
                         )}
 
@@ -351,16 +433,16 @@ export const BookAppointment = () => {
                                 <p className="text-white font-medium">BS. {selectedDoctor.fullName}</p>
                                 <p className="text-primary-400 text-sm">{selectedDoctor.specialty}</p>
                                 <p className="text-gray-400 text-xs mt-1">
-                                    {getDoctorFee(selectedDoctor).toLocaleString('vi-VN')}d
+                                    {currency(getDoctorFee(selectedDoctor))}
                                 </p>
                             </div>
                         </div>
 
                         <div className="mb-6">
-                            <p className="text-sm text-gray-400 mb-2">Lich bac si con trong</p>
+                            <p className="text-sm text-gray-400 mb-2">{text.availableSlot}</p>
                             {availableSlots.length === 0 ? (
                                 <p className="text-gray-500 text-center py-8">
-                                    Bac si hien chua co lich trong de dat.
+                                    {text.noSlot}
                                 </p>
                             ) : (
                                 <div className="grid md:grid-cols-2 gap-3">
@@ -388,18 +470,18 @@ export const BookAppointment = () => {
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <CardTitle>Xac nhan dat lich</CardTitle>
+                            <CardTitle>{text.confirmBooking}</CardTitle>
                             <Button variant="ghost" size="sm" onClick={() => setStep(STEP_SLOT)}>
-                                <ChevronLeft className="w-4 h-4 mr-1" /> Quay lai
+                                <ChevronLeft className="w-4 h-4 mr-1" /> {text.back}
                             </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {selectedCareProfile && (
                             <div className="p-4 bg-dark-300 rounded-lg">
-                                <p className="text-gray-400 text-sm">Ho so kham</p>
+                                <p className="text-gray-400 text-sm">{text.profileLabel}</p>
                                 <p className="text-white font-medium">{selectedCareProfile.fullName}</p>
-                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || 'Ban than'}</p>
+                                <p className="text-gray-500 text-sm">{selectedCareProfile.relation || text.self}</p>
                             </div>
                         )}
 
@@ -409,7 +491,7 @@ export const BookAppointment = () => {
                                     <User className="w-6 h-6 text-white" />
                                 </div>
                                 <div>
-                                    <p className="text-gray-400 text-sm">Bac si</p>
+                                    <p className="text-gray-400 text-sm">{text.doctor}</p>
                                     <p className="text-white font-medium">BS. {selectedDoctor.fullName}</p>
                                 </div>
                             </div>
@@ -418,9 +500,9 @@ export const BookAppointment = () => {
                                     <Calendar className="w-6 h-6 text-blue-400" />
                                 </div>
                                 <div>
-                                    <p className="text-gray-400 text-sm">Ngay kham</p>
+                                    <p className="text-gray-400 text-sm">{text.date}</p>
                                     <p className="text-white font-medium">
-                                        {selectedSlot.dateLabel || format(selectedSlot.start, 'EEEE, dd/MM/yyyy', { locale: vi })}
+                                        {selectedSlot.dateLabel || format(selectedSlot.start, 'EEEE, dd/MM/yyyy', { locale })}
                                     </p>
                                 </div>
                             </div>
@@ -429,24 +511,24 @@ export const BookAppointment = () => {
                                     <Clock className="w-6 h-6 text-green-400" />
                                 </div>
                                 <div>
-                                    <p className="text-gray-400 text-sm">Lich bac si</p>
+                                    <p className="text-gray-400 text-sm">{text.schedule}</p>
                                     <p className="text-white font-medium">{selectedSlot.startLabel} - {selectedSlot.endLabel}</p>
                                 </div>
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-sm text-gray-400 mb-2 block">Dich vu kham</label>
+                            <label className="text-sm text-gray-400 mb-2 block">{text.service}</label>
                             <input
                                 value={service}
                                 onChange={(event) => setService(event.target.value)}
-                                placeholder="Vi du: Kham tong quat, Tu van tim mach"
+                                placeholder={text.servicePlaceholder}
                                 className="w-full bg-dark-300 border border-dark-100 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
                             />
                         </div>
 
                         <Button onClick={handleSubmit} loading={submitting} fullWidth size="lg">
-                            Xac nhan dat lich
+                            {text.submit}
                         </Button>
                     </CardContent>
                 </Card>

@@ -74,6 +74,10 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       return { success: true };
     } catch (error) {
+      if (error.response?.status === 401) {
+        return { success: false, error: 'Tài khoản hoặc mật khẩu không đúng' };
+      }
+
       const message = error.response?.data?.message || error.message || 'Login failed';
       return { success: false, error: message };
     }

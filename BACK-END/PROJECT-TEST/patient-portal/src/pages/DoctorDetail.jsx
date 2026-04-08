@@ -13,11 +13,52 @@ import {
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
 import { getApiData, getDoctorFee, getListData, normalizeDoctor, normalizeSlot } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 export const DoctorDetail = () => {
+    const { language } = useUI();
     const { id } = useParams();
+            const text = language === 'vi'
+                    ? {
+                            loading: 'Đang tải thông tin bác sĩ...',
+                            loadError: 'Không thể tải thông tin bác sĩ',
+                            notFound: 'Không tìm thấy bác sĩ',
+                            back: 'Quay lại danh sách bác sĩ',
+                            intro: 'Giới thiệu',
+                            education: 'Học vấn và chứng chỉ',
+                            years: 'năm kinh nghiệm',
+                            fee: 'Phí khám',
+                            selectDate: 'Chọn ngày',
+                            selectTime: 'Chọn giờ',
+                            loadingShort: 'Đang tải...',
+                            noSlots: 'Không có lịch trống trong ngày này',
+                            selectedDate: 'Ngày đã chọn',
+                            loginToBook: 'Đăng nhập để đặt lịch',
+                            doctor: 'Bác sĩ',
+                        }
+                    : {
+                            loading: 'Loading doctor information...',
+                            loadError: 'Unable to load doctor information',
+                            notFound: 'Doctor not found',
+                            back: 'Back to doctors',
+                            intro: 'Introduction',
+                            education: 'Education and certificates',
+                            years: 'years experience',
+                            fee: 'Consultation fee',
+                            selectDate: 'Select date',
+                            selectTime: 'Select time',
+                            loadingShort: 'Loading...',
+                            noSlots: 'No available slots on this date',
+                            selectedDate: 'Selected date',
+                            loginToBook: 'Login to book',
+                            doctor: 'Doctor',
+                        };
+
+            const locale = language === 'vi' ? vi : enUS;
+
     const { user } = useAuth();
     const navigate = useNavigate();
     const [doctor, setDoctor] = useState(null);
@@ -43,8 +84,8 @@ export const DoctorDetail = () => {
             const response = await doctorAPI.getById(id);
             setDoctor(normalizeDoctor(getApiData(response)));
         } catch (err) {
-            console.error('Loi khi tai thong tin bac si:', err);
-            setError('Khong the tai thong tin bac si');
+            console.error('Lỗi khi tải thông tin bác sĩ:', err);
+            setError(text.loadError);
         } finally {
             setLoading(false);
         }
@@ -61,7 +102,7 @@ export const DoctorDetail = () => {
             const slots = getListData(getApiData(response)).map(normalizeSlot);
             setAvailableSlots(slots);
         } catch (err) {
-            console.error('Loi khi tai lich trong:', err);
+            console.error('Lỗi khi tải lịch trống:', err);
             setAvailableSlots([]);
         } finally {
             setSlotsLoading(false);
@@ -87,16 +128,16 @@ export const DoctorDetail = () => {
     const dates = Array.from({ length: 7 }, (_, i) => addDays(new Date(), i));
 
     if (loading) {
-        return <Loading fullScreen text="Dang tai thong tin bac si..." />;
+        return <Loading fullScreen text={text.loading} />;
     }
 
     if (error || !doctor) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <Alert type="error" message={error || 'Khong tim thay bac si'} />
+                    <Alert type="error" message={error || 'Không tìm thấy bác sĩ'} />
                     <Link to="/doctors" className="text-primary-400 hover:text-primary-300 mt-4 inline-block">
-                        ← Quay lai danh sach bac si
+                        ← {text.back}
                     </Link>
                 </div>
             </div>
@@ -108,7 +149,7 @@ export const DoctorDetail = () => {
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                 <Link to="/doctors" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6">
                     <ChevronLeft className="w-4 h-4" />
-                    Quay lai danh sach bac si
+                    {text.back}
                 </Link>
 
                 <div className="grid lg:grid-cols-3 gap-6">
@@ -129,7 +170,7 @@ export const DoctorDetail = () => {
                                         </div>
                                         <div className="flex items-center gap-1 text-gray-400">
                                             <Award className="w-4 h-4" />
-                                            <span>{doctor.yearsExperience || 0} nam kinh nghiem</span>
+                                            <span>{doctor.yearsExperience || 0} {text.years}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -137,26 +178,26 @@ export const DoctorDetail = () => {
                         </Card>
 
                         <Card>
-                            <h2 className="text-lg font-semibold text-white mb-4">Gioi thieu</h2>
+                            <h2 className="text-lg font-semibold text-white mb-4">{text.intro}</h2>
                             <p className="text-gray-400 leading-relaxed">
-                                {doctor.bio || `Bac si ${doctor.fullName} chuyen khoa ${doctor.specialty}.`}
+                                {doctor.bio || `Bác sĩ ${doctor.fullName} chuyên khoa ${doctor.specialty}.`}
                             </p>
                         </Card>
 
                         <Card>
-                            <h2 className="text-lg font-semibold text-white mb-4">Hoc van va chung chi</h2>
+                            <h2 className="text-lg font-semibold text-white mb-4">{text.education}</h2>
                             <div className="space-y-4">
                                 <div className="flex items-start gap-3">
                                     <GraduationCap className="w-5 h-5 text-primary-400 mt-0.5" />
                                     <div>
-                                        <p className="text-white font-medium">Bac si Y khoa</p>
-                                        <p className="text-gray-400 text-sm">Thong tin hoc van dang duoc cap nhat</p>
+                                        <p className="text-white font-medium">Bác sĩ Y khoa</p>
+                                        <p className="text-gray-400 text-sm">Thông tin học vấn đang được cập nhật</p>
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
                                     <Award className="w-5 h-5 text-secondary-400 mt-0.5" />
                                     <div>
-                                        <p className="text-white font-medium">Phong kham</p>
+                                        <p className="text-white font-medium">Phòng khám</p>
                                         <p className="text-gray-400 text-sm">{doctor.clinicName}</p>
                                     </div>
                                 </div>
@@ -166,17 +207,17 @@ export const DoctorDetail = () => {
 
                     <div className="lg:col-span-1">
                         <Card className="sticky top-24">
-                            <h2 className="text-lg font-semibold text-white mb-4">Dat lich kham</h2>
+                            <h2 className="text-lg font-semibold text-white mb-4">Đặt lịch khám</h2>
 
                             <div className="flex items-center justify-between mb-4 pb-4 border-b border-dark-100">
-                                <span className="text-gray-400">Phi kham</span>
+                                <span className="text-gray-400">{text.fee}</span>
                                 <span className="text-xl font-bold gradient-text">
-                                    {getDoctorFee(doctor).toLocaleString('vi-VN')}d
+                                    {getDoctorFee(doctor).toLocaleString('vi-VN')}đ
                                 </span>
                             </div>
 
                             <div className="mb-4">
-                                <p className="text-sm text-gray-400 mb-2">Chon ngay</p>
+                                <p className="text-sm text-gray-400 mb-2">{text.selectDate}</p>
                                 <div className="flex gap-2 overflow-x-auto pb-2">
                                     {dates.map((date) => (
                                         <button
@@ -187,7 +228,7 @@ export const DoctorDetail = () => {
                                                 : 'bg-dark-300 text-gray-400 hover:bg-dark-100'
                                                 }`}
                                         >
-                                            <div className="text-xs">{format(date, 'EEE', { locale: vi })}</div>
+                                            <div className="text-xs">{format(date, 'EEE', { locale })}</div>
                                             <div className="font-medium">{format(date, 'dd/MM')}</div>
                                         </button>
                                     ))}
@@ -195,12 +236,12 @@ export const DoctorDetail = () => {
                             </div>
 
                             <div>
-                                <p className="text-sm text-gray-400 mb-2">Chon gio</p>
+                                <p className="text-sm text-gray-400 mb-2">{text.selectTime}</p>
                                 {slotsLoading ? (
-                                    <Loading text="Dang tai..." />
+                                    <Loading text={text.loadingShort} />
                                 ) : availableSlots.length === 0 ? (
                                     <p className="text-gray-500 text-sm text-center py-4">
-                                        Khong co lich trong trong ngay nay
+                                        {text.noSlots}
                                     </p>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2">
@@ -224,18 +265,18 @@ export const DoctorDetail = () => {
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                                     <Clock className="w-4 h-4" />
-                                    <span>Dat lich truc tiep tren cong benh nhan</span>
+                                    <span>Đặt lịch trực tiếp trên cổng bệnh nhân</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-400 text-sm">
                                     <Calendar className="w-4 h-4" />
-                                    <span>Ngay da chon: {format(selectedDate, 'dd/MM/yyyy')}</span>
+                                    <span>{text.selectedDate}: {format(selectedDate, 'dd/MM/yyyy')}</span>
                                 </div>
                             </div>
 
                             {!user && (
                                 <div className="mt-4">
                                     <Button fullWidth onClick={() => navigate('/login', { state: { from: { pathname: `/doctors/${id}` } } })}>
-                                        Dang nhap de dat lich
+                                        {text.loginToBook}
                                     </Button>
                                 </div>
                             )}

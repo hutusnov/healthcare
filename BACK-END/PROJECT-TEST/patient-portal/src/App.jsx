@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuth } from './contexts/AuthContext';
+import { UIProvider, useUI } from './contexts/UIContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { Loading } from './components/common';
 import { PublicLayout } from './components/layout/PublicLayout';
@@ -26,9 +27,10 @@ import { OCRScan } from './pages/OCRScan';
 
 function RootEntry() {
     const { user, loading } = useAuth();
+  const { t } = useUI();
 
     if (loading) {
-        return <Loading fullScreen text="Dang tai thong tin dang nhap..." />;
+      return <Loading fullScreen text={t('common.loadingAuth', 'Đang tải thông tin đăng nhập...')} />;
     }
 
     if (user) {
@@ -41,8 +43,9 @@ function RootEntry() {
 function App() {
     return (
         <BrowserRouter>
-            <AuthProvider>
-                <Routes>
+            <UIProvider>
+                <AuthProvider>
+                    <Routes>
                     <Route element={<PublicLayout />}>
                         <Route path="/" element={<RootEntry />} />
                         <Route path="/login" element={<Login />} />
@@ -71,8 +74,9 @@ function App() {
 
                     <Route path="/payment/return" element={<PaymentReturn />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </AuthProvider>
+                    </Routes>
+                </AuthProvider>
+            </UIProvider>
         </BrowserRouter>
     );
 }

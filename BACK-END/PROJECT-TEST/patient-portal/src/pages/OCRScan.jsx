@@ -10,8 +10,10 @@ import {
     Copy,
     Sparkles
 } from 'lucide-react';
+import { useUI } from '../contexts/UIContext';
 
 export const OCRScan = () => {
+    const { language } = useUI();
     const fileInputRef = useRef(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -20,6 +22,54 @@ export const OCRScan = () => {
     const [result, setResult] = useState(null);
     const [copied, setCopied] = useState(false);
 
+        const text = language === 'vi'
+                ? {
+                        invalidImage: 'Vui lòng chọn file hình ảnh',
+                        maxSize: 'File quá lớn. Vui lòng chọn file nhỏ hơn 10MB',
+                        chooseFile: 'Vui lòng chọn ảnh CCCD',
+                        processError: 'Không thể xử lý ảnh. Vui lòng thử lại.',
+                        title: 'Quét CCCD',
+                        subtitle: 'Trích xuất thông tin từ ảnh CCCD bằng OCR service',
+                        uploadTitle: 'Tải ảnh lên',
+                        dropTitle: 'Kéo thả ảnh vào đây',
+                        dropDesc: 'hoặc click để chọn file',
+                        support: 'Hỗ trợ JPG, PNG, WEBP (tối đa 10MB)',
+                        processing: 'Đang xử lý...',
+                        scan: 'Quét CCCD',
+                        resultTitle: 'Kết quả',
+                        analyzing: 'Đang phân tích ảnh...',
+                        success: 'Quét thành công',
+                        extracted: 'Thông tin trích xuất',
+                        copied: 'Đã sao chép',
+                        copyJson: 'Sao chép JSON',
+                        scanAnother: 'Quét ảnh khác',
+                        noResultTitle: 'Chưa có kết quả',
+                        noResultDesc: 'Tải ảnh CCCD lên và nhấn Quét CCCD để trích xuất thông tin',
+                    }
+                : {
+                        invalidImage: 'Please select an image file',
+                        maxSize: 'File is too large. Please use a file smaller than 10MB',
+                        chooseFile: 'Please select an ID card image',
+                        processError: 'Could not process image. Please try again.',
+                        title: 'ID OCR Scan',
+                        subtitle: 'Extract information from ID card images using OCR service',
+                        uploadTitle: 'Upload image',
+                        dropTitle: 'Drop image here',
+                        dropDesc: 'or click to choose a file',
+                        support: 'Supported JPG, PNG, WEBP (up to 10MB)',
+                        processing: 'Processing...',
+                        scan: 'Scan ID',
+                        resultTitle: 'Result',
+                        analyzing: 'Analyzing image...',
+                        success: 'Scan completed',
+                        extracted: 'Extracted data',
+                        copied: 'Copied',
+                        copyJson: 'Copy JSON',
+                        scanAnother: 'Scan another image',
+                        noResultTitle: 'No result yet',
+                        noResultDesc: 'Upload an ID image and press Scan ID to extract information',
+                    };
+
     useEffect(() => () => {
         if (preview) URL.revokeObjectURL(preview);
     }, [preview]);
@@ -27,11 +77,11 @@ export const OCRScan = () => {
     const handleFile = (file) => {
         if (!file) return;
         if (!file.type.startsWith('image/')) {
-            setError('Vui long chon file hinh anh');
+            setError(text.invalidImage);
             return;
         }
         if (file.size > 10 * 1024 * 1024) {
-            setError('File qua lon. Vui long chon file nho hon 10MB');
+            setError(text.maxSize);
             return;
         }
 
@@ -50,7 +100,7 @@ export const OCRScan = () => {
 
     const handleScan = async () => {
         if (!selectedFile) {
-            setError('Vui long chon anh CCCD');
+            setError(text.chooseFile);
             return;
         }
 
@@ -62,7 +112,7 @@ export const OCRScan = () => {
             setResult(response.data);
         } catch (err) {
             console.error('Loi OCR:', err);
-            setError(err.response?.data?.detail || err.response?.data?.message || 'Khong the xu ly anh. Vui long thu lai.');
+            setError(err.response?.data?.detail || err.response?.data?.message || text.processError);
         } finally {
             setLoading(false);
         }
@@ -90,9 +140,9 @@ export const OCRScan = () => {
             <div>
                 <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                     <Sparkles className="w-6 h-6 text-primary-400" />
-                    Quet CCCD
+                    {text.title}
                 </h1>
-                <p className="text-gray-400 mt-1">Trich xuat thong tin tu anh CCCD bang OCR service</p>
+                <p className="text-gray-400 mt-1">{text.subtitle}</p>
             </div>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
@@ -102,7 +152,7 @@ export const OCRScan = () => {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Upload className="w-5 h-5 text-primary-400" />
-                            Tai anh len
+                            {text.uploadTitle}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -124,9 +174,9 @@ export const OCRScan = () => {
                                 <div className="w-16 h-16 bg-primary-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
                                     <Image className="w-8 h-8 text-primary-400" />
                                 </div>
-                                <h3 className="text-white font-medium mb-2">Keo tha anh vao day</h3>
-                                <p className="text-gray-400 text-sm mb-4">hoac click de chon file</p>
-                                <p className="text-gray-500 text-xs">Ho tro JPG, PNG, WEBP (toi da 10MB)</p>
+                                <h3 className="text-white font-medium mb-2">{text.dropTitle}</h3>
+                                <p className="text-gray-400 text-sm mb-4">{text.dropDesc}</p>
+                                <p className="text-gray-500 text-xs">{text.support}</p>
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -142,7 +192,7 @@ export const OCRScan = () => {
                                 <p className="text-gray-400 text-sm text-center">{selectedFile?.name}</p>
                                 <Button onClick={handleScan} loading={loading} fullWidth size="lg">
                                     <Sparkles className="w-4 h-4 mr-2" />
-                                    {loading ? 'Dang xu ly...' : 'Quet CCCD'}
+                                    {loading ? text.processing : text.scan}
                                 </Button>
                             </div>
                         )}
@@ -153,27 +203,27 @@ export const OCRScan = () => {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <FileText className="w-5 h-5 text-secondary-400" />
-                            Ket qua
+                            {text.resultTitle}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
                             <div className="text-center py-12">
-                                <Loading text="Dang phan tich anh..." />
+                                <Loading text={text.analyzing} />
                             </div>
                         ) : result ? (
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2 text-green-400">
                                     <CheckCircle className="w-5 h-5" />
-                                    <span className="font-medium">Quet thanh cong</span>
+                                    <span className="font-medium">{text.success}</span>
                                 </div>
 
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-gray-400 text-sm">Thong tin trich xuat</span>
+                                        <span className="text-gray-400 text-sm">{text.extracted}</span>
                                         <button onClick={handleCopy} className="flex items-center gap-1 text-primary-400 hover:text-primary-300 text-sm">
                                             <Copy className="w-4 h-4" />
-                                            {copied ? 'Da sao chep' : 'Sao chep JSON'}
+                                            {copied ? text.copied : text.copyJson}
                                         </button>
                                     </div>
                                     <div className="bg-dark-300 rounded-lg p-4 max-h-80 overflow-y-auto">
@@ -184,14 +234,14 @@ export const OCRScan = () => {
                                 </div>
 
                                 <Button variant="outline" fullWidth onClick={clearFile}>
-                                    Quet anh khac
+                                    {text.scanAnother}
                                 </Button>
                             </div>
                         ) : (
                             <div className="text-center py-12">
                                 <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                                <h3 className="text-white font-medium mb-2">Chua co ket qua</h3>
-                                <p className="text-gray-400 text-sm">Tai anh CCCD len va nhan Quet CCCD de trich xuat thong tin</p>
+                                <h3 className="text-white font-medium mb-2">{text.noResultTitle}</h3>
+                                <p className="text-gray-400 text-sm">{text.noResultDesc}</p>
                             </div>
                         )}
                     </CardContent>

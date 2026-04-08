@@ -23,10 +23,10 @@ export const ForgotPassword = () => {
 
         try {
             await authAPI.forgotPassword(formData.email);
-            setSuccess('Neu email ton tai, ma xac nhan da duoc gui.');
+            setSuccess('Nếu email tồn tại, mã xác nhận đã được gửi.');
             setStep(2);
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the gui ma xac nhan.');
+            setError(err.response?.data?.message || 'Không thể gửi mã xác nhận.');
         } finally {
             setLoading(false);
         }
@@ -38,7 +38,7 @@ export const ForgotPassword = () => {
         setSuccess('');
 
         if (formData.newPassword !== formData.confirmPassword) {
-            setError('Mat khau xac nhan khong khop.');
+            setError('Mật khẩu xác nhận không khớp.');
             return;
         }
 
@@ -50,9 +50,9 @@ export const ForgotPassword = () => {
                 code: formData.code,
                 newPassword: formData.newPassword,
             });
-            setSuccess('Dat lai mat khau thanh cong. Ban co the dang nhap lai.');
+            setSuccess('Đặt lại mật khẩu thành công. Bạn có thể đăng nhập lại.');
         } catch (err) {
-            setError(err.response?.data?.message || 'Khong the dat lai mat khau.');
+            setError(err.response?.data?.message || 'Không thể đặt lại mật khẩu.');
         } finally {
             setLoading(false);
         }
@@ -63,9 +63,9 @@ export const ForgotPassword = () => {
             <div className="w-full max-w-md">
                 <div className="card">
                     <div className="text-center mb-6">
-                        <h1 className="text-2xl font-bold text-white mb-2">Quen mat khau</h1>
+                        <h1 className="text-2xl font-bold text-white mb-2">Quên mật khẩu</h1>
                         <p className="text-gray-400">
-                            {step === 1 ? 'Nhap email de nhan ma xac nhan.' : 'Nhap ma va mat khau moi.'}
+                            {step === 1 ? 'Nhập email để nhận mã xác nhận.' : 'Nhập mã và mật khẩu mới.'}
                         </p>
                     </div>
 
@@ -82,7 +82,7 @@ export const ForgotPassword = () => {
                                 required
                             />
                             <Button type="submit" fullWidth loading={loading}>
-                                Gui ma xac nhan
+                                Gửi mã xác nhận
                             </Button>
                         </form>
                     ) : (
@@ -96,34 +96,34 @@ export const ForgotPassword = () => {
                             />
                             <Input
                                 type="text"
-                                label="Ma xac nhan"
+                                label="Mã xác nhận"
                                 value={formData.code}
                                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                                 required
                             />
                             <Input
                                 type="password"
-                                label="Mat khau moi"
+                                label="Mật khẩu mới"
                                 value={formData.newPassword}
                                 onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                                 required
                             />
                             <Input
                                 type="password"
-                                label="Xac nhan mat khau moi"
+                                label="Xác nhận mật khẩu mới"
                                 value={formData.confirmPassword}
                                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                                 required
                             />
                             <Button type="submit" fullWidth loading={loading}>
-                                Dat lai mat khau
+                                Đặt lại mật khẩu
                             </Button>
                         </form>
                     )}
 
                     <div className="mt-6 text-center text-gray-400">
                         <Link to="/login" className="text-primary-400 hover:text-primary-300">
-                            Quay lai dang nhap
+                            Quay lại đăng nhập
                         </Link>
                     </div>
                 </div>
