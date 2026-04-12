@@ -32,6 +32,8 @@
         </provider>
 
         <!-- Màn hình đăng nhập (chạy đầu tiên) -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
+        <!-- Launcher activity must stay exported for MAIN/LAUNCHER intent resolution. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

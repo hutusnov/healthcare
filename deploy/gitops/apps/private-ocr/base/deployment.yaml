@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocr-service
+  template:
+    metadata:
+      labels:
+        app: ocr-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/metrics"
+    spec:
+      nodeSelector:
+        workload-role: ocr
+      containers:
+        - name: ocr
+          image: placeholder.local/healthcare-ocr:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8001
+          env:
+            - name: OCR_AUTH_ENABLED
+              value: "true"
+            - name: OCR_ENV
+              value: production
+            - name: OCR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ocr-secret
+                  key: api-key
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi

@@ -18,6 +18,50 @@ body {
   background: linear-gradient(135deg, #10141f 0%, #1a2234 50%, #151b29 100%);
 }
 
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-light body {
+  background: linear-gradient(135deg, #f6f8ff 0%, #eef3ff 50%, #f7faff 100%);
+}
+
+.theme-light .glass {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.theme-light .bg-dark-400 {
+  background-color: #f3f4f6 !important;
+}
+
+.theme-light .bg-dark-300,
+.theme-light .bg-dark-300\/80 {
+  background-color: #ffffff !important;
+}
+
+.theme-light .bg-dark-200 {
+  background-color: #f8fafc !important;
+}
+
+.theme-light .bg-dark-100 {
+  background-color: #eef2f7 !important;
+}
+
+.theme-light .border-dark-100 {
+  border-color: #d1d5db !important;
+}
+
+.theme-light .text-white {
+  color: #111827 !important;
+}
+
+.theme-light .text-gray-400,
+.theme-light .text-gray-500,
+.theme-light .text-gray-300 {
+  color: #4b5563 !important;
+}
+
 /* Custom scrollbar - Dark theme */
 ::-webkit-scrollbar {
   width: 8px;
@@ -84,6 +128,7 @@ body {
 /* Glass morphism effect */
 .glass {
   background: rgba(26, 34, 52, 0.8);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }

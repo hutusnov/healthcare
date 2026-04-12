@@ -1,0 +1,46 @@
+<mxfile host="app.diagrams.net" modified="2026-03-24T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="system-architecture" name="System Architecture">
+    <mxGraphModel dx="1420" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="NC Cloud System Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="420" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="public" value="Public Access Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="500" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="private" value="Private Service Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="90" width="900" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="client" value="Mobile App&#xa;Admin Web&#xa;Patient Portal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="170" width="160" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="backend" value="Backend API&#xa;VM: k3s-master-vpn&#xa;Docker: backend&#xa;Port: 4000&#xa;Public/Floating IP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="155" width="180" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="PostgreSQL Database&#xa;VM: data-core-node&#xa;Docker: postgres&#xa;Port: 5432&#xa;Private IP only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="170" width="220" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="ocr" value="OCR Service&#xa;VM: ai-ocr-worker&#xa;Docker: ocr&#xa;Port: 8001&#xa;Private IP only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="170" width="220" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="notes" value="Runtime flow:&#xa;1. Client sends requests to Backend API&#xa;2. Backend reads/writes PostgreSQL&#xa;3. Backend calls OCR service when image processing is needed&#xa;4. OCR returns JSON result to Backend&#xa;5. Backend responds to client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="700" y="350" width="550" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="HTTPS / API Request" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=13;" edge="1" parent="1" source="client" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="PostgreSQL Query" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=13;" edge="1" parent="1" source="backend" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="HTTP Request for OCR" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=13;" edge="1" parent="1" source="backend" target="ocr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="JSON Result" style="edgeStyle=orthogonalEdgeStyle;dashed=1;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=13;" edge="1" parent="1" source="ocr" target="backend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

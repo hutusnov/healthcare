@@ -2,6 +2,15 @@
 const prisma = require('../../config/db');
 const { toPagination } = require('../../utils/pagination');
 const config = require('../../config/env');
+const safeUserSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+};
 
 // =============== Helpers (TZ: Asia/Ho_Chi_Minh) ===============
 const TZ = '+07:00';
@@ -21,7 +30,10 @@ const rangesOverlap = (a, b) => a.start < b.end && a.end > b.start;
 
 // =============== Profile ===============
 async function getProfileByUserId(userId) {
-  return prisma.doctorProfile.findUnique({ where: { userId }, include: { user: true } });
+  return prisma.doctorProfile.findUnique({
+    where: { userId },
+    include: { user: { select: safeUserSelect } }
+  });
 }
 
 async function updateProfile(userId, data) {
@@ -87,7 +99,7 @@ async function search(query) {
       where,
       skip,
       take,
-      include: { user: true },
+      include: { user: { select: safeUserSelect } },
       orderBy: { createdAt: 'asc' }
     }),
     prisma.doctorProfile.count({ where })
@@ -274,7 +286,10 @@ async function getWorkDay({ doctorProfileId, day }) {
 
 // =============== Get by id (profile) ===============
 const getById = async (userId) =>
-  prisma.doctorProfile.findUnique({ where: { userId }, include: { user: true } });
+  prisma.doctorProfile.findUnique({
+    where: { userId },
+    include: { user: { select: safeUserSelect } }
+  });
 
 module.exports = {
   // profile

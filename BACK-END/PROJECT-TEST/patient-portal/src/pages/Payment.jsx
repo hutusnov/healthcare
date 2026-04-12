@@ -1,18 +1,67 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { patientAPI, paymentAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Loading } from '../components/common';
-import { CreditCard, Calendar, Clock, User, CheckCircle, ArrowRight } from 'lucide-react';
+import { CreditCard, Calendar, Clock, User, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { getApiData, getListData, normalizeAppointment } from '../utils/normalize';
+import { useUI } from '../contexts/UIContext';
 
 export const Payment = () => {
+    const { language } = useUI();
     const { appointmentId } = useParams();
-    const navigate = useNavigate();
     const [appointment, setAppointment] = useState(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState('');
+
+        const text = language === 'vi'
+                ? {
+                        notFound: 'Không tìm thấy lịch hẹn',
+                        loadError: 'Không thể tải thông tin lịch hẹn',
+                        payLinkError: 'Không thể tạo liên kết thanh toán',
+                        payInitError: 'Không thể khởi tạo thanh toán',
+                        loading: 'Đang tải thông tin thanh toán...',
+                        backToAppointments: '← Quay lại danh sách lịch hẹn',
+                        title: 'Thanh toán',
+                        subtitle: 'Hoàn tất thanh toán để xác nhận lịch hẹn',
+                        detail: 'Chi tiết lịch hẹn',
+                        doctor: 'Bác sĩ',
+                        date: 'Ngày khám',
+                        time: 'Giờ khám',
+                        consultationFee: 'Phí khám',
+                        serviceFee: 'Phí dịch vụ',
+                        total: 'Tổng cộng',
+                        paymentMethod: 'Phương thức thanh toán',
+                        momoName: 'Ví MoMo',
+                        momoDesc: 'Thanh toán qua ví điện tử MoMo',
+                        cardName: 'Thẻ tín dụng/Ghi nợ',
+                        cardSoon: 'Sắp có',
+                    }
+                : {
+                        notFound: 'Appointment not found',
+                        loadError: 'Unable to load appointment details',
+                        payLinkError: 'Unable to create payment link',
+                        payInitError: 'Unable to initialize payment',
+                        loading: 'Loading payment information...',
+                        backToAppointments: '← Back to appointments',
+                        title: 'Payment',
+                        subtitle: 'Complete payment to confirm your appointment',
+                        detail: 'Appointment details',
+                        doctor: 'Doctor',
+                        date: 'Date',
+                        time: 'Time',
+                        consultationFee: 'Consultation fee',
+                        serviceFee: 'Service fee',
+                        total: 'Total',
+                        paymentMethod: 'Payment method',
+                        momoName: 'MoMo Wallet',
+                        momoDesc: 'Pay via MoMo e-wallet',
+                        cardName: 'Credit/Debit card',
+                        cardSoon: 'Coming soon',
+                    };
+
+        const currency = (amount) => `${Number(amount || 0).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}đ`;
 
     useEffect(() => {
         loadAppointment();
@@ -21,18 +70,18 @@ export const Payment = () => {
     const loadAppointment = async () => {
         try {
             const response = await patientAPI.getAppointments();
-            const appointments = response.data?.data || response.data || [];
-            const apt = appointments.find(a => a.id === parseInt(appointmentId));
+            const appointments = getListData(getApiData(response)).map(normalizeAppointment);
+            const selected = appointments.find((item) => item.id === appointmentId);
 
-            if (!apt) {
-                setError('Không tìm thấy lịch hẹn');
+            if (!selected) {
+                setError(text.notFound);
                 return;
             }
 
-            setAppointment(apt);
+            setAppointment(selected);
         } catch (err) {
             console.error('Lỗi khi tải lịch hẹn:', err);
-            setError('Không thể tải thông tin lịch hẹn');
+            setError(text.loadError);
         } finally {
             setLoading(false);
         }
@@ -44,31 +93,31 @@ export const Payment = () => {
 
         try {
             const response = await paymentAPI.createMomoPayment(appointmentId);
-            const payUrl = response.data?.data?.payUrl || response.data?.payUrl;
+            const payUrl = getApiData(response)?.payUrl;
 
             if (payUrl) {
                 window.location.href = payUrl;
             } else {
-                setError('Không thể tạo liên kết thanh toán');
+                setError(text.payLinkError);
             }
         } catch (err) {
             console.error('Lỗi thanh toán:', err);
-            setError(err.response?.data?.message || 'Không thể khởi tạo thanh toán');
+            setError(err.response?.data?.message || text.payInitError);
         } finally {
             setProcessing(false);
         }
     };
 
     if (loading) {
-        return <Loading fullScreen text="Đang tải thông tin thanh toán..." />;
+        return <Loading fullScreen text={text.loading} />;
     }
 
     if (!appointment) {
         return (
             <div className="text-center py-12">
-                <Alert type="error" message={error || 'Không tìm thấy lịch hẹn'} />
+                <Alert type="error" message={error || text.notFound} />
                 <Link to="/dashboard/appointments" className="text-primary-400 hover:text-primary-300 mt-4 inline-block">
-                    ← Quay lại danh sách lịch hẹn
+                    {text.backToAppointments}
                 </Link>
             </div>
         );
@@ -77,16 +126,15 @@ export const Payment = () => {
     return (
         <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
             <div>
-                <h1 className="text-2xl font-bold text-white">Thanh toán</h1>
-                <p className="text-gray-400 mt-1">Hoàn tất thanh toán để xác nhận lịch hẹn</p>
+                <h1 className="text-2xl font-bold text-white">{text.title}</h1>
+                <p className="text-gray-400 mt-1">{text.subtitle}</p>
             </div>
 
             {error && <Alert type="error" message={error} onClose={() => setError('')} />}
 
-            {/* Order Summary */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Chi tiết lịch hẹn</CardTitle>
+                    <CardTitle>{text.detail}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-4 p-4 bg-dark-300 rounded-lg">
@@ -94,12 +142,8 @@ export const Payment = () => {
                             <User className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                            <p className="text-white font-semibold">
-                                BS. {appointment.doctor?.user?.fullName || appointment.doctorName || 'Bác sĩ'}
-                            </p>
-                            <p className="text-primary-400 text-sm">
-                                {appointment.doctor?.specialty || 'Đa khoa'}
-                            </p>
+                            <p className="text-white font-semibold">BS. {appointment.doctor?.fullName || text.doctor}</p>
+                            <p className="text-primary-400 text-sm">{appointment.doctor?.specialty || appointment.service}</p>
                         </div>
                     </div>
 
@@ -107,18 +151,18 @@ export const Payment = () => {
                         <div className="flex items-center gap-3 p-3 bg-dark-300 rounded-lg">
                             <Calendar className="w-5 h-5 text-blue-400" />
                             <div>
-                                <p className="text-gray-400 text-xs">Ngày khám</p>
+                                <p className="text-gray-400 text-xs">{text.date}</p>
                                 <p className="text-white font-medium">
-                                    {appointment.date ? format(new Date(appointment.date), 'dd/MM/yyyy') : 'N/A'}
+                                    {appointment.scheduledAt ? format(appointment.scheduledAt, 'dd/MM/yyyy') : 'N/A'}
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-dark-300 rounded-lg">
                             <Clock className="w-5 h-5 text-green-400" />
                             <div>
-                                <p className="text-gray-400 text-xs">Giờ khám</p>
+                                <p className="text-gray-400 text-xs">{text.time}</p>
                                 <p className="text-white font-medium">
-                                    {appointment.slot?.startTime || appointment.time || 'N/A'}
+                                    {appointment.scheduledAt ? format(appointment.scheduledAt, 'HH:mm') : 'N/A'}
                                 </p>
                             </div>
                         </div>
@@ -126,33 +170,29 @@ export const Payment = () => {
                 </CardContent>
             </Card>
 
-            {/* Price */}
             <Card>
                 <CardContent>
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-gray-400">Phí khám</span>
-                        <span className="text-white">
-                            {(appointment.doctor?.consultationFee || 300000).toLocaleString()}đ
-                        </span>
+                        <span className="text-gray-400">{text.consultationFee}</span>
+                        <span className="text-white">{currency(appointment.paymentAmount)}</span>
                     </div>
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-gray-400">Phí dịch vụ</span>
-                        <span className="text-white">0đ</span>
+                        <span className="text-gray-400">{text.serviceFee}</span>
+                        <span className="text-white">0d</span>
                     </div>
                     <hr className="border-dark-100 my-2" />
                     <div className="flex items-center justify-between py-2">
-                        <span className="text-white font-semibold">Tổng cộng</span>
+                        <span className="text-white font-semibold">{text.total}</span>
                         <span className="text-2xl font-bold gradient-text">
-                            {(appointment.doctor?.consultationFee || 300000).toLocaleString()}đ
+                            {currency(appointment.paymentAmount)}
                         </span>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Payment Methods */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Phương thức thanh toán</CardTitle>
+                    <CardTitle>{text.paymentMethod}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     <button
@@ -164,31 +204,27 @@ export const Payment = () => {
                             <span className="text-[#ae2070] font-bold text-lg">M</span>
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="text-white font-semibold">Ví MoMo</p>
-                            <p className="text-white/70 text-sm">Thanh toán qua ví điện tử MoMo</p>
+                            <p className="text-white font-semibold">{text.momoName}</p>
+                            <p className="text-white/70 text-sm">{text.momoDesc}</p>
                         </div>
                         <ArrowRight className="w-5 h-5 text-white" />
                     </button>
 
-                    <button
-                        disabled
-                        className="w-full flex items-center gap-4 p-4 bg-dark-300 rounded-lg opacity-50 cursor-not-allowed"
-                    >
+                    <button disabled className="w-full flex items-center gap-4 p-4 bg-dark-300 rounded-lg opacity-50 cursor-not-allowed">
                         <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
                             <CreditCard className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1 text-left">
-                            <p className="text-white font-semibold">Thẻ tín dụng/Ghi nợ</p>
-                            <p className="text-gray-500 text-sm">Sắp có</p>
+                            <p className="text-white font-semibold">{text.cardName}</p>
+                            <p className="text-gray-500 text-sm">{text.cardSoon}</p>
                         </div>
                     </button>
                 </CardContent>
             </Card>
 
-            {/* Back Button */}
             <div className="text-center">
                 <Link to="/dashboard/appointments" className="text-gray-400 hover:text-white">
-                    ← Quay lại danh sách lịch hẹn
+                    {text.backToAppointments}
                 </Link>
             </div>
         </div>

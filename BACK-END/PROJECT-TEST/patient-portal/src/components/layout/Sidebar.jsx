@@ -5,20 +5,44 @@ import {
     Calendar,
     CalendarPlus,
     Bell,
-    FileText,
-    CreditCard
+    FileText
 } from 'lucide-react';
-
-const navItems = [
-    { to: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard, end: true },
-    { to: '/dashboard/profile', label: 'Hồ sơ cá nhân', icon: User },
-    { to: '/dashboard/appointments', label: 'Lịch hẹn của tôi', icon: Calendar },
-    { to: '/dashboard/book', label: 'Đặt lịch khám', icon: CalendarPlus },
-    { to: '/dashboard/notifications', label: 'Thông báo', icon: Bell },
-    { to: '/dashboard/ocr', label: 'Quét đơn thuốc', icon: FileText },
-];
+import { useUI } from '../../contexts/UIContext';
 
 export const Sidebar = () => {
+    const { language } = useUI();
+
+    const text = language === 'vi'
+        ? {
+            overview: 'Tổng quan',
+            profile: 'Hồ sơ cá nhân',
+            appointments: 'Lịch hẹn của tôi',
+            book: 'Đặt lịch khám',
+            notifications: 'Thông báo',
+            ocr: 'Quét đơn thuốc',
+            ocrTitle: 'Quét đơn thuốc',
+            ocrDescription: 'Tải ảnh đơn thuốc để trích xuất thông tin tự động bằng AI.',
+        }
+        : {
+            overview: 'Overview',
+            profile: 'Profile',
+            appointments: 'My Appointments',
+            book: 'Book Appointment',
+            notifications: 'Notifications',
+            ocr: 'Prescription OCR',
+            ocrTitle: 'Prescription OCR',
+            ocrDescription: 'Upload a prescription image to extract information automatically with AI.',
+        };
+
+    const navItems = [
+        { to: '/dashboard', label: text.overview, icon: LayoutDashboard, end: true },
+        { to: '/dashboard/profile', label: text.profile, icon: User },
+        { to: '/dashboard/appointments', label: text.appointments, icon: Calendar },
+        { to: '/dashboard/book', label: text.book, icon: CalendarPlus },
+        { to: '/dashboard/notifications', label: text.notifications, icon: Bell },
+        { to: '/dashboard/ocr', label: text.ocr, icon: FileText },
+    ];
+
     return (
         <aside className="w-64 bg-dark-200 border-r border-dark-100 min-h-screen fixed left-0 top-16 pt-6 hidden lg:block">
             <nav className="px-4 space-y-1">
@@ -44,9 +68,9 @@ export const Sidebar = () => {
             {/* OCR Feature Highlight */}
             <div className="mx-4 mt-8 p-4 bg-gradient-to-br from-primary-600/20 to-secondary-600/20 rounded-xl border border-primary-500/30">
                 <FileText className="w-8 h-8 text-primary-400 mb-2" />
-                <h4 className="text-white font-medium text-sm mb-1">Quét đơn thuốc</h4>
+                <h4 className="text-white font-medium text-sm mb-1">{text.ocrTitle}</h4>
                 <p className="text-gray-400 text-xs">
-                    Tải ảnh đơn thuốc để trích xuất thông tin tự động bằng AI.
+                    {text.ocrDescription}
                 </p>
             </div>
         </aside>

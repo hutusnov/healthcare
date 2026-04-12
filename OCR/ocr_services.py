@@ -1,3 +1,8 @@
+import os
+
+os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+os.environ.setdefault("DISABLE_MODEL_SOURCE_CHECK", "True")
+
 from paddleocr import TextDetection
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -9,30 +14,53 @@ from util import *;
 import numpy as np
 import cv2
 import json
-import os
 import shutil
 import re
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+DETECTION_MODEL_DIR = os.path.join(MODELS_DIR, "paddle_det")
+RECOGNITION_MODEL_PATH = os.path.join(MODELS_DIR, "vgg_seq2seq.pth")
+OUTPUT_DIR = os.path.join("/tmp", "ocr-output")
+
+_recognizer = None
+_detector = None
 
 def load_recognizer_model():
     config = Cfg.load_config_from_name('vgg_seq2seq')
 
-    config['weights'] = './models/vgg_seq2seq.pth'
+    config['weights'] = RECOGNITION_MODEL_PATH
     config['cnn']['pretrained']=False
     config['device'] = 'cpu'
 
     recognizer = Predictor(config)
     return recognizer
 
+def get_recognizer():
+    global _recognizer
+    if _recognizer is None:
+        _recognizer = load_recognizer_model()
+    return _recognizer
+
+def get_detector():
+    global _detector
+    if _detector is None:
+        _detector = TextDetection(
+            model_name="PP-OCRv5_mobile_det",
+            model_dir=DETECTION_MODEL_DIR
+        )
+    return _detector
+
 
 
 def detect(image: np.ndarray):
-
-    model = TextDetection(model_name="PP-OCRv5_mobile_det")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    model = get_detector()
     output = model.predict(image)
     for res in output:
         res.print()
-        res.save_to_img(save_path="./output/")
-        res.save_to_json(save_path="./output/res.json")
+        res.save_to_img(save_path=OUTPUT_DIR)
+        res.save_to_json(save_path=os.path.join(OUTPUT_DIR, "res.json"))
 
 
 
@@ -68,7 +96,7 @@ def recog(img_path: str,
 
         # 3) Nhận dạng text từ crop
         # TODO: thay bằng hàm rec thực tế của bạn
-        recognizer = load_recognizer_model()
+        recognizer = get_recognizer()
         img_crop = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
 
         text = recognizer.predict(img_crop)
@@ -108,7 +136,7 @@ def run_ocr(img_path: str,
     img = cv2.imread(img_path)
     detect(img)
     recog(img_path=img_path,
-          detect_json_path="./output/res.json",
+          detect_json_path=os.path.join(OUTPUT_DIR, "res.json"),
           output_json_path=out_put)
     
     with open(out_put, "r", encoding="utf-8") as f:
@@ -132,4 +160,3 @@ def run_ocr(img_path: str,
 
 
     return info, items
-

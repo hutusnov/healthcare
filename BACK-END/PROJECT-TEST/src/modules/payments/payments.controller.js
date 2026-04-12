@@ -17,6 +17,10 @@ async function momoCreate(req, res) {
     return R.ok(res, data);
   } catch (e) {
     console.error('momoCreate error:', e);
+    if (e.status === 403) return R.forbidden(res, e.message);
+    if (e.status === 404) return R.notFound(res, e.message);
+    if (e.status === 409) return R.conflict(res, e.message);
+    if (e.status === 502) return res.status(502).json({ success: false, message: e.message || 'Payment provider error' });
     return R.badRequest(res, e.message || 'MoMo create error');
   }
 }

@@ -1,0 +1,43 @@
+{
+  "Comment": "Healthcare public edge distribution",
+  "Enabled": true,
+  "DefaultRootObject": "",
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "healthcare-alb-origin",
+        "DomainName": "healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "https-only",
+          "OriginSslProtocols": {
+            "Quantity": 1,
+            "Items": ["TLSv1.2"]
+          }
+        }
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "healthcare-alb-origin",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 7,
+      "Items": ["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "ForwardedValues": {
+      "QueryString": true,
+      "Cookies": {
+        "Forward": "all"
+      }
+    },
+    "MinTTL": 0
+  }
+}

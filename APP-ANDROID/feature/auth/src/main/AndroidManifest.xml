@@ -3,12 +3,7 @@
 
         <activity
             android:name="com.example.auth.ui.LoginActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.example.auth.LOGIN" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
+            android:exported="false" />
 
 
     </application>

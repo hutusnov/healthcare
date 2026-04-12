@@ -1,6 +1,12 @@
 const prisma = require('../../config/db');
 const { notifyCancelled } = require('../notifications/notifications.service');
 
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 /** Helpers: range trong ngày theo giờ VN (+07:00) để lọc slot chính xác */
 const TZ = '+07:00';
 const startOfDayISO = (day) => new Date(`${day}T00:00:00${TZ}`);
@@ -37,7 +43,7 @@ async function availableSlots(doctorUserId, dayISO) {
 async function book({ patientId, slotId, service, careProfileId }) {
   // (0) validate service
   if (!service || typeof service !== 'string' || !service.trim()) {
-    throw new Error('Invalid service');
+    throw httpError(400, 'Invalid service');
   }
 
   // (1) verify careProfile thuộc về patient (nếu có)
@@ -46,7 +52,7 @@ async function book({ patientId, slotId, service, careProfileId }) {
       where: { id: careProfileId },
       select: { ownerId: true }
     });
-    if (!cp || cp.ownerId !== patientId) throw new Error('Care profile not found');
+    if (!cp || cp.ownerId !== patientId) throw httpError(404, 'Care profile not found');
   }
 
   // (2) lấy slot và suy ra bác sĩ (DoctorProfile.userId)
@@ -54,9 +60,9 @@ async function book({ patientId, slotId, service, careProfileId }) {
     where: { id: slotId },
     include: { doctor: { select: { userId: true } } } // doctor = DoctorProfile
   });
-  if (!slot) throw new Error('Slot not found');
-  if (slot.isBooked) throw new Error('Slot already booked');
-  if (slot.start <= new Date()) throw new Error('Slot is in the past');
+  if (!slot) throw httpError(404, 'Slot not found');
+  if (slot.isBooked) throw httpError(409, 'Slot already booked');
+  if (slot.start <= new Date()) throw httpError(400, 'Slot is in the past');
 
   // (3) transaction: chốt slot nếu còn trống rồi tạo appointment
   return prisma.$transaction(async (tx) => {
@@ -64,7 +70,7 @@ async function book({ patientId, slotId, service, careProfileId }) {
       where: { id: slotId, isBooked: false },
       data: { isBooked: true }
     });
-    if (upd.count !== 1) throw new Error('Slot already booked');
+    if (upd.count !== 1) throw httpError(409, 'Slot already booked');
 
     return tx.appointment.create({
       data: {
@@ -101,8 +107,8 @@ async function cancel({ appointmentId, byUserId, reason }) {
       doctor:  { select: { id: true, fullName: true } },
     }
   });
-  if (!appt) throw new Error('Appointment not found');
-  if (appt.patientId !== byUserId) throw new Error('Forbidden');
+  if (!appt) throw httpError(404, 'Appointment not found');
+  if (appt.patientId !== byUserId) throw httpError(403, 'Forbidden');
 
   const updated = await prisma.$transaction(async (tx) => {
     if (appt.slotId) {

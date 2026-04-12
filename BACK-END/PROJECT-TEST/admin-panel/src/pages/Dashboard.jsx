@@ -26,6 +26,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
+import { useUI } from '../contexts/UIContext';
 
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => {
   const colors = {
@@ -53,11 +54,76 @@ const StatCard = ({ title, value, icon: Icon, color, subtitle }) => {
 };
 
 export const Dashboard = () => {
+  const { language, t } = useUI();
   const [stats, setStats] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [doctorSlots, setDoctorSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const text = language === 'vi'
+    ? {
+      failedLoad: 'Không thể tải dữ liệu',
+      dashboard: 'Bảng điều khiển',
+      totalUsers: 'Tổng người dùng',
+      admins: 'quản trị viên',
+      totalDoctors: 'Tổng bác sĩ',
+      totalPatients: 'Tổng bệnh nhân',
+      careProfiles: 'Hồ sơ chăm sóc',
+      totalAppointments: 'Tổng lịch hẹn',
+      pending: 'Chờ xử lý',
+      completed: 'Hoàn thành',
+      paidAppointments: 'Lịch hẹn đã thanh toán',
+      unpaid: 'chưa thanh toán',
+      apptStatus: 'Trạng thái lịch hẹn',
+      revenueByMonth: 'Doanh thu theo tháng (PAID)',
+      revenueVnd: 'Doanh thu (VND)',
+      monthLabel: 'Tháng',
+      userRoles: 'Phân bố vai trò người dùng',
+      doctorSlotsByMonth: 'Lịch bác sĩ theo tháng (năm hiện tại)',
+      doctorSlots: 'Lịch bác sĩ',
+      systemOverview: 'Tổng quan hệ thống',
+      adminUsers: 'Người dùng admin',
+      doctorSlotsTotal: 'Lịch bác sĩ',
+      availableSlots: 'Lịch trống',
+      bookedSlots: 'Lịch đã đặt',
+      userRolesData: {
+        admins: 'Quản trị viên',
+        doctors: 'Bác sĩ',
+        patients: 'Bệnh nhân',
+      },
+    }
+    : {
+      failedLoad: 'Failed to load data',
+      dashboard: 'Dashboard',
+      totalUsers: 'Total Users',
+      admins: 'admins',
+      totalDoctors: 'Total Doctors',
+      totalPatients: 'Total Patients',
+      careProfiles: 'Care Profiles',
+      totalAppointments: 'Total Appointments',
+      pending: 'Pending',
+      completed: 'Completed',
+      paidAppointments: 'Paid Appointments',
+      unpaid: 'unpaid',
+      apptStatus: 'Appointment Status',
+      revenueByMonth: 'Revenue by Month (PAID)',
+      revenueVnd: 'Revenue (VND)',
+      monthLabel: 'Month',
+      userRoles: 'User Roles Distribution',
+      doctorSlotsByMonth: 'Doctor Slots per Month (current year)',
+      doctorSlots: 'Doctor Slots',
+      systemOverview: 'System Overview',
+      adminUsers: 'Admin Users',
+      doctorSlotsTotal: 'Doctor Slots',
+      availableSlots: 'Available Slots',
+      bookedSlots: 'Booked Slots',
+      userRolesData: {
+        admins: 'Admins',
+        doctors: 'Doctors',
+        patients: 'Patients',
+      },
+    };
 
   useEffect(() => {
     fetchData();
@@ -82,7 +148,7 @@ export const Dashboard = () => {
 
       setError('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load data');
+      setError(err.response?.data?.message || text.failedLoad);
     } finally {
       setLoading(false);
     }
@@ -106,9 +172,9 @@ export const Dashboard = () => {
 
   const getUserRoleData = () => {
     return [
-      { name: 'Admins', value: stats?.adminUsers || 0 },
-      { name: 'Doctors', value: stats?.totalDoctors || 0 },
-      { name: 'Patients', value: stats?.totalPatients || 0 },
+      { name: text.userRolesData.admins, value: stats?.adminUsers || 0 },
+      { name: text.userRolesData.doctors, value: stats?.totalDoctors || 0 },
+      { name: text.userRolesData.patients, value: stats?.totalPatients || 0 },
     ];
   };
 
@@ -192,38 +258,38 @@ export const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900">{text.dashboard}</h1>
         <button
           onClick={fetchData}
           className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          Refresh
+          {t('common.refresh', 'Refresh')}
         </button>
       </div>
 
       {/* Main Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Users"
+          title={text.totalUsers}
           value={stats?.totalUsers || 0}
           icon={Users}
           color="blue"
-          subtitle={`${stats?.adminUsers || 0} admins`}
+          subtitle={`${stats?.adminUsers || 0} ${text.admins}`}
         />
         <StatCard
-          title="Total Doctors"
+          title={text.totalDoctors}
           value={stats?.totalDoctors || 0}
           icon={Stethoscope}
           color="green"
         />
         <StatCard
-          title="Total Patients"
+          title={text.totalPatients}
           value={stats?.totalPatients || 0}
           icon={UserCheck}
           color="purple"
         />
         <StatCard
-          title="Care Profiles"
+          title={text.careProfiles}
           value={stats?.totalCareProfiles || 0}
           icon={FolderHeart}
           color="orange"
@@ -233,29 +299,29 @@ export const Dashboard = () => {
       {/* Appointment Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Total Appointments"
+          title={text.totalAppointments}
           value={stats?.totalAppointments || 0}
           icon={Calendar}
           color="indigo"
         />
         <StatCard
-          title="Pending"
+          title={text.pending}
           value={stats?.pendingAppointments || 0}
           icon={Clock}
           color="orange"
         />
         <StatCard
-          title="Completed"
+          title={text.completed}
           value={stats?.completedAppointments || 0}
           icon={CheckCircle}
           color="green"
         />
         <StatCard
-          title="Paid Appointments"
+          title={text.paidAppointments}
           value={paidCount}
           icon={DollarSign}
           color="teal"
-          subtitle={`${unpaidCount} unpaid`}
+          subtitle={`${unpaidCount} ${text.unpaid}`}
         />
       </div>
 
@@ -263,7 +329,7 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Appointment Status Chart */}
         <Card>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Appointment Status</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{text.apptStatus}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={getAppointmentStatusData()}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -282,7 +348,7 @@ export const Dashboard = () => {
 
         {/* Revenue by Month (PAID) */}
         <Card>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Revenue by Month (PAID)</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{text.revenueByMonth}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={getRevenueByMonthData()}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -292,14 +358,14 @@ export const Dashboard = () => {
                 formatter={(value) =>
                   `${Number(value || 0).toLocaleString('vi-VN')} đ`
                 }
-                labelFormatter={(label) => `Tháng ${label}`}
+                labelFormatter={(label) => `${text.monthLabel} ${label}`}
               />
               <Legend />
               <Line
                 type="monotone"
                 dataKey="revenue"
                 stroke="#10B981"
-                name="Revenue (VND)"
+                name={text.revenueVnd}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -307,7 +373,7 @@ export const Dashboard = () => {
 
         {/* User Roles Distribution */}
         <Card>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">User Roles Distribution</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{text.userRoles}</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -332,7 +398,7 @@ export const Dashboard = () => {
         {/* Doctor Slots per Month (current year) */}
         <Card>
           <h2 className="text-xl font-bold text-gray-900 mb-4">
-            Doctor Slots per Month (current year)
+            {text.doctorSlotsByMonth}
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={getDoctorSlotsMonthlyData()}>
@@ -341,29 +407,29 @@ export const Dashboard = () => {
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="value" stroke="#3B82F6" name="Doctor Slots" />
+              <Line type="monotone" dataKey="value" stroke="#3B82F6" name={text.doctorSlots} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
       {/* Quick Stats Table */}
-      <Card title="System Overview">
+      <Card title={text.systemOverview}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600 text-sm font-medium">Admin Users</p>
+            <p className="text-gray-600 text-sm font-medium">{text.adminUsers}</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.adminUsers || 0}</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-600 text-sm font-medium">Doctor Slots</p>
+            <p className="text-gray-600 text-sm font-medium">{text.doctorSlotsTotal}</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalDoctorSlots || 0}</p>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-green-600 text-sm font-medium">Available Slots</p>
+            <p className="text-green-600 text-sm font-medium">{text.availableSlots}</p>
             <p className="text-3xl font-bold text-green-900 mt-2">{stats?.availableSlots || 0}</p>
           </div>
           <div className="text-center p-4 bg-red-50 rounded-lg">
-            <p className="text-red-600 text-sm font-medium">Booked Slots</p>
+            <p className="text-red-600 text-sm font-medium">{text.bookedSlots}</p>
             <p className="text-3xl font-bold text-red-900 mt-2">{stats?.bookedSlots || 0}</p>
           </div>
         </div>

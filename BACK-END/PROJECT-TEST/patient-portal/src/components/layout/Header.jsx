@@ -3,16 +3,18 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Menu, X, User, Bell, LogOut, Home, Calendar, Stethoscope, FileText } from 'lucide-react';
 import { Button } from '../common/Button';
+import { useUI } from '../../contexts/UIContext';
 
 export const Header = () => {
     const { user, logout } = useAuth();
+    const { language, theme, toggleLanguage, toggleTheme, t } = useUI();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
     const publicLinks = [
-        { to: '/', label: 'Trang chủ', icon: Home },
-        { to: '/doctors', label: 'Bác sĩ', icon: Stethoscope },
+        { to: '/', label: t('common.home', 'Trang chủ'), icon: Home },
+        { to: '/doctors', label: t('common.doctors', 'Bác sĩ'), icon: Stethoscope },
     ];
 
     const handleLogout = () => {
@@ -48,6 +50,23 @@ export const Header = () => {
 
                     {/* Auth Buttons / User Menu */}
                     <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-2">
+                            <button
+                                onClick={toggleLanguage}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-dark-100 text-gray-300 hover:text-white"
+                                title={t('common.language', 'Ngôn ngữ')}
+                            >
+                                {language === 'vi' ? 'VI' : 'EN'}
+                            </button>
+                            <button
+                                onClick={toggleTheme}
+                                className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-dark-100 text-gray-300 hover:text-white"
+                                title={t('common.theme', 'Giao diện')}
+                            >
+                                {theme === 'dark' ? t('common.dark', 'Tối') : t('common.light', 'Sáng')}
+                            </button>
+                        </div>
+
                         {user ? (
                             <>
                                 {/* Notifications */}
@@ -68,7 +87,7 @@ export const Header = () => {
                                         <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
                                             <User className="w-4 h-4 text-white" />
                                         </div>
-                                        <span className="hidden sm:block text-sm">{user.fullName || 'Người dùng'}</span>
+                                        <span className="hidden sm:block text-sm">{user.fullName || (language === 'vi' ? 'Người dùng' : 'User')}</span>
                                     </button>
 
                                     {userMenuOpen && (
@@ -79,7 +98,7 @@ export const Header = () => {
                                                 onClick={() => setUserMenuOpen(false)}
                                             >
                                                 <Calendar className="w-4 h-4" />
-                                                Bảng điều khiển
+                                                {t('common.dashboard', 'Bảng điều khiển')}
                                             </Link>
                                             <Link
                                                 to="/dashboard/profile"
@@ -87,7 +106,7 @@ export const Header = () => {
                                                 onClick={() => setUserMenuOpen(false)}
                                             >
                                                 <User className="w-4 h-4" />
-                                                Hồ sơ cá nhân
+                                                {t('common.profile', 'Hồ sơ cá nhân')}
                                             </Link>
                                             <Link
                                                 to="/dashboard/ocr"
@@ -95,7 +114,7 @@ export const Header = () => {
                                                 onClick={() => setUserMenuOpen(false)}
                                             >
                                                 <FileText className="w-4 h-4" />
-                                                Quét đơn thuốc
+                                                {t('common.ocr', 'Quét CCCD')}
                                             </Link>
                                             <hr className="my-2 border-dark-100" />
                                             <button
@@ -103,7 +122,7 @@ export const Header = () => {
                                                 className="flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 hover:bg-dark-100 w-full"
                                             >
                                                 <LogOut className="w-4 h-4" />
-                                                Đăng xuất
+                                                {t('common.logout', 'Đăng xuất')}
                                             </button>
                                         </div>
                                     )}
@@ -112,10 +131,10 @@ export const Header = () => {
                         ) : (
                             <div className="hidden sm:flex items-center gap-3">
                                 <Link to="/login">
-                                    <Button variant="ghost">Đăng nhập</Button>
+                                    <Button variant="ghost">{t('common.login', 'Đăng nhập')}</Button>
                                 </Link>
                                 <Link to="/register">
-                                    <Button variant="primary">Đăng ký</Button>
+                                    <Button variant="primary">{t('common.register', 'Đăng ký')}</Button>
                                 </Link>
                             </div>
                         )}
@@ -154,14 +173,14 @@ export const Header = () => {
                                     className="block px-3 py-2 text-gray-300 hover:text-white hover:bg-dark-100 rounded-lg"
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
-                                    Đăng nhập
+                                    {t('common.login', 'Đăng nhập')}
                                 </Link>
                                 <Link
                                     to="/register"
                                     className="block px-3 py-2 text-primary-400 hover:text-primary-300 hover:bg-dark-100 rounded-lg"
                                     onClick={() => setMobileMenuOpen(false)}
                                 >
-                                    Đăng ký
+                                    {t('common.register', 'Đăng ký')}
                                 </Link>
                             </>
                         )}

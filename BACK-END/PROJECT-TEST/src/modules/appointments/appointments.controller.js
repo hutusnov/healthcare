@@ -50,7 +50,7 @@ async function cancel(req, res) {
  * Lịch “có slot trống” theo tháng (dùng để tô ngày có lịch, sau bước chọn chuyên khoa)
  * Query:
  *  - month: YYYY-MM (required)
- *  - specialty: string (optional, lọc theo chuyên khoa; MySQL case-insensitive theo collation)
+ *  - specialty: string (optional, lọc theo chuyên khoa; behavior phụ thuộc cách query và collation của PostgreSQL)
  */
 async function calendar(req, res) {
   const { month, specialty } = req.query;

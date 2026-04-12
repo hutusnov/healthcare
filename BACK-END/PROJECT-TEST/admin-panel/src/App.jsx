@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { UIProvider } from './contexts/UIContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { MainLayout } from './components/layout/MainLayout';
 import { Login } from './pages/Login';
@@ -18,8 +19,9 @@ import { ViewAppointments } from './pages/ViewAppointments';
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
+      <UIProvider>
+        <AuthProvider>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/*"
@@ -43,8 +45,9 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </UIProvider>
     </BrowserRouter>
   );
 }

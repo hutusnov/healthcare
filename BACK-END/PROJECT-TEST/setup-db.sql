@@ -1,15 +1,23 @@
--- File SQL để setup database
--- Chạy bằng lệnh: sudo mysql -u root < setup-db.sql
-
--- Tạo user mới
-CREATE USER IF NOT EXISTS 'project_user'@'localhost' IDENTIFIED BY 'Project@123456';
+-- File SQL để setup database PostgreSQL
+-- Chạy bằng lệnh: psql -U postgres -f setup-db.sql
 
 -- Tạo database
-CREATE DATABASE IF NOT EXISTS project_test;
+CREATE DATABASE project_test;
 
--- Cấp quyền
-GRANT ALL PRIVILEGES ON project_test.* TO 'project_user'@'localhost';
-FLUSH PRIVILEGES;
+-- Kết nối vào DB rồi chạy các lệnh bên dưới nếu cần tạo user thủ công:
+-- psql -U postgres -d project_test
+
+-- Tạo user mới
+CREATE USER project WITH PASSWORD 'StrongPass!';
+
+-- Cấp quyền kết nối và thao tác trên schema public
+GRANT ALL PRIVILEGES ON DATABASE project_test TO project;
+\connect project_test
+GRANT USAGE, CREATE ON SCHEMA public TO project;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO project;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO project;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO project;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO project;
 
 -- Kiểm tra
-SELECT user, host, plugin FROM mysql.user WHERE user='project_user';
+SELECT usename FROM pg_user WHERE usename = 'project';

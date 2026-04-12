@@ -1,11 +1,30 @@
 const prisma = require('../../config/db');
 const UNPAID_EXPIRE_MINUTES = 10;
 const REMINDER_WINDOW_DEFAULT_MINUTES = 5;
+const safeUserSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+};
+const safeDoctorSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  phone: true,
+  role: true,
+  createdAt: true,
+  updatedAt: true,
+  doctor: true,
+};
 
 async function getProfile(userId) {
   return prisma.patientProfile.findUnique({
     where: { userId },
-    include: { user: true },
+    include: { user: { select: safeUserSelect } },
   });
 }
 
@@ -65,7 +84,13 @@ async function getAppointments(userId) {
   await cleanupExpiredForPatient(userId);
   return prisma.appointment.findMany({
     where: { patientId: userId },
-    include: { doctor: true, payment: true, careProfile: true },
+    include: {
+      doctor: {
+        select: safeDoctorSelect,
+      },
+      payment: true,
+      careProfile: true,
+    },
     orderBy: { scheduledAt: 'desc' },
   });
 }
@@ -78,7 +103,9 @@ async function getPaidAppointments(userId) {
       paymentStatus: 'PAID',
     },
     include: {
-      doctor: true,
+      doctor: {
+        select: safeDoctorSelect,
+      },
       payment: true,
       careProfile: true,
     },
@@ -113,7 +140,9 @@ async function getUpcomingAppointmentReminders(
       },
     },
     include: {
-      doctor: true,
+      doctor: {
+        select: safeDoctorSelect,
+      },
       careProfile: true,
       payment: true,
     },
@@ -138,6 +167,8 @@ async function getUpcomingAppointmentReminders(
             fullName: appt.doctor.fullName,
             email: appt.doctor.email,
             phone: appt.doctor.phone,
+            specialty: appt.doctor.doctor?.specialty || null,
+            clinicName: appt.doctor.doctor?.clinicName || null,
           }
         : null,
       careProfile: appt.careProfile
@@ -167,7 +198,9 @@ async function getAppointmentResults(userId) {
       examResult: { not: null },
     },
     include: {
-      doctor: true,
+      doctor: {
+        select: safeDoctorSelect,
+      },
       careProfile: true,
     },
     orderBy: { scheduledAt: 'desc' },
@@ -186,6 +219,8 @@ async function getAppointmentResults(userId) {
           id: appt.doctor.id,
           fullName: appt.doctor.fullName,
           email: appt.doctor.email,
+          specialty: appt.doctor.doctor?.specialty || null,
+          clinicName: appt.doctor.doctor?.clinicName || null,
         }
       : null,
     careProfile: appt.careProfile

@@ -4,73 +4,6 @@ metadata:
   name: uit-healthcare
 ---
 # ============================
-# PostgreSQL — StatefulSet
-# ============================
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgres
-  namespace: uit-healthcare
-spec:
-  serviceName: postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_DB
-              value: project_test
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: db-secret
-                  key: username
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: db-secret
-                  key: password
-          volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "postgres"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-  volumeClaimTemplates:
-    - metadata:
-        name: pgdata
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres
-  namespace: uit-healthcare
-spec:
-  ports:
-    - port: 5432
-  selector:
-    app: postgres
-  clusterIP: None
-
----
-# ============================
 # Backend API — Deployment
 # ============================
 apiVersion: apps/v1
@@ -79,7 +12,9 @@ metadata:
   name: backend-api
   namespace: uit-healthcare
 spec:
-  replicas: 2
+  # Runtime chinh da chuyen sang AWS EC2.
+  # Giu deployment nay o trang thai standby de co the rollback/lab khi can.
+  replicas: 0
   selector:
     matchLabels:
       app: backend-api
@@ -92,9 +27,14 @@ spec:
         prometheus.io/port: "4000"
         prometheus.io/path: "/metrics"
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: ai-ocr-worker
       containers:
         - name: api
-          image: uit-healthcare-api:latest
+          image: ghcr.io/hutusnov/healthcare-backend:develop-latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 4000
           env:
@@ -102,6 +42,9 @@ spec:
               value: production
             - name: PORT
               value: "4000"
+            # Data layer runs outside K3s on data-core-node.
+            # Create backend-secret.database-url with a value like:
+            # <database-url>
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -112,6 +55,36 @@ spec:
                 secretKeyRef:
                   name: backend-secret
                   key: jwt-secret
+            - name: MOMO_PARTNER_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-partner-code
+            - name: MOMO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-access-key
+            - name: MOMO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-secret-key
+            - name: MOMO_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-endpoint
+            - name: MOMO_RETURN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-return-url
+            - name: MOMO_NOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-notify-url
           readinessProbe:
             httpGet:
               path: /api/health
@@ -164,9 +137,14 @@ spec:
       labels:
         app: ocr-service
     spec:
+      nodeSelector:
+        workload-role: ocr
       containers:
         - name: ocr
-          image: uit-healthcare-ocr:latest
+          image: ghcr.io/hutusnov/healthcare-ocr:develop-latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 8001
           env:

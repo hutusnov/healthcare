@@ -1,3 +1,4 @@
+import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { Footer } from './Footer';
@@ -10,7 +11,7 @@ export const DashboardLayout = ({ children }) => {
                 <Sidebar />
                 <main className="flex-1 lg:ml-64 p-6">
                     <div className="max-w-6xl mx-auto">
-                        {children}
+                        {children || <Outlet />}
                     </div>
                 </main>
             </div>

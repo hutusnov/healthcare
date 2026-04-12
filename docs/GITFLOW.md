@@ -176,6 +176,7 @@ Mô tả ngắn gọn thay đổi gì và tại sao.
 ### 4.3 Review Checklist
 
 Reviewer cần kiểm tra:
+
 - [ ] Code chạy được không?
 - [ ] Có security issue không?
 - [ ] Có breaking change không?

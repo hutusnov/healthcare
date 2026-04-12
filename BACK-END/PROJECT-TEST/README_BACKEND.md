@@ -4,7 +4,7 @@ Hệ thống đặt lịch khám bệnh gồm:
 
 -   **Mobile app** (Android): cho bệnh nhân đặt lịch, xem lịch hẹn, hồ
     sơ...
--   **Backend API** (Node.js + Express + Prisma + MySQL): xử lý
+-   **Backend API** (Node.js + Express + Prisma + PostgreSQL): xử lý
     business, lưu dữ liệu.
 -   **Web Admin Panel** (React + Vite + TailwindCSS): cho admin quản lý
     người dùng, bác sĩ, lịch hẹn...
@@ -24,7 +24,7 @@ Hệ thống đặt lịch khám bệnh gồm:
 
 -   **Node.js + Express**
 -   **Prisma ORM**
--   **MySQL**
+-   **PostgreSQL**
 -   **JWT auth**
 -   **MoMo test payment**
 
@@ -58,7 +58,7 @@ Project-Mobile/
 
 -   Node.js \>= 18\
 -   npm \>= 9\
--   MySQL server\
+-   PostgreSQL server\
 -   Git
 
 ### Cho OCR
@@ -72,17 +72,16 @@ Project-Mobile/
 git clone https://github.com/<your-org>/Project-Mobile.git
 cd Project-Mobile/BACK-END/PROJECT-TEST
 
-### 4.2 Tạo database MySQL
+### 4.2 Tạo database PostgreSQL
 Tạo DB:
-CREATE DATABASE project_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE project_test;
 
 Tạo user (nếu cần):
-CREATE USER 'project'@'localhost' IDENTIFIED BY 'StrongPass!';
-GRANT ALL PRIVILEGES ON project_test.* TO 'project'@'localhost';
-FLUSH PRIVILEGES;
+CREATE USER project WITH PASSWORD 'StrongPass!';
+GRANT ALL PRIVILEGES ON DATABASE project_test TO project;
 
 Import script (nếu cần):
-mysql -u project -p project_test < setup-db.sql
+psql -U project -d project_test -f setup-db.sql
 
 ### 4.3 Cấu hình backend (.env)
 
@@ -97,7 +96,7 @@ Mở file .env và chỉnh:
 NODE_ENV=development
 PORT=4000
 
-DATABASE_URL="mysql://project:StrongPass!@localhost:3306/project_test"
+DATABASE_URL="<database-url>"
 
 JWT_SECRET=change_this_secret
 JWT_EXPIRES=7d
@@ -156,7 +155,5 @@ pip install -r requirements.txt
 
 ### 5.2 Chạy server OCR
 python -m uvicorn main:app --host 0.0.0.0 --port 8001
-
-
 
 

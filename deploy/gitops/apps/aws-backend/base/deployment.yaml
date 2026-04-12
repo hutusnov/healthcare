@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-api
+  template:
+    metadata:
+      labels:
+        app: backend-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: api
+          image: placeholder.local/healthcare-backend:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 4000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "4000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: jwt-secret
+            - name: MOMO_PARTNER_CODE
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-partner-code
+            - name: MOMO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-access-key
+            - name: MOMO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-secret-key
+            - name: MOMO_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-endpoint
+            - name: MOMO_RETURN_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-return-url
+            - name: MOMO_NOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: momo-notify-url
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 4000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -8,6 +8,12 @@ const QRCode = require('qrcode'); // generate QR cho payUrl
 const { generateInvoicePdf } = require('../../utils/invoicePdf');
 const { sendInvoiceEmail } = require('../../utils/invoiceEmail');
 
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
 // --- helpers ---
 function signRaw(raw, secretKey) {
   return crypto.createHmac('sha256', secretKey).update(raw).digest('hex');
@@ -29,7 +35,7 @@ function getFeeBySpecialty(specialty) {
 function ensureMomoConfig() {
   const reqKeys = ['partnerCode', 'accessKey', 'secretKey', 'endpoint', 'returnUrl', 'notifyUrl'];
   const missing = reqKeys.filter((k) => !config.momo?.[k]);
-  if (missing.length) throw new Error(`MoMo config missing: ${missing.join(', ')}`);
+  if (missing.length) throw httpError(400, `MoMo config missing: ${missing.join(', ')}`);
 }
 
 function trimTrailingSlash(u = '') {
@@ -51,10 +57,10 @@ async function createMoMoForAppointment({ appointmentId, byUserId }) {
     },
   });
 
-  if (!appt) throw new Error('Appointment not found');
-  if (appt.patientId !== byUserId) throw new Error('Forbidden');
-  if (appt.status === 'CANCELLED') throw new Error('Appointment cancelled');
-  if (appt.paymentStatus === 'PAID') throw new Error('Appointment already paid');
+  if (!appt) throw httpError(404, 'Appointment not found');
+  if (appt.patientId !== byUserId) throw httpError(403, 'Forbidden');
+  if (appt.status === 'CANCELLED') throw httpError(400, 'Appointment cancelled');
+  if (appt.paymentStatus === 'PAID') throw httpError(409, 'Appointment already paid');
 
   const dp = await prisma.doctorProfile.findUnique({ where: { userId: appt.doctorId } });
   const specialty = dp?.specialty || 'GENERAL';
@@ -143,9 +149,9 @@ async function createMoMoForAppointment({ appointmentId, byUserId }) {
     if (err.response) {
       const { status, data } = err.response;
       const msg = (data && (data.message || data.localMessage)) || JSON.stringify(data);
-      throw new Error(`MoMo ${status}: ${msg}`);
+      throw httpError(502, `MoMo ${status}: ${msg}`);
     }
-    throw err;
+    throw httpError(502, err.message || 'MoMo request failed');
   }
 }
 
