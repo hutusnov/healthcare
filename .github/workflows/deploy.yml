@@ -1,27 +1,38 @@
-name: UIT Healthcare — DevSecOps Pipeline
+name: UIT Healthcare Hybrid Delivery Pipeline
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, develop]
+    paths-ignore:
+      - "deploy/gitops/**"
+      - "deploy/argocd/**"
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+    paths-ignore:
+      - "deploy/gitops/**"
+      - "deploy/argocd/**"
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.10"
+  REGISTRY_PROVIDER: ${{ vars.REGISTRY_PROVIDER }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_BACKEND_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
+  ENABLE_AWS_EC2_DEPLOY: ${{ vars.ENABLE_AWS_EC2_DEPLOY }}
+  BACKEND_IMAGE_NAME: healthcare-backend
+  OCR_IMAGE_NAME: healthcare-ocr
 
 jobs:
-  # ============================================================
-  # Stage 1: SAST — Static Application Security Testing
-  # ============================================================
   sast-scan:
-    name: 🔍 SAST Scan
+    name: SAST Scan
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     permissions:
       security-events: write
     steps:
       - uses: actions/checkout@v4
 
-      # npm audit — dependency vulnerability scan
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,7 +46,6 @@ jobs:
         working-directory: BACK-END/PROJECT-TEST/patient-portal
         run: npm audit --audit-level=high --omit=dev || true
 
-      # Semgrep — SAST for code patterns
       - name: Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
         with:
@@ -45,13 +55,10 @@ jobs:
             p/owasp-top-ten
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        continue-on-error: true
 
-  # ============================================================
-  # Stage 2: BUILD — Compile and Lint
-  # ============================================================
-  backend-build:
-    name: 🔨 Build Backend
+  backend-validate:
+    name: Validate Backend
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,7 +70,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: BACK-END/PROJECT-TEST/package-lock.json
 
       - name: Install dependencies
@@ -75,8 +82,18 @@ jobs:
       - name: Syntax check
         run: node -c src/app.js && node -c src/server.js
 
-  patient-portal-build:
-    name: 🔨 Build Patient Portal
+      - name: Run backend tests if implemented
+        shell: bash
+        run: |
+          if node -e "const pkg=require('./package.json'); process.exit(pkg.scripts.test && !pkg.scripts.test.includes('no test specified') ? 0 : 1)"; then
+            npm test
+          else
+            echo "Skipping backend tests: no real test suite configured yet"
+          fi
+
+  patient-portal-validate:
+    name: Validate Patient Portal
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,11 +105,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: BACK-END/PROJECT-TEST/patient-portal/package-lock.json
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
 
       - name: Build
         run: npm run build
@@ -101,28 +121,138 @@ jobs:
           VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
           VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
 
-  # ============================================================
-  # Stage 3: DOCKER BUILD + IMAGE SCANNING (Trivy)
-  # ============================================================
-  docker-security:
-    name: 🐳 Docker Build & Trivy Scan
+  ocr-validate:
+    name: Validate OCR Service
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
-    needs: [sast-scan, backend-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    permissions:
-      security-events: write
-
+    defaults:
+      run:
+        working-directory: OCR
     steps:
       - uses: actions/checkout@v4
 
-      # Build Docker images
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: OCR/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Python syntax check
+        run: python -m py_compile main.py ocr_services.py util.py
+
+  docker-security:
+    name: Build, Publish, and Scan Images
+    runs-on: ubuntu-latest
+    needs: [sast-scan, backend-validate, patient-portal-validate, ocr-validate]
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      id-token: write
+    outputs:
+      backend_image: ${{ steps.registry.outputs.backend_image }}
+      ocr_image: ${{ steps.registry.outputs.ocr_image }}
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "tag=main-latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=develop-latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve registry target
+        id: registry
+        shell: bash
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          provider="${REGISTRY_PROVIDER}"
+          region="${AWS_REGION}"
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+
+          if [ -z "$provider" ]; then
+            provider="ghcr"
+          fi
+
+          if [ -z "$region" ]; then
+            region="ap-southeast-1"
+          fi
+
+          if [ "$provider" = "ecr" ]; then
+            if [ -z "$AWS_ACCOUNT_ID" ]; then
+              echo "AWS_ACCOUNT_ID secret is required when REGISTRY_PROVIDER=ecr" >&2
+              exit 1
+            fi
+            registry="${AWS_ACCOUNT_ID}.dkr.ecr.${region}.amazonaws.com"
+            backend_image="${registry}/${BACKEND_IMAGE_NAME}"
+            ocr_image="${registry}/${OCR_IMAGE_NAME}"
+          else
+            registry="ghcr.io"
+            backend_image="${registry}/${owner}/${BACKEND_IMAGE_NAME}"
+            ocr_image="${registry}/${owner}/${OCR_IMAGE_NAME}"
+          fi
+
+          echo "provider=${provider}" >> "$GITHUB_OUTPUT"
+          echo "aws_region=${region}" >> "$GITHUB_OUTPUT"
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+          echo "backend_image=${backend_image}" >> "$GITHUB_OUTPUT"
+          echo "ocr_image=${ocr_image}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        if: steps.registry.outputs.provider == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ steps.registry.outputs.aws_region }}
+
+      - name: Login to ECR
+        if: steps.registry.outputs.provider == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Login to GHCR
+        if: steps.registry.outputs.provider != 'ecr'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Backend image
-        run: docker build -t uit-healthcare-api:latest ./BACK-END/PROJECT-TEST
+        run: |
+          docker build \
+            -t ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }} \
+            -t ${{ steps.registry.outputs.backend_image }}:${{ github.sha }} \
+            ./BACK-END/PROJECT-TEST
 
       - name: Build OCR image
-        run: docker build -t uit-healthcare-ocr:latest ./OCR
+        run: |
+          docker build \
+            -t ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }} \
+            -t ${{ steps.registry.outputs.ocr_image }}:${{ github.sha }} \
+            ./OCR
 
-      # Trivy — scan Docker images for CVEs
+      - name: Push Backend image
+        run: |
+          docker push ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
+          docker push ${{ steps.registry.outputs.backend_image }}:${{ github.sha }}
+
+      - name: Push OCR image
+        run: |
+          docker push ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
+          docker push ${{ steps.registry.outputs.ocr_image }}:${{ github.sha }}
+
       - name: Install Trivy
         run: |
           sudo apt-get install -y wget
@@ -130,19 +260,17 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update && sudo apt-get install -y trivy
 
-      - name: Trivy Scan — Backend API
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table uit-healthcare-api:latest
+      - name: Trivy Scan Backend API
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
 
-      - name: Trivy Scan — OCR Service
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table uit-healthcare-ocr:latest
+      - name: Trivy Scan OCR Service
+        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
 
-      # Filesystem scan (for secrets, misconfigurations)
       - name: Trivy Filesystem Scan
         run: trivy fs --severity HIGH,CRITICAL --exit-code 0 --format table .
 
-      # Upload SARIF for GitHub Security tab (optional)
-      - name: Trivy SARIF — Backend
-        run: trivy image --format sarif --output trivy-backend.sarif uit-healthcare-api:latest
+      - name: Trivy SARIF Backend
+        run: trivy image --format sarif --output trivy-backend.sarif ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
         continue-on-error: true
 
       - name: Upload Trivy SARIF
@@ -151,48 +279,445 @@ jobs:
           sarif_file: trivy-backend.sarif
         continue-on-error: true
 
-  # ============================================================
-  # Stage 4: DEPLOY (configure per platform)
-  # ============================================================
-  deploy:
-    name: 🚀 Deploy
+  gitops-update:
+    name: Update GitOps Manifests
     runs-on: ubuntu-latest
-    needs: [docker-security, patient-portal-build]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment: production
-
+    needs: [docker-security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # ---- DigitalOcean Deployment ----
-      # Uncomment and configure for your DO setup:
-      #
-      # - name: Install doctl
-      #   uses: digitalocean/action-doctl@v2
-      #   with:
-      #     token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      #
-      # - name: Login to DO Container Registry
-      #   run: doctl registry login
-      #
-      # - name: Tag & Push Backend
-      #   run: |
-      #     docker build -t uit-healthcare-api:latest ./BACK-END/PROJECT-TEST
-      #     docker tag uit-healthcare-api:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:${{ github.sha }}
-      #     docker tag uit-healthcare-api:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:latest
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:${{ github.sha }}
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/api:latest
-      #
-      # - name: Tag & Push OCR
-      #   run: |
-      #     docker build -t uit-healthcare-ocr:latest ./OCR
-      #     docker tag uit-healthcare-ocr:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:${{ github.sha }}
-      #     docker tag uit-healthcare-ocr:latest registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:latest
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:${{ github.sha }}
-      #     docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY }}/ocr:latest
-      #
-      # - name: Deploy to App Platform
-      #   run: doctl apps create-deployment ${{ secrets.DO_APP_ID }}
+      - name: Update ArgoCD repo URL
+        shell: bash
+        run: |
+          repo_url="https://github.com/${GITHUB_REPOSITORY}.git"
+          sed -i "s|https://github.com/REPLACE_ME/healthcare.git|${repo_url}|g" deploy/argocd/*.yaml
 
-      - name: Deploy placeholder
-        run: echo "🚀 Deployment stage ready — configure your platform above"
+      - name: Update image references
+        shell: bash
+        env:
+          BACKEND_IMAGE: ${{ needs.docker-security.outputs.backend_image }}
+          OCR_IMAGE: ${{ needs.docker-security.outputs.ocr_image }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          sed -i "s|newName: .*|newName: ${BACKEND_IMAGE}|g" deploy/gitops/apps/aws-backend/overlays/prod/kustomization.yaml
+          sed -i "s|newTag: .*|newTag: ${IMAGE_TAG}|g" deploy/gitops/apps/aws-backend/overlays/prod/kustomization.yaml
+          sed -i "s|newName: .*|newName: ${OCR_IMAGE}|g" deploy/gitops/apps/private-ocr/overlays/prod/kustomization.yaml
+          sed -i "s|newTag: .*|newTag: ${IMAGE_TAG}|g" deploy/gitops/apps/private-ocr/overlays/prod/kustomization.yaml
+
+      - name: Commit GitOps updates
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No GitOps changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/gitops deploy/argocd
+          git commit -m "[skip ci] gitops: update deploy image tags"
+          git push
+
+  deploy-aws-ec2:
+    name: Deploy AWS EC2 Backend
+    runs-on: ubuntu-latest
+    needs: [docker-security]
+    if: github.event_name == 'push' && vars.ENABLE_AWS_EC2_DEPLOY == 'true' && vars.AWS_BACKEND_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy backend over SSM
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ env.AWS_BACKEND_INSTANCE_ID }}
+          BACKEND_IMAGE: ${{ needs.docker-security.outputs.backend_image }}:${{ needs.docker-security.outputs.image_tag }}
+          GHCR_USERNAME: ${{ secrets.GHCR_DEPLOY_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
+          DATABASE_URL: ${{ secrets.BACKEND_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.BACKEND_JWT_SECRET }}
+          FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL }}
+          ADMIN_PANEL_URL: ${{ secrets.BACKEND_ADMIN_PANEL_URL }}
+          PATIENT_PORTAL_URL: ${{ secrets.BACKEND_PATIENT_PORTAL_URL }}
+          MOMO_PARTNER_CODE: ${{ secrets.MOMO_PARTNER_CODE }}
+          MOMO_NOTIFY_URL: ${{ secrets.MOMO_NOTIFY_URL }}
+          MOMO_ACCESS_KEY: ${{ secrets.MOMO_ACCESS_KEY }}
+          MOMO_SECRET_KEY: ${{ secrets.MOMO_SECRET_KEY }}
+          MOMO_ENDPOINT: ${{ secrets.MOMO_ENDPOINT }}
+          MOMO_RETURN_URL: ${{ secrets.MOMO_RETURN_URL }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          compose = f"""services:
+            backend:
+              image: {os.environ["BACKEND_IMAGE"]}
+              container_name: healthcare-backend
+              restart: unless-stopped
+              env_file:
+                - .env
+              ports:
+                - "4000:4000"
+              healthcheck:
+                test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/health || exit 1"]
+                interval: 30s
+                timeout: 5s
+                retries: 3
+                start_period: 15s
+          """
+
+          env_file = f"""BACKEND_IMAGE={os.environ["BACKEND_IMAGE"]}
+          NODE_ENV=production
+          PORT=4000
+          DATABASE_URL={os.environ["DATABASE_URL"]}
+          JWT_SECRET={os.environ["JWT_SECRET"]}
+          PATIENT_PORTAL_URL={os.environ["PATIENT_PORTAL_URL"]}
+          ADMIN_PANEL_URL={os.environ["ADMIN_PANEL_URL"]}
+          FRONTEND_URL={os.environ["FRONTEND_URL"]}
+          MOMO_PARTNER_CODE={os.environ["MOMO_PARTNER_CODE"]}
+          MOMO_NOTIFY_URL={os.environ["MOMO_NOTIFY_URL"]}
+          MOMO_ACCESS_KEY={os.environ["MOMO_ACCESS_KEY"]}
+          MOMO_SECRET_KEY={os.environ["MOMO_SECRET_KEY"]}
+          MOMO_ENDPOINT={os.environ["MOMO_ENDPOINT"]}
+          MOMO_RETURN_URL={os.environ["MOMO_RETURN_URL"]}
+          """
+
+          ghcr_username = os.environ.get("GHCR_USERNAME", "")
+          ghcr_token = os.environ.get("GHCR_TOKEN", "")
+
+          commands = [
+              "set -e",
+              "sudo mkdir -p /opt/healthcare-backend",
+              "cat > /opt/healthcare-backend/docker-compose.yml <<'EOF'\n" + compose + "\nEOF",
+              "cat > /opt/healthcare-backend/.env <<'EOF'\n" + env_file + "\nEOF",
+          ]
+
+          if ghcr_username and ghcr_token:
+              commands.append(
+                  f"echo {json.dumps(ghcr_token)} | sudo docker login ghcr.io -u {json.dumps(ghcr_username)} --password-stdin"
+              )
+
+          commands.extend([
+              "sudo docker rm -f healthcare-backend || true",
+              "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
+              "cd /opt/healthcare-backend && sudo docker compose pull",
+              "cd /opt/healthcare-backend && sudo docker compose up -d",
+              "sudo docker ps --filter name=healthcare-backend",
+              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:4000/api/health && exit 0; sleep 5; done; exit 1",
+          ])
+
+          Path("commands.json").write_text(json.dumps({"commands": commands}))
+          PY
+
+          COMMAND_ID="$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy healthcare backend from GitHub Actions" \
+            --parameters file://commands.json \
+            --query 'Command.CommandId' \
+            --output text)"
+
+          if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+            exit 1
+          fi
+
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+
+  deploy-aws-monitoring:
+    name: Deploy AWS Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-aws-ec2]
+    if: github.event_name == 'push' && vars.ENABLE_AWS_MONITORING_DEPLOY == 'true' && vars.AWS_MONITORING_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy monitoring over SSM
+        shell: bash
+        env:
+          INSTANCE_ID: ${{ vars.AWS_MONITORING_INSTANCE_ID }}
+          BACKEND_TARGET: ${{ vars.MONITORING_BACKEND_TARGET }}
+          OCR_TARGET: ${{ vars.MONITORING_OCR_TARGET }}
+          GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          backend_target = os.environ.get("BACKEND_TARGET") or "host.docker.internal:4000"
+          ocr_target = os.environ.get("OCR_TARGET", "").strip()
+          grafana_user = os.environ.get("GRAFANA_ADMIN_USER") or "admin"
+          grafana_password = os.environ.get("GRAFANA_ADMIN_PASSWORD") or "admin"
+
+          prometheus = f"""global:
+            scrape_interval: 15s
+            evaluation_interval: 15s
+
+          scrape_configs:
+            - job_name: backend-aws
+              metrics_path: /metrics
+              static_configs:
+                - targets:
+                    - {backend_target}
+
+            - job_name: prometheus
+              static_configs:
+                - targets:
+                    - localhost:9090
+          """
+
+          if ocr_target:
+            prometheus += f"""
+
+            - job_name: ocr-service
+              metrics_path: /metrics
+              static_configs:
+                - targets:
+                    - {ocr_target}
+            """
+
+          compose = """services:
+            prometheus:
+              image: prom/prometheus:v2.53.0
+              container_name: healthcare-prometheus
+              restart: unless-stopped
+              ports:
+                - "9090:9090"
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                - prometheus_data:/prometheus
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+              command:
+                - "--config.file=/etc/prometheus/prometheus.yml"
+                - "--storage.tsdb.retention.time=15d"
+
+            grafana:
+              image: grafana/grafana:11.1.0
+              container_name: healthcare-grafana
+              restart: unless-stopped
+              ports:
+                - "3000:3000"
+              env_file:
+                - .env
+              volumes:
+                - grafana_data:/var/lib/grafana
+                - ./grafana/provisioning:/etc/grafana/provisioning:ro
+              depends_on:
+                - prometheus
+                - loki
+
+            loki:
+              image: grafana/loki:3.1.0
+              container_name: healthcare-loki
+              restart: unless-stopped
+              ports:
+                - "3100:3100"
+              volumes:
+                - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+                - loki_data:/loki
+              command:
+                - "-config.file=/etc/loki/local-config.yaml"
+
+            promtail:
+              image: grafana/promtail:3.1.0
+              container_name: healthcare-promtail
+              restart: unless-stopped
+              volumes:
+                - ./promtail-config.yml:/etc/promtail/config.yml:ro
+                - /var/run/docker.sock:/var/run/docker.sock:ro
+              command:
+                - "-config.file=/etc/promtail/config.yml"
+              depends_on:
+                - loki
+
+          volumes:
+            prometheus_data:
+            grafana_data:
+            loki_data:
+          """
+
+          grafana_env = f"""GF_SECURITY_ADMIN_USER={grafana_user}
+          GF_SECURITY_ADMIN_PASSWORD={grafana_password}
+          GF_USERS_ALLOW_SIGN_UP=false
+          """
+
+          loki = """auth_enabled: false
+
+          server:
+            http_listen_port: 3100
+
+          common:
+            ring:
+              instance_addr: 127.0.0.1
+              kvstore:
+                store: inmemory
+            replication_factor: 1
+            path_prefix: /loki
+
+          schema_config:
+            configs:
+              - from: 2024-01-01
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+
+          storage_config:
+            filesystem:
+              directory: /loki/chunks
+
+          limits_config:
+            reject_old_samples: true
+            reject_old_samples_max_age: 168h
+          """
+
+          promtail = """server:
+            http_listen_port: 9080
+
+          positions:
+            filename: /tmp/positions.yaml
+
+          clients:
+            - url: http://loki:3100/loki/api/v1/push
+
+          scrape_configs:
+            - job_name: docker
+              docker_sd_configs:
+                - host: unix:///var/run/docker.sock
+                  refresh_interval: 5s
+              relabel_configs:
+                - source_labels: ['__meta_docker_container_name']
+                  regex: '/(.*)'
+                  target_label: container
+                - source_labels: ['__meta_docker_container_log_stream']
+                  target_label: logstream
+          """
+
+          datasources = """apiVersion: 1
+
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+              editable: true
+
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki:3100
+              editable: true
+          """
+
+          dashboards = """apiVersion: 1
+
+          providers:
+            - name: healthcare
+              orgId: 1
+              folder: Healthcare
+              type: file
+              disableDeletion: false
+              editable: true
+              options:
+                path: /etc/grafana/provisioning/dashboards/json
+          """
+
+          dashboard_json = """{
+            "annotations": { "list": [] },
+            "editable": true,
+            "fiscalYearStartMonth": 0,
+            "graphTooltip": 0,
+            "id": null,
+            "links": [],
+            "liveNow": false,
+            "panels": [
+              {
+                "datasource": { "type": "prometheus", "uid": "grafana" },
+                "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" }, "overrides": [] },
+                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+                "id": 1,
+                "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+                "targets": [{ "expr": "sum(rate(http_requests_total[5m]))", "legendFormat": "requests/sec", "refId": "A" }],
+                "title": "Backend Request Rate",
+                "type": "timeseries"
+              },
+              {
+                "datasource": { "type": "prometheus", "uid": "grafana" },
+                "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "ms" }, "overrides": [] },
+                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+                "id": 2,
+                "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+                "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) * 1000", "legendFormat": "p95 latency", "refId": "A" }],
+                "title": "Backend p95 Latency",
+                "type": "timeseries"
+              }
+            ],
+            "refresh": "15s",
+            "schemaVersion": 39,
+            "style": "dark",
+            "tags": ["healthcare", "backend"],
+            "templating": { "list": [] },
+            "time": { "from": "now-6h", "to": "now" },
+            "timepicker": {},
+            "timezone": "browser",
+            "title": "Healthcare Backend Overview",
+            "version": 1,
+            "weekStart": ""
+          }"""
+
+          commands = [
+              "set -e",
+              "sudo mkdir -p /opt/healthcare-monitoring/grafana/provisioning/datasources",
+              "sudo mkdir -p /opt/healthcare-monitoring/grafana/provisioning/dashboards/json",
+              "cat > /opt/healthcare-monitoring/docker-compose.yml <<'EOF'\n" + compose + "\nEOF",
+              "cat > /opt/healthcare-monitoring/.env <<'EOF'\n" + grafana_env + "\nEOF",
+              "cat > /opt/healthcare-monitoring/prometheus.yml <<'EOF'\n" + prometheus + "\nEOF",
+              "cat > /opt/healthcare-monitoring/loki-config.yml <<'EOF'\n" + loki + "\nEOF",
+              "cat > /opt/healthcare-monitoring/promtail-config.yml <<'EOF'\n" + promtail + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/dashboards.yml <<'EOF'\n" + dashboards + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/json/backend-overview.json <<'EOF'\n" + dashboard_json + "\nEOF",
+              "cd /opt/healthcare-monitoring && sudo docker compose down --remove-orphans || true",
+              "cd /opt/healthcare-monitoring && sudo docker compose up -d",
+              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && exit 0; sleep 5; done; exit 1",
+          ]
+
+          Path("commands-monitoring.json").write_text(json.dumps({"commands": commands}))
+          PY
+
+          COMMAND_ID="$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy healthcare monitoring from GitHub Actions" \
+            --parameters file://commands-monitoring.json \
+            --query 'Command.CommandId' \
+            --output text)"
+
+          if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+            exit 1
+          fi
+
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
