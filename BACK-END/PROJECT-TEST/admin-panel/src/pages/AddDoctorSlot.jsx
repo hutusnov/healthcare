@@ -22,6 +22,7 @@ export const AddDoctorSlot = () => {
 
   useEffect(() => {
     generatePreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     formData.date,
     formData.startTime,

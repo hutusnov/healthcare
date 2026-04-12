@@ -28,6 +28,7 @@ import {
 } from 'recharts';
 import { useUI } from '../contexts/UIContext';
 
+// eslint-disable-next-line no-unused-vars
 const StatCard = ({ title, value, icon: Icon, color, subtitle }) => {
   const colors = {
     blue: 'bg-blue-500',
@@ -127,6 +128,7 @@ export const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -29,9 +29,9 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, loadUser]);
 
-  const loadUser = async () => {
+  const loadUser = useCallback(async () => {
     try {
       const response = await authAPI.getCurrentUser();
       const userData = response.data?.user || response.data?.data?.user;
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const login = async (email, password) => {
     try {
@@ -97,6 +97,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

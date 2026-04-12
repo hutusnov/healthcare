@@ -474,18 +474,6 @@ export const ViewAppointments = () => {
     }
   };
 
-  const handleMarkAsPaid = async (appointmentId) => {
-    try {
-      await adminAPI.updateAppointmentPaymentStatus(appointmentId, 'PAID');
-      setMessage({ type: 'success', text: 'Payment status updated to PAID!' });
-      fetchAppointments();
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error.response?.data?.message || 'Failed to update payment status',
-      });
-    }
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
