@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { adminAPI } from '../services/api';
 import { Card, Button, Input, Select, Alert } from '../components/common';
 import { Trash2, Search } from 'lucide-react';
-import { format } from 'date-fns';
 
 export const ManageUsers = () => {
   const [users, setUsers] = useState([]);
@@ -13,6 +12,7 @@ export const ManageUsers = () => {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, roleFilter]);
 
   const fetchUsers = async () => {

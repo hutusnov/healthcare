@@ -91,6 +91,7 @@ export const UIProvider = ({ children }) => {
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUI = () => {
   const context = useContext(UIContext);
   if (!context) {
