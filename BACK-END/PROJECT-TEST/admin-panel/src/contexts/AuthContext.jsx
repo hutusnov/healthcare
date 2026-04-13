@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -7,6 +7,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
+
+  const loadUser = async () => {
+    try {
+      const response = await authAPI.getCurrentUser();
+      const userData = response.data?.user || response.data?.data?.user;
+
+      if (!userData) {
+        throw new Error('Invalid response format');
+      }
+
+      if (userData.role !== 'ADMIN') {
+        throw new Error('Not authorized. Admin access required.');
+      }
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Failed to load user:', error);
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (token) {
@@ -29,30 +52,8 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
-  }, [token, loadUser]);
-
-  const loadUser = useCallback(async () => {
-    try {
-      const response = await authAPI.getCurrentUser();
-      const userData = response.data?.user || response.data?.data?.user;
-
-      if (!userData) {
-        throw new Error('Invalid response format');
-      }
-
-      if (userData.role !== 'ADMIN') {
-        throw new Error('Not authorized. Admin access required.');
-      }
-
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-    } catch (error) {
-      console.error('Failed to load user:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const login = async (email, password) => {
     try {
