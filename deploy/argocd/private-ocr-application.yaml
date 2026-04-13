@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/REPLACE_ME/healthcare.git
+    repoURL: https://github.com/hutusnov/healthcare.git
     targetRevision: main
     path: deploy/gitops/apps/private-ocr/overlays/prod
   destination:

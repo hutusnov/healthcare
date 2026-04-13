@@ -6,4 +6,4 @@ resources:
 images:
   - name: placeholder.local/healthcare-backend
     newName: ghcr.io/hutusnov/healthcare-backend
-    newTag: main-latest
+    newTag: 9f5dbc43fe79ca83911cc8e2b2d51dc7838f895b
