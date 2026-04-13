@@ -107,6 +107,25 @@ app.get('/api/health', (req, res) =>
     });
 });
 
+// ========== SECURITY: CloudFront Verify Header ==========
+// Chặn mọi request trực tiếp vào EC2/ALB không qua CloudFront
+app.use((req, res, next) =>
+{
+    const expectedSecret = process.env.X_SECRET_VERIFY_HEADER;
+    if (expectedSecret)
+    {
+        const providedSecret = req.headers['x-secret-verify-header'];
+        if (providedSecret !== expectedSecret)
+        {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: Direct access is not allowed'
+            });
+        }
+    }
+    next();
+});
+
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/patient', patientRoutes);
