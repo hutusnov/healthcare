@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
-import { enUS } from 'date-fns/locale';
+import { vi, enUS } from 'date-fns/locale';
 import { Calendar, Clock, User, ChevronLeft, ChevronRight, Check, Shield } from 'lucide-react';
 import { doctorAPI, appointmentAPI, careProfileAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Loading } from '../components/common';
