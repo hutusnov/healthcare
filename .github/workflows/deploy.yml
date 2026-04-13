@@ -354,6 +354,7 @@ jobs:
           MOMO_SECRET_KEY: ${{ secrets.MOMO_SECRET_KEY }}
           MOMO_ENDPOINT: ${{ secrets.MOMO_ENDPOINT }}
           MOMO_RETURN_URL: ${{ secrets.MOMO_RETURN_URL }}
+          X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
         run: |
           python - <<'PY'
           import json
@@ -391,6 +392,7 @@ jobs:
           MOMO_SECRET_KEY={os.environ["MOMO_SECRET_KEY"]}
           MOMO_ENDPOINT={os.environ["MOMO_ENDPOINT"]}
           MOMO_RETURN_URL={os.environ["MOMO_RETURN_URL"]}
+          X_SECRET_VERIFY_HEADER={os.environ.get("X_SECRET_VERIFY_HEADER", "")}
           """
 
           ghcr_username = os.environ.get("GHCR_USERNAME", "")
