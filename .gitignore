@@ -54,3 +54,6 @@ test-api.sh
 # Temporary files
 *.tmp
 *.temp
+
+# Python venv
+medusa_env/
