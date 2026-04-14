@@ -28,6 +28,7 @@ jobs:
     name: SAST Scan
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       security-events: write
     steps:
@@ -40,11 +41,13 @@ jobs:
 
       - name: npm audit (Backend)
         working-directory: BACK-END/PROJECT-TEST
-        run: npm audit --audit-level=high --omit=dev || true
+        run: npm audit --audit-level=high --omit=dev
+        continue-on-error: true
 
       - name: npm audit (Patient Portal)
         working-directory: BACK-END/PROJECT-TEST/patient-portal
-        run: npm audit --audit-level=high --omit=dev || true
+        run: npm audit --audit-level=high --omit=dev
+        continue-on-error: true
 
       - name: Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
@@ -60,6 +63,7 @@ jobs:
     name: Validate Backend
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: BACK-END/PROJECT-TEST
@@ -95,6 +99,7 @@ jobs:
     name: Validate Patient Portal
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: BACK-END/PROJECT-TEST/patient-portal
@@ -121,10 +126,18 @@ jobs:
           VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
           VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
 
+      - name: Upload Patient Portal build
+        uses: actions/upload-artifact@v4
+        with:
+          name: patient-portal-dist
+          path: BACK-END/PROJECT-TEST/patient-portal/dist
+          retention-days: 1
+
   ocr-validate:
     name: Validate OCR Service
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: OCR
@@ -147,6 +160,7 @@ jobs:
   docker-security:
     name: Build, Publish, and Scan Images
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [sast-scan, backend-validate, patient-portal-validate, ocr-validate]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
     permissions:
@@ -261,27 +275,40 @@ jobs:
           sudo apt-get update && sudo apt-get install -y trivy
 
       - name: Trivy Scan Backend API
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
+        run: trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed --format table ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
 
       - name: Trivy Scan OCR Service
-        run: trivy image --severity HIGH,CRITICAL --exit-code 0 --format table ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
+        run: trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed --format table ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
 
       - name: Trivy Filesystem Scan
-        run: trivy fs --severity HIGH,CRITICAL --exit-code 0 --format table .
+        run: trivy fs --severity CRITICAL --exit-code 1 --ignore-unfixed --format table .
 
       - name: Trivy SARIF Backend
         run: trivy image --format sarif --output trivy-backend.sarif ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
         continue-on-error: true
 
-      - name: Upload Trivy SARIF
+      - name: Trivy SARIF OCR
+        run: trivy image --format sarif --output trivy-ocr.sarif ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
+        continue-on-error: true
+
+      - name: Upload Trivy Backend SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-backend.sarif
+          category: trivy-backend
+        continue-on-error: true
+
+      - name: Upload Trivy OCR SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ocr.sarif
+          category: trivy-ocr
         continue-on-error: true
 
   gitops-update:
     name: Update GitOps Manifests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [docker-security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]')
     permissions:
@@ -304,10 +331,11 @@ jobs:
           OCR_IMAGE: ${{ needs.docker-security.outputs.ocr_image }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          sed -i "s|newName: .*|newName: ${BACKEND_IMAGE}|g" deploy/gitops/apps/aws-backend/overlays/prod/kustomization.yaml
-          sed -i "s|newTag: .*|newTag: ${IMAGE_TAG}|g" deploy/gitops/apps/aws-backend/overlays/prod/kustomization.yaml
-          sed -i "s|newName: .*|newName: ${OCR_IMAGE}|g" deploy/gitops/apps/private-ocr/overlays/prod/kustomization.yaml
-          sed -i "s|newTag: .*|newTag: ${IMAGE_TAG}|g" deploy/gitops/apps/private-ocr/overlays/prod/kustomization.yaml
+          cd deploy/gitops/apps/aws-backend/overlays/prod
+          kustomize edit set image "healthcare-backend=${BACKEND_IMAGE}:${IMAGE_TAG}"
+          cd "$GITHUB_WORKSPACE"
+          cd deploy/gitops/apps/private-ocr/overlays/prod
+          kustomize edit set image "healthcare-ocr=${OCR_IMAGE}:${IMAGE_TAG}"
 
       - name: Commit GitOps updates
         shell: bash
@@ -326,6 +354,7 @@ jobs:
   deploy-aws-ec2:
     name: Deploy AWS EC2 Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [docker-security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_AWS_EC2_DEPLOY == 'true' && vars.AWS_BACKEND_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
@@ -442,7 +471,8 @@ jobs:
   deploy-aws-monitoring:
     name: Deploy AWS Monitoring
     runs-on: ubuntu-latest
-    needs: [deploy-aws-ec2]
+    timeout-minutes: 15
+    needs: [docker-security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_AWS_MONITORING_DEPLOY == 'true' && vars.AWS_MONITORING_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
       - name: Configure AWS credentials
@@ -732,6 +762,7 @@ jobs:
     name: Validate Admin Panel
     if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: BACK-END/PROJECT-TEST/admin-panel
@@ -756,18 +787,31 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
+      - name: Upload Admin Panel build
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-panel-dist
+          path: BACK-END/PROJECT-TEST/admin-panel/dist
+          retention-days: 1
+
   deploy-frontend-s3:
     name: Deploy Frontend to AWS S3 & CloudFront
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [patient-portal-validate, admin-panel-validate]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_FRONTEND_S3_DEPLOY == 'true' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Download Patient Portal build
+        uses: actions/download-artifact@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          name: patient-portal-dist
+          path: patient-portal-dist
+
+      - name: Download Admin Panel build
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-panel-dist
+          path: admin-panel-dist
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -776,24 +820,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Build and Sync Patient Portal
-        working-directory: BACK-END/PROJECT-TEST/patient-portal
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
-          VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
+      - name: Sync Patient Portal to S3
         run: |
-          npm ci
-          npm run build
-          aws s3 sync dist/ s3://${{ vars.PATIENT_PORTAL_S3_BUCKET }} --delete
+          aws s3 sync patient-portal-dist/ s3://${{ vars.PATIENT_PORTAL_S3_BUCKET }} --delete
           aws cloudfront create-invalidation --distribution-id ${{ vars.PATIENT_PORTAL_CLOUDFRONT_ID }} --paths "/*"
 
-      - name: Build and Sync Admin Panel
-        working-directory: BACK-END/PROJECT-TEST/admin-panel
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+      - name: Sync Admin Panel to S3
         run: |
-          npm ci
-          npm run build
-          aws s3 sync dist/ s3://${{ vars.ADMIN_PANEL_S3_BUCKET }} --delete
+          aws s3 sync admin-panel-dist/ s3://${{ vars.ADMIN_PANEL_S3_BUCKET }} --delete
           aws cloudfront create-invalidation --distribution-id ${{ vars.ADMIN_PANEL_CLOUDFRONT_ID }} --paths "/*"
