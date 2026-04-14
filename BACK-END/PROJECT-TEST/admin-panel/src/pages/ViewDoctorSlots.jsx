@@ -34,18 +34,19 @@ export const ViewDoctorSlots = () => {
         limit: 50,
       });
 
-      const data = response.data.data || response.data;
-      const slotsList = data.slots || data;
+      const data = response.data?.data ?? response.data;
+      const slotsList = data?.slots ?? data;
+      const list = Array.isArray(slotsList) ? slotsList : [];
 
-      setSlots(Array.isArray(slotsList) ? slotsList : []);
+      setSlots(list);
 
       const pg = data.pagination || {};
       setPagination({
-        total: pg.total ?? (Array.isArray(slotsList) ? slotsList.length : 0),
+        total: pg.total ?? list.length,
         availableCount:
-          pg.availableCount ?? slotsList.filter((s) => !s.isBooked).length,
+          pg.availableCount ?? list.filter((s) => !s.isBooked).length,
         bookedCount:
-          pg.bookedCount ?? slotsList.filter((s) => s.isBooked).length,
+          pg.bookedCount ?? list.filter((s) => s.isBooked).length,
         page: pg.page ?? pageToLoad,
         pages: pg.pages ?? 1,
         limit: pg.limit ?? 50,

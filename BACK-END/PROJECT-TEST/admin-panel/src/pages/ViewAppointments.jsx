@@ -440,10 +440,11 @@ export const ViewAppointments = () => {
     try {
       setLoading(true);
       const response = await adminAPI.getAppointments();
-      const data = response.data.data || response.data;
-      const appointmentsList = data.appointments || data;
+      const data = response.data?.data ?? response.data;
+      const appointmentsList = data?.appointments ?? data;
+      const list = Array.isArray(appointmentsList) ? appointmentsList : [];
 
-      setAppointments(Array.isArray(appointmentsList) ? appointmentsList : []);
+      setAppointments(list);
     } catch (error) {
       setMessage({
         type: 'error',
@@ -495,7 +496,8 @@ export const ViewAppointments = () => {
     }
   };
 
-  const filteredAppointments = appointments.filter((apt) => {
+  const safeAppointments = Array.isArray(appointments) ? appointments : [];
+  const filteredAppointments = safeAppointments.filter((apt) => {
     if (statusFilter !== 'all' && apt.status !== statusFilter.toUpperCase()) {
       return false;
     }
@@ -504,8 +506,8 @@ export const ViewAppointments = () => {
     return true;
   });
 
-  const paidCount = appointments.filter(a => a.paymentStatus === 'PAID').length;
-  const unpaidCount = appointments.filter(a => a.paymentStatus !== 'PAID').length;
+  const paidCount = safeAppointments.filter(a => a.paymentStatus === 'PAID').length;
+  const unpaidCount = safeAppointments.filter(a => a.paymentStatus !== 'PAID').length;
 
   // mở modal nhập / xem kết quả
   const openResultModal = (appointment) => {
