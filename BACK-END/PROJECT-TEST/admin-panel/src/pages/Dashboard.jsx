@@ -142,11 +142,21 @@ export const Dashboard = () => {
 
       setStats(statsRes.data.data || statsRes.data);
 
-      const apptData = appointmentsRes.data.data || appointmentsRes.data;
-      setAppointments(apptData.appointments || apptData || []);
+      const apptData = appointmentsRes.data?.data ?? appointmentsRes.data;
+      const apptList = Array.isArray(apptData?.appointments)
+        ? apptData.appointments
+        : Array.isArray(apptData)
+        ? apptData
+        : [];
+      setAppointments(apptList);
 
-      const slotData = slotsRes.data.data || slotsRes.data;
-      setDoctorSlots(slotData.slots || slotData || []);
+      const slotData = slotsRes.data?.data ?? slotsRes.data;
+      const slotList = Array.isArray(slotData?.slots)
+        ? slotData.slots
+        : Array.isArray(slotData)
+        ? slotData
+        : [];
+      setDoctorSlots(slotList);
 
       setError('');
     } catch (err) {
@@ -254,8 +264,9 @@ export const Dashboard = () => {
     return <Alert type="error" message={error} />;
   }
 
-  const paidCount = appointments.filter((a) => a.paymentStatus === 'PAID').length;
-  const unpaidCount = appointments.filter((a) => a.paymentStatus === 'UNPAID').length;
+  const safeAppointments = Array.isArray(appointments) ? appointments : [];
+  const paidCount = safeAppointments.filter((a) => a.paymentStatus === 'PAID').length;
+  const unpaidCount = safeAppointments.filter((a) => a.paymentStatus === 'UNPAID').length;
 
   return (
     <div className="space-y-6">
