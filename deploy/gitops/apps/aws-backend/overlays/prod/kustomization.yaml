@@ -6,7 +6,7 @@ resources:
 images:
 - name: healthcare-backend
   newName: ghcr.io/hutusnov/healthcare-backend
-  newTag: f3e32ef5c625c2136ca0a113a02b06857f8854e7
+  newTag: 3ba6077a58993cc9b438d4b038c33636ec8a0de6
 - name: placeholder.local/healthcare-backend
   newName: ghcr.io/hutusnov/healthcare-backend
   newTag: 8d5c9a5e10c1e25f28648f1ad4336eff64a7d545
