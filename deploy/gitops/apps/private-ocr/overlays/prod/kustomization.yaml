@@ -2,8 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: uit-healthcare-private
 resources:
-  - ../../base
+- ../../base
 images:
-  - name: placeholder.local/healthcare-ocr
-    newName: ghcr.io/hutusnov/healthcare-ocr
-    newTag: 8d5c9a5e10c1e25f28648f1ad4336eff64a7d545
+- name: healthcare-ocr
+  newName: ghcr.io/hutusnov/healthcare-ocr
+  newTag: f3e32ef5c625c2136ca0a113a02b06857f8854e7
+- name: placeholder.local/healthcare-ocr
+  newName: ghcr.io/hutusnov/healthcare-ocr
+  newTag: 8d5c9a5e10c1e25f28648f1ad4336eff64a7d545
