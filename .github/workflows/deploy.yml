@@ -836,7 +836,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [patient-portal-validate, admin-panel-validate]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_FRONTEND_S3_DEPLOY == 'true' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENABLE_FRONTEND_S3_DEPLOY == 'true' && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
       - name: Download Patient Portal build
         uses: actions/download-artifact@v4
