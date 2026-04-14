@@ -275,23 +275,59 @@ jobs:
           sudo apt-get update && sudo apt-get install -y trivy
 
       - name: Trivy Scan Backend API
+        id: trivy_backend
+        continue-on-error: true
         run: trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed --format table ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
 
       - name: Trivy Scan OCR Service
+        id: trivy_ocr
+        continue-on-error: true
         run: trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed --format table ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
 
       - name: Trivy Filesystem Scan
+        id: trivy_fs
+        continue-on-error: true
         run: trivy fs --severity CRITICAL --exit-code 1 --ignore-unfixed --format table .
 
+      - name: Trivy Security Gate
+        if: always()
+        run: |
+          echo "=== Trivy Scan Results ==="
+          echo "Backend API: ${{ steps.trivy_backend.outcome }}"
+          echo "OCR Service: ${{ steps.trivy_ocr.outcome }}"
+          echo "Filesystem:  ${{ steps.trivy_fs.outcome }}"
+          echo "========================="
+          FAILED=0
+          if [ "${{ steps.trivy_backend.outcome }}" = "failure" ]; then
+            echo "::error::CRITICAL vulnerabilities found in Backend API image"
+            FAILED=1
+          fi
+          if [ "${{ steps.trivy_ocr.outcome }}" = "failure" ]; then
+            echo "::error::CRITICAL vulnerabilities found in OCR Service image"
+            FAILED=1
+          fi
+          if [ "${{ steps.trivy_fs.outcome }}" = "failure" ]; then
+            echo "::error::CRITICAL vulnerabilities found in filesystem"
+            FAILED=1
+          fi
+          if [ "$FAILED" = "1" ]; then
+            echo "::error::Trivy Security Gate FAILED — fix CRITICAL vulnerabilities before deploying"
+            exit 1
+          fi
+          echo "All Trivy scans passed"
+
       - name: Trivy SARIF Backend
+        if: always()
         run: trivy image --format sarif --output trivy-backend.sarif ${{ steps.registry.outputs.backend_image }}:${{ steps.meta.outputs.tag }}
         continue-on-error: true
 
       - name: Trivy SARIF OCR
+        if: always()
         run: trivy image --format sarif --output trivy-ocr.sarif ${{ steps.registry.outputs.ocr_image }}:${{ steps.meta.outputs.tag }}
         continue-on-error: true
 
       - name: Upload Trivy Backend SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-backend.sarif
@@ -299,6 +335,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy OCR SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-ocr.sarif
