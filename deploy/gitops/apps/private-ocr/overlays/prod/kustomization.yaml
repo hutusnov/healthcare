@@ -6,7 +6,7 @@ resources:
 images:
 - name: healthcare-ocr
   newName: ghcr.io/hutusnov/healthcare-ocr
-  newTag: dadf9529ebf995403bb1c67939cbfce79711a236
+  newTag: 51d18a30ba432ff8f8ae639892a501ef62d41a44
 - name: placeholder.local/healthcare-ocr
   newName: ghcr.io/hutusnov/healthcare-ocr
   newTag: 8d5c9a5e10c1e25f28648f1ad4336eff64a7d545
