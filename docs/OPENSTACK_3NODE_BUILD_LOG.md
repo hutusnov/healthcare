@@ -1793,3 +1793,5 @@ Những phần dưới đây vẫn thuộc target architecture, chưa phải run
 Điều này có nghĩa là hệ thống hiện tại đã hoàn tất phần lõi của kiến trúc hybrid, còn các phần trên là nhóm nâng cao theo hướng production và observability.
 
 [CI trigger] backend multi-instance deploy check - 2026-04-27 21:16 GMT+7
+
+[CI trigger] rerun backend deploy after AZ2 docker bootstrap - 2026-04-27 22:29 GMT+7
