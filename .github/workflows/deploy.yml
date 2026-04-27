@@ -528,6 +528,10 @@ jobs:
           OCR_TARGET: ${{ vars.MONITORING_OCR_TARGET }}
           GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_SMTP_USER: ${{ secrets.ALERT_SMTP_USER }}
+          ALERT_SMTP_PASS: ${{ secrets.ALERT_SMTP_PASS }}
         run: |
           python - <<'PY'
           import json
@@ -538,10 +542,25 @@ jobs:
           ocr_target = os.environ.get("OCR_TARGET", "").strip()
           grafana_user = os.environ.get("GRAFANA_ADMIN_USER") or "admin"
           grafana_password = os.environ.get("GRAFANA_ADMIN_PASSWORD") or "admin"
+          alert_email_from = os.environ.get("ALERT_EMAIL_FROM", "").strip()
+          alert_email_to = os.environ.get("ALERT_EMAIL_TO", "").strip()
+          alert_smtp_user = os.environ.get("ALERT_SMTP_USER", "").strip()
+          alert_smtp_pass = os.environ.get("ALERT_SMTP_PASS", "").strip()
+          if not alert_smtp_user and alert_email_from:
+            alert_smtp_user = alert_email_from
 
           prometheus = f"""global:
             scrape_interval: 15s
             evaluation_interval: 15s
+
+          rule_files:
+            - /etc/prometheus/alert-rules.yml
+
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets:
+                      - alertmanager:9093
 
           scrape_configs:
             - job_name: backend-aws
@@ -575,12 +594,15 @@ jobs:
                 - "9090:9090"
               volumes:
                 - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
                 - prometheus_data:/prometheus
               extra_hosts:
                 - "host.docker.internal:host-gateway"
               command:
                 - "--config.file=/etc/prometheus/prometheus.yml"
                 - "--storage.tsdb.retention.time=15d"
+              depends_on:
+                - alertmanager
 
             grafana:
               image: grafana/grafana:11.1.0
@@ -620,6 +642,17 @@ jobs:
                 - "-config.file=/etc/promtail/config.yml"
               depends_on:
                 - loki
+
+            alertmanager:
+              image: prom/alertmanager:v0.27.0
+              container_name: healthcare-alertmanager
+              restart: unless-stopped
+              ports:
+                - "9093:9093"
+              volumes:
+                - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+              command:
+                - "--config.file=/etc/alertmanager/alertmanager.yml"
 
           volumes:
             prometheus_data:
@@ -684,6 +717,63 @@ jobs:
                   target_label: container
                 - source_labels: ['__meta_docker_container_log_stream']
                   target_label: logstream
+          """
+
+          alert_rules = """groups:
+            - name: healthcare-backend
+              rules:
+                - alert: BackendDown
+                  expr: up{job="backend-aws"} == 0
+                  for: 2m
+                  labels:
+                    severity: critical
+                    service: backend
+                  annotations:
+                    summary: "Healthcare backend is down"
+                    description: "Prometheus cannot scrape backend-aws target for more than 2 minutes."
+
+                - alert: BackendHigh5xxRate
+                  expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) > 0.5
+                  for: 5m
+                  labels:
+                    severity: warning
+                    service: backend
+                  annotations:
+                    summary: "High backend 5xx rate"
+                    description: "Backend 5xx rate is above 0.5 req/s during the last 5 minutes."
+          """
+
+          if alert_email_from and alert_email_to and alert_smtp_user and alert_smtp_pass:
+            alertmanager = f"""global:
+            resolve_timeout: 5m
+            smtp_smarthost: smtp.gmail.com:587
+            smtp_from: {alert_email_from}
+            smtp_auth_username: {alert_smtp_user}
+            smtp_auth_password: {alert_smtp_pass}
+            smtp_require_tls: true
+
+          route:
+            receiver: default-email
+            group_by: ['alertname', 'service']
+            group_wait: 30s
+            group_interval: 5m
+            repeat_interval: 2h
+
+          receivers:
+            - name: default-email
+              email_configs:
+                - to: {alert_email_to}
+                  send_resolved: true
+          """
+          else:
+            alertmanager = """global:
+            resolve_timeout: 5m
+
+          route:
+            receiver: null
+
+          receivers:
+            - name: null
           """
 
           datasources = """apiVersion: 1
@@ -766,6 +856,8 @@ jobs:
               "cat > /opt/healthcare-monitoring/docker-compose.yml <<'EOF'\n" + compose + "\nEOF",
               "cat > /opt/healthcare-monitoring/.env <<'EOF'\n" + grafana_env + "\nEOF",
               "cat > /opt/healthcare-monitoring/prometheus.yml <<'EOF'\n" + prometheus + "\nEOF",
+              "cat > /opt/healthcare-monitoring/alert-rules.yml <<'EOF'\n" + alert_rules + "\nEOF",
+              "cat > /opt/healthcare-monitoring/alertmanager.yml <<'EOF'\n" + alertmanager + "\nEOF",
               "cat > /opt/healthcare-monitoring/loki-config.yml <<'EOF'\n" + loki + "\nEOF",
               "cat > /opt/healthcare-monitoring/promtail-config.yml <<'EOF'\n" + promtail + "\nEOF",
               "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
@@ -775,7 +867,7 @@ jobs:
               "cd /opt/healthcare-monitoring && sudo docker compose up -d",
               "sudo docker image prune -f || true",
               "sudo docker image prune -a -f --filter \"until=168h\" || true",
-              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && exit 0; sleep 5; done; exit 1",
+              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && curl -fsS http://127.0.0.1:9093/-/ready && exit 0; sleep 5; done; exit 1",
           ]
 
           Path("commands-monitoring.json").write_text(json.dumps({"commands": commands}))
