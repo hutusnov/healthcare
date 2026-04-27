@@ -1791,3 +1791,5 @@ Những phần dưới đây vẫn thuộc target architecture, chưa phải run
 - backend AWS theo mô hình HA nhiều EC2 / nhiều AZ
 
 Điều này có nghĩa là hệ thống hiện tại đã hoàn tất phần lõi của kiến trúc hybrid, còn các phần trên là nhóm nâng cao theo hướng production và observability.
+
+[CI trigger] backend multi-instance deploy check - 2026-04-27 21:16 GMT+7
