@@ -480,18 +480,18 @@ jobs:
               )
 
           commands.extend([
-              "sudo docker rm -f healthcare-backend || true",
-              "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
               "if ! command -v docker >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker.io; fi",
               "sudo systemctl enable --now docker || true",
               "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && (sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose-v2 || true); fi",
               "if ! sudo docker compose version >/dev/null 2>&1; then sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
+              "sudo docker rm -f healthcare-backend || true",
+              "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
               "cd /opt/healthcare-backend && (sudo docker compose pull || (sudo systemctl restart docker || true; sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true; sleep 3; sudo docker compose pull))",
               "cd /opt/healthcare-backend && sudo docker compose up -d",
               "sudo docker image prune -f || true",
               "sudo docker image prune -a -f --filter \"until=168h\" || true",
               "sudo docker ps --filter name=healthcare-backend",
-              "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:4000/api/health && exit 0; sleep 5; done; exit 1",
+              "for i in $(seq 1 36); do curl -fsS http://127.0.0.1:4000/api/health && exit 0; sleep 5; done; sudo docker logs --tail 120 healthcare-backend || true; exit 1",
           ])
 
           Path("commands.json").write_text(json.dumps({"commands": commands}))
