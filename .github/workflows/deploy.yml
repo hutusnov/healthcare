@@ -18,6 +18,7 @@ env:
   PYTHON_VERSION: "3.10"
   REGISTRY_PROVIDER: ${{ vars.REGISTRY_PROVIDER }}
   AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_BACKEND_INSTANCE_IDS: ${{ vars.AWS_BACKEND_INSTANCE_IDS }}
   AWS_BACKEND_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
   ENABLE_AWS_EC2_DEPLOY: ${{ vars.ENABLE_AWS_EC2_DEPLOY }}
   BACKEND_IMAGE_NAME: healthcare-backend
@@ -394,7 +395,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [docker-security]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_AWS_EC2_DEPLOY == 'true' && vars.AWS_BACKEND_INSTANCE_ID != '' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.ENABLE_AWS_EC2_DEPLOY == 'true' && (vars.AWS_BACKEND_INSTANCE_IDS != '' || vars.AWS_BACKEND_INSTANCE_ID != '') && !contains(github.event.head_commit.message, '[skip ci]')
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -406,7 +407,8 @@ jobs:
       - name: Deploy backend over SSM
         shell: bash
         env:
-          INSTANCE_ID: ${{ env.AWS_BACKEND_INSTANCE_ID }}
+          INSTANCE_IDS: ${{ env.AWS_BACKEND_INSTANCE_IDS }}
+          FALLBACK_INSTANCE_ID: ${{ env.AWS_BACKEND_INSTANCE_ID }}
           BACKEND_IMAGE: ${{ needs.docker-security.outputs.backend_image }}:${{ needs.docker-security.outputs.image_tag }}
           GHCR_USERNAME: ${{ secrets.GHCR_DEPLOY_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
@@ -491,20 +493,42 @@ jobs:
           Path("commands.json").write_text(json.dumps({"commands": commands}))
           PY
 
-          COMMAND_ID="$(aws ssm send-command \
-            --instance-ids "$INSTANCE_ID" \
-            --document-name "AWS-RunShellScript" \
-            --comment "Deploy healthcare backend from GitHub Actions" \
-            --parameters file://commands.json \
-            --query 'Command.CommandId' \
-            --output text)"
+          TARGET_IDS="$INSTANCE_IDS"
+          if [ -z "$TARGET_IDS" ]; then
+            TARGET_IDS="$FALLBACK_INSTANCE_ID"
+          fi
+          TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
 
-          if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
-            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+          if [ -z "$TARGET_IDS" ]; then
+            echo "No backend instance IDs provided. Set AWS_BACKEND_INSTANCE_IDS or AWS_BACKEND_INSTANCE_ID." >&2
             exit 1
           fi
 
-          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+          echo "Deploying backend to instances: $TARGET_IDS"
+
+          FAILED=0
+          for INSTANCE_ID in $TARGET_IDS; do
+            echo "=== Deploying to $INSTANCE_ID ==="
+            COMMAND_ID="$(aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name "AWS-RunShellScript" \
+              --comment "Deploy healthcare backend from GitHub Actions" \
+              --parameters file://commands.json \
+              --query 'Command.CommandId' \
+              --output text)"
+
+            if ! aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID"; then
+              aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+              FAILED=1
+            else
+              aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --output json
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo "Backend deploy failed on one or more instances." >&2
+            exit 1
+          fi
 
   deploy-aws-monitoring:
     name: Deploy AWS Monitoring
