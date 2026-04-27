@@ -53,16 +53,16 @@ The system is designed to demonstrate how to split workloads across multiple clo
 
 ```mermaid
 flowchart LR
-    A[Clients: Web / Android] --> B[Route53]
-    B --> C[CloudFront]
-    C --> D[WAF (optional)]
-    D --> E[ALB]
-    E --> F[Backend API on AWS EC2]
-    F <-- WireGuard VPN --> G[OpenStack Private Zone]
-    G --> H[K3s Cluster]
-    H --> I[OCR Service]
-    H --> J[Private Data Services]
-    F --> K[Monitoring: Prometheus / Grafana / Loki / Alertmanager]
+    A["Clients: Web / Android"] --> B["Route53"]
+    B --> C["CloudFront"]
+    C --> D["WAF optional"]
+    D --> E["ALB"]
+    E --> F["Backend API on AWS EC2"]
+    F -->|"WireGuard VPN"| G["OpenStack Private Zone"]
+    G --> H["K3s Cluster"]
+    H --> I["OCR Service"]
+    H --> J["Private Data Services"]
+    F --> K["Monitoring: Prometheus / Grafana / Loki / Alertmanager"]
 ```
 
 ### Traffic Path (Simplified)
