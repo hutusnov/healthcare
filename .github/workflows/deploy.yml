@@ -388,7 +388,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add deploy/gitops deploy/argocd
           git commit -m "[skip ci] gitops: update deploy image tags"
-          git push
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
   deploy-aws-ec2:
     name: Deploy AWS EC2 Backend
@@ -898,7 +899,16 @@ jobs:
               "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
               "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/dashboards.yml <<'EOF'\n" + dashboards + "\nEOF",
               "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/json/backend-overview.json <<'EOF'\n" + dashboard_json + "\nEOF",
+              "if ! command -v docker >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker.io; fi",
+              "sudo systemctl enable --now docker || true",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && (sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose-v2 || true); fi",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
+              "sudo docker image prune -a -f --filter \"until=168h\" || true",
+              "sudo docker builder prune -a -f || true",
+              "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
+              "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
               "cd /opt/healthcare-monitoring && sudo docker compose down --remove-orphans || true",
+              "cd /opt/healthcare-monitoring && (sudo docker compose pull || (sudo systemctl restart docker || true; sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true; sleep 3; sudo docker compose pull))",
               "cd /opt/healthcare-monitoring && sudo docker compose up -d",
               "sudo docker image prune -f || true",
               "sudo docker image prune -a -f --filter \"until=168h\" || true",
