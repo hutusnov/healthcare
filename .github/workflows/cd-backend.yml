@@ -1,0 +1,124 @@
+name: CD Backend AWS EC2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "BACK-END/PROJECT-TEST/**"
+      - "OCR/**"
+      - ".github/workflows/cd-backend.yml"
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    if: vars.ENABLE_AWS_EC2_DEPLOY == 'true' && (vars.AWS_BACKEND_INSTANCE_IDS != '' || vars.AWS_BACKEND_INSTANCE_ID != '')
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      BACKEND_IMAGE_NAME: healthcare-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve backend image tag
+        id: meta
+        run: |
+          OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${OWNER}/${BACKEND_IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        run: |
+          docker build -t "${{ steps.meta.outputs.image }}" ./BACK-END/PROJECT-TEST
+          docker push "${{ steps.meta.outputs.image }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy backend over SSM
+        shell: bash
+        env:
+          INSTANCE_IDS: ${{ vars.AWS_BACKEND_INSTANCE_IDS }}
+          FALLBACK_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
+          BACKEND_IMAGE: ${{ steps.meta.outputs.image }}
+          GHCR_USERNAME: ${{ secrets.GHCR_DEPLOY_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
+          DATABASE_URL: ${{ secrets.BACKEND_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.BACKEND_JWT_SECRET }}
+          FRONTEND_URL: ${{ secrets.BACKEND_FRONTEND_URL }}
+          ADMIN_PANEL_URL: ${{ secrets.BACKEND_ADMIN_PANEL_URL }}
+          PATIENT_PORTAL_URL: ${{ secrets.BACKEND_PATIENT_PORTAL_URL }}
+          MOMO_PARTNER_CODE: ${{ secrets.MOMO_PARTNER_CODE }}
+          MOMO_NOTIFY_URL: ${{ secrets.MOMO_NOTIFY_URL }}
+          MOMO_ACCESS_KEY: ${{ secrets.MOMO_ACCESS_KEY }}
+          MOMO_SECRET_KEY: ${{ secrets.MOMO_SECRET_KEY }}
+          MOMO_ENDPOINT: ${{ secrets.MOMO_ENDPOINT }}
+          MOMO_RETURN_URL: ${{ secrets.MOMO_RETURN_URL }}
+          X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          compose = f"""services:
+            backend:
+              image: {os.environ["BACKEND_IMAGE"]}
+              container_name: healthcare-backend
+              restart: unless-stopped
+              env_file: [.env]
+              ports: ["4000:4000"]
+          """
+          env_file = f"""NODE_ENV=production
+          PORT=4000
+          DATABASE_URL={os.environ["DATABASE_URL"]}
+          JWT_SECRET={os.environ["JWT_SECRET"]}
+          PATIENT_PORTAL_URL={os.environ["PATIENT_PORTAL_URL"]}
+          ADMIN_PANEL_URL={os.environ["ADMIN_PANEL_URL"]}
+          FRONTEND_URL={os.environ["FRONTEND_URL"]}
+          MOMO_PARTNER_CODE={os.environ["MOMO_PARTNER_CODE"]}
+          MOMO_NOTIFY_URL={os.environ["MOMO_NOTIFY_URL"]}
+          MOMO_ACCESS_KEY={os.environ["MOMO_ACCESS_KEY"]}
+          MOMO_SECRET_KEY={os.environ["MOMO_SECRET_KEY"]}
+          MOMO_ENDPOINT={os.environ["MOMO_ENDPOINT"]}
+          MOMO_RETURN_URL={os.environ["MOMO_RETURN_URL"]}
+          X_SECRET_VERIFY_HEADER={os.environ.get("X_SECRET_VERIFY_HEADER","")}
+          """
+          cmds = [
+            "set -e",
+            "sudo mkdir -p /opt/healthcare-backend",
+            "cat > /opt/healthcare-backend/docker-compose.yml <<'EOF'\n"+compose+"\nEOF",
+            "cat > /opt/healthcare-backend/.env <<'EOF'\n"+env_file+"\nEOF",
+            f"echo {json.dumps(os.environ.get('GHCR_TOKEN',''))} | sudo docker login ghcr.io -u {json.dumps(os.environ.get('GHCR_USERNAME',''))} --password-stdin || true",
+            "sudo systemctl enable --now docker || true",
+            "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker-compose-plugin || true; fi",
+            "sudo docker system prune -a -f --volumes || true",
+            "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
+            "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
+            "cd /opt/healthcare-backend && (sudo docker compose pull || (sudo systemctl restart docker || true; sleep 3; sudo docker compose pull))",
+            "cd /opt/healthcare-backend && sudo docker compose up -d",
+            "for i in $(seq 1 36); do curl -fsS http://127.0.0.1:4000/api/health && exit 0; sleep 5; done; sudo docker logs --tail 120 healthcare-backend || true; exit 1",
+          ]
+          Path("commands.json").write_text(json.dumps({"commands": cmds}))
+          PY
+          TARGET_IDS="$INSTANCE_IDS"; [ -z "$TARGET_IDS" ] && TARGET_IDS="$FALLBACK_INSTANCE_ID"
+          TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
+          FAILED=0
+          for INSTANCE_ID in $TARGET_IDS; do
+            CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters file://commands.json --query 'Command.CommandId' --output text)"
+            aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" || FAILED=1
+            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --output json
+          done
+          [ "$FAILED" -eq 0 ]

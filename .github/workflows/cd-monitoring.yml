@@ -1,0 +1,41 @@
+name: CD Monitoring AWS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cd-monitoring.yml"
+      - "deploy/monitoring/**"
+
+jobs:
+  deploy-monitoring:
+    runs-on: ubuntu-latest
+    if: vars.ENABLE_AWS_MONITORING_DEPLOY == 'true' && vars.AWS_MONITORING_INSTANCE_ID != ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy monitoring over SSM
+        run: |
+          COMMANDS=$(cat <<'JSON'
+          {"commands":[
+            "set -e",
+            "sudo systemctl enable --now docker || true",
+            "sudo docker image prune -a -f --filter \"until=168h\" || true",
+            "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
+            "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
+            "cd /opt/healthcare-monitoring && (sudo docker compose pull || (sudo systemctl restart docker || true; sleep 3; sudo docker compose pull))",
+            "cd /opt/healthcare-monitoring && sudo docker compose up -d",
+            "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && curl -fsS http://127.0.0.1:9093/-/ready && exit 0; sleep 5; done; exit 1"
+          ]}
+          JSON
+          )
+          echo "$COMMANDS" > commands-monitoring.json
+          CID=$(aws ssm send-command --instance-ids "${{ vars.AWS_MONITORING_INSTANCE_ID }}" --document-name AWS-RunShellScript --parameters file://commands-monitoring.json --query 'Command.CommandId' --output text)
+          aws ssm wait command-executed --command-id "$CID" --instance-id "${{ vars.AWS_MONITORING_INSTANCE_ID }}"
+          aws ssm get-command-invocation --command-id "$CID" --instance-id "${{ vars.AWS_MONITORING_INSTANCE_ID }}" --output json

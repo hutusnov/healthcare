@@ -1,0 +1,41 @@
+name: Security Trivy
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build images for scan
+        run: |
+          docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
+          docker build -t local/healthcare-ocr:scan ./OCR
+
+      - name: Trivy backend (CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: local/healthcare-backend:scan
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Trivy OCR (CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: local/healthcare-ocr:scan
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
