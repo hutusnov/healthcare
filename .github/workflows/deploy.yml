@@ -490,7 +490,6 @@ jobs:
               "sudo docker builder prune -a -f || true",
               "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
               "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
-              "sudo rm -rf /var/lib/containerd/io.containerd.snapshotter.v1.overlayfs/snapshots/* || true",
               "sudo apt-get clean || true",
               "sudo journalctl --vacuum-size=100M || true",
               "df -h || true",
