@@ -54,6 +54,10 @@ jobs:
     name: CD Backend
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [security-trivy, security-sonarqube]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/cd-backend.yml
     secrets: inherit
 
