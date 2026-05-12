@@ -23,6 +23,14 @@ manage AWS resources first in a controlled way.
    - `terraform validate`
    - `terraform plan`
 
+PowerShell helper (optional):
+- `./runbook.ps1 -Step bootstrap-init`
+- `./runbook.ps1 -Step bootstrap-plan`
+- `./runbook.ps1 -Step bootstrap-apply`
+- `./runbook.ps1 -Step main-init`
+- `./runbook.ps1 -Step main-validate`
+- `./runbook.ps1 -Step main-plan`
+
 ## Remote state (recommended)
 Use remote state before real apply:
 1. Create backend resources using `infra/terraform/bootstrap`:
