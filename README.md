@@ -2,7 +2,10 @@
 
 > A production-oriented healthcare system using a **hybrid cloud architecture**: AWS for public traffic and OpenStack/K3s for private workloads.
 
-[![CI/CD](https://github.com/hutusnov/healthcare/actions/workflows/deploy.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/deploy.yml)
+[![CI Backend](https://github.com/hutusnov/healthcare/actions/workflows/ci-backend.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/ci-backend.yml)
+[![Security Trivy](https://github.com/hutusnov/healthcare/actions/workflows/security-trivy.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/security-trivy.yml)
+[![CD Backend](https://github.com/hutusnov/healthcare/actions/workflows/cd-backend.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/cd-backend.yml)
+[![Unified Pipeline](https://github.com/hutusnov/healthcare/actions/workflows/pipeline-unified.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/pipeline-unified.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/hutusnov/healthcare)](https://github.com/hutusnov/healthcare/commits/main)
 [![Repo Size](https://img.shields.io/github/repo-size/hutusnov/healthcare)](https://github.com/hutusnov/healthcare)
 [![Stars](https://img.shields.io/github/stars/hutusnov/healthcare?style=social)](https://github.com/hutusnov/healthcare/stargazers)
@@ -15,6 +18,7 @@
 - [Tech Stack](#tech-stack)
 - [Repository Layout](#repository-layout)
 - [Delivery Pipeline (DevSecOps)](#delivery-pipeline-devsecops)
+- [Infrastructure as Code](#infrastructure-as-code)
 - [Reliability \& Operations](#reliability--operations)
 - [Security Posture (Current)](#security-posture-current)
 - [Project Status](#project-status)
@@ -111,15 +115,31 @@ OpenStack Private Zone (K3s + OCR + Data Services)
 
 ## Delivery Pipeline (DevSecOps)
 
-The CI/CD flow includes:
-1. **Validation** (backend/frontend/OCR checks)
-2. **SAST & dependency checks**
-3. **Container build + image scanning**
-4. **Image publish (registry)**
-5. **Automated deploy**
-   - frontend to S3 + CloudFront
-   - backend to AWS runtime
-   - monitoring stack deployment
+Workflows are split by responsibility:
+- **Per-service CI**
+  - `ci-backend.yml`
+  - `ci-patient-portal.yml`
+  - `ci-admin-panel.yml`
+  - `ci-ocr.yml`
+- **Security workflows**
+  - `security-trivy.yml` (image vulnerability scanning)
+  - `security-sonarqube.yml` (code quality/security scan)
+- **CD workflows**
+  - `cd-frontend.yml` (S3 + CloudFront)
+  - `cd-backend.yml` (AWS EC2 via SSM)
+  - `cd-monitoring.yml` (Prometheus/Grafana/Loki/Alertmanager on AWS)
+
+SonarQube requires repository secrets:
+- `SONAR_HOST_URL`
+- `SONAR_TOKEN`
+
+## Infrastructure as Code
+
+Terraform baseline is available at:
+- `infra/terraform`
+- Step-by-step adoption guide: `docs/TERRAFORM_STEP_BY_STEP.md`
+
+This gives a starting point to manage AWS infrastructure as code and can be expanded to full VPC/ALB/ASG modules.
 
 ## Reliability & Operations
 

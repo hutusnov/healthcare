@@ -1,0 +1,9 @@
+# Example remote state config (S3 + DynamoDB lock)
+# Usage:
+#   terraform init -backend-config=backend.hcl
+
+bucket         = "uit-healthcare-tfstate"
+key            = "envs/dev/terraform.tfstate"
+region         = "ap-southeast-1"
+dynamodb_table = "uit-healthcare-tf-lock"
+encrypt        = true
