@@ -13,7 +13,7 @@ RUN apt-get update && \
 # Install Python dependencies
 COPY requirements.txt .
 COPY requirements.lock .
-RUN python -m pip install --no-cache-dir --only-binary=:all: --requirement requirements.lock
+RUN python -m pip install --no-cache-dir --only-binary=:all: --require-hashes --requirement requirements.lock
 
 # Copy application source
 COPY main.py ocr_services.py util.py ./
