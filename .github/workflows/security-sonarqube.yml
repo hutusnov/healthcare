@@ -1,6 +1,20 @@
 name: Security SonarQube
 
 on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/src/**"
+      - "OCR/**"
+      - "sonar-project.properties"
+      - ".github/workflows/security-sonarqube.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/src/**"
+      - "OCR/**"
+      - "sonar-project.properties"
+      - ".github/workflows/security-sonarqube.yml"
   workflow_call:
   workflow_dispatch:
 

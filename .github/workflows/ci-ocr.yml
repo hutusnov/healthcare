@@ -1,6 +1,16 @@
 name: CI OCR Service
 
 on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "OCR/**"
+      - ".github/workflows/ci-ocr.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "OCR/**"
+      - ".github/workflows/ci-ocr.yml"
   workflow_call:
   workflow_dispatch:
 

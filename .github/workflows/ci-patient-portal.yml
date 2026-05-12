@@ -1,6 +1,16 @@
 name: CI Patient Portal
 
 on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/patient-portal/**"
+      - ".github/workflows/ci-patient-portal.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/patient-portal/**"
+      - ".github/workflows/ci-patient-portal.yml"
   workflow_call:
   workflow_dispatch:
 

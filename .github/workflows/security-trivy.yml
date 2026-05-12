@@ -1,6 +1,18 @@
 name: Security Trivy
 
 on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/**"
+      - "OCR/**"
+      - ".github/workflows/security-trivy.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/**"
+      - "OCR/**"
+      - ".github/workflows/security-trivy.yml"
   workflow_call:
   workflow_dispatch:
 

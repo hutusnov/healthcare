@@ -1,6 +1,12 @@
 name: CD Frontend S3 CloudFront
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "BACK-END/PROJECT-TEST/admin-panel/**"
+      - "BACK-END/PROJECT-TEST/patient-portal/**"
+      - ".github/workflows/cd-frontend.yml"
   workflow_call:
   workflow_dispatch:
 

@@ -1,6 +1,16 @@
 name: CI Admin Panel
 
 on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/admin-panel/**"
+      - ".github/workflows/ci-admin-panel.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "BACK-END/PROJECT-TEST/admin-panel/**"
+      - ".github/workflows/ci-admin-panel.yml"
   workflow_call:
   workflow_dispatch:
 

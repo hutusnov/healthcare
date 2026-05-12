@@ -1,6 +1,11 @@
 name: CD Monitoring AWS
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "monitoring/**"
+      - ".github/workflows/cd-monitoring.yml"
   workflow_call:
   workflow_dispatch:
 
