@@ -21,7 +21,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, "models")
 DETECTION_MODEL_DIR = os.path.join(MODELS_DIR, "paddle_det")
 RECOGNITION_MODEL_PATH = os.path.join(MODELS_DIR, "vgg_seq2seq.pth")
-OUTPUT_DIR = os.path.join("/tmp", "ocr-output")
+# Keep OCR artifacts in an app-owned private directory instead of a public writable tmp path.
+OUTPUT_DIR = os.path.join(BASE_DIR, ".ocr-output")
 
 _recognizer = None
 _detector = None
@@ -54,7 +55,8 @@ def get_detector():
 
 
 def detect(image: np.ndarray):
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, mode=0o700, exist_ok=True)
+    os.chmod(OUTPUT_DIR, 0o700)
     model = get_detector()
     output = model.predict(image)
     for res in output:
