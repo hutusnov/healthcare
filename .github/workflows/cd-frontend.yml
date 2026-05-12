@@ -1,0 +1,60 @@
+name: CD Frontend S3 CloudFront
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "BACK-END/PROJECT-TEST/admin-panel/**"
+      - "BACK-END/PROJECT-TEST/patient-portal/**"
+      - ".github/workflows/cd-frontend.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    if: vars.ENABLE_FRONTEND_S3_DEPLOY == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build patient portal
+        working-directory: BACK-END/PROJECT-TEST/patient-portal
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
+          VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
+          VITE_X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
+
+      - name: Build admin panel
+        working-directory: BACK-END/PROJECT-TEST/admin-panel
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Sync Patient Portal to S3
+        run: |
+          aws s3 sync BACK-END/PROJECT-TEST/patient-portal/dist/ s3://${{ vars.PATIENT_PORTAL_S3_BUCKET }} --delete
+          aws cloudfront create-invalidation --distribution-id ${{ vars.PATIENT_PORTAL_CLOUDFRONT_ID }} --paths "/*"
+
+      - name: Sync Admin Panel to S3
+        run: |
+          aws s3 sync BACK-END/PROJECT-TEST/admin-panel/dist/ s3://${{ vars.ADMIN_PANEL_S3_BUCKET }} --delete
+          aws cloudfront create-invalidation --distribution-id ${{ vars.ADMIN_PANEL_CLOUDFRONT_ID }} --paths "/*"
+
