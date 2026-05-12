@@ -31,6 +31,9 @@ jobs:
   security-trivy:
     name: Security Trivy
     needs: [ci-backend, ci-ocr]
+    permissions:
+      contents: read
+      security-events: write
     uses: ./.github/workflows/security-trivy.yml
     secrets: inherit
 
