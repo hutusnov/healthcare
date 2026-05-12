@@ -25,9 +25,13 @@ manage AWS resources first in a controlled way.
 
 ## Remote state (recommended)
 Use remote state before real apply:
-1. Copy `backend.hcl.example` -> `backend.hcl`
-2. Fill real S3 bucket / DynamoDB table.
-3. Re-init with backend:
+1. Create backend resources using `infra/terraform/bootstrap`:
+   - `cd bootstrap`
+   - `cp terraform.tfvars.example terraform.tfvars`
+   - `terraform init && terraform apply`
+2. Copy `backend.hcl.example` -> `backend.hcl`
+3. Fill generated S3 bucket / DynamoDB table.
+4. Re-init main stack with backend:
    - `terraform init -backend-config=backend.hcl -reconfigure`
 
 ## Apply strategy for this repo

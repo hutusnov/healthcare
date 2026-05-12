@@ -18,9 +18,18 @@ Adopt IaC without breaking current runtime (AWS + OpenStack already running).
    - `terraform plan`
 
 ## Step 2: Add remote state before apply
-1. Copy `backend.hcl.example` -> `backend.hcl`
-2. Fill S3/DynamoDB backend.
-3. Re-init:
+1. Create backend infra first:
+   - `cd infra/terraform/bootstrap`
+   - `cp terraform.tfvars.example terraform.tfvars`
+   - fill `state_bucket_name`
+   - `terraform init`
+   - `terraform plan`
+   - `terraform apply`
+2. Configure main stack backend:
+   - `cd ..`
+   - copy `backend.hcl.example` -> `backend.hcl`
+   - set created S3 bucket + DynamoDB table
+3. Re-init main stack:
    - `terraform init -backend-config=backend.hcl -reconfigure`
 
 ## Step 3: Start with non-destructive resources
