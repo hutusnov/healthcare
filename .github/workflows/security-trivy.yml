@@ -1,0 +1,92 @@
+name: Security Trivy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy-backend:
+    name: Trivy Backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image for security scan
+        run: docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
+
+      - name: Trivy gate - backend (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: local/healthcare-backend:scan
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Trivy SARIF - backend
+        if: always()
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: local/healthcare-backend:scan
+          format: sarif
+          output: trivy-backend.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+      - name: Upload backend SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+  trivy-ocr:
+    name: Trivy OCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build OCR image for security scan
+        run: docker build -t local/healthcare-ocr:scan ./OCR
+
+      - name: Trivy gate - ocr (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: local/healthcare-ocr:scan
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+
+      - name: Trivy SARIF - ocr
+        if: always()
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: local/healthcare-ocr:scan
+          format: sarif
+          output: trivy-ocr.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+      - name: Upload ocr SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ocr.sarif
+          category: trivy-ocr
