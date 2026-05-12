@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, develop]
 
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   trivy-scan:
     runs-on: ubuntu-latest
@@ -17,25 +21,61 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build images for scan
+      - name: Build images for security scan
         run: |
           docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
           docker build -t local/healthcare-ocr:scan ./OCR
 
-      - name: Trivy backend (CRITICAL)
+      - name: Trivy gate - backend (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: local/healthcare-backend:scan
           format: table
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
 
-      - name: Trivy OCR (CRITICAL)
+      - name: Trivy gate - ocr (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: local/healthcare-ocr:scan
           format: table
-          severity: CRITICAL
+          severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 1
+
+      - name: Trivy SARIF - backend
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: local/healthcare-backend:scan
+          format: sarif
+          output: trivy-backend.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+      - name: Trivy SARIF - ocr
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: local/healthcare-ocr:scan
+          format: sarif
+          output: trivy-ocr.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 0
+
+      - name: Upload backend SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Upload ocr SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ocr.sarif
+          category: trivy-ocr
