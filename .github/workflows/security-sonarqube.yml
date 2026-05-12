@@ -65,8 +65,19 @@ jobs:
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_CLEAN }}
 
       - name: SonarQube quality gate
+        id: quality_gate
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 10
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
-
+      - name: Print quality gate failure details
+        if: failure() && steps.quality_gate.outcome == 'failure'
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+        run: |
+          echo "Quality gate failed. Fetching condition details..."
+          curl -fsS -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=hutusnov_healthcare&branch=main" \
+            | tee /tmp/sonar-qg.json || true
+          echo "Raw response stored at /tmp/sonar-qg.json"
