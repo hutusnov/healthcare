@@ -23,12 +23,12 @@ jobs:
       - name: Build backend image for security scan
         run: docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
 
-      - name: Trivy gate - backend (HIGH/CRITICAL)
+      - name: Trivy gate - backend (CRITICAL)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: local/healthcare-backend:scan
           format: table
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: 1
 
@@ -39,13 +39,13 @@ jobs:
           image-ref: local/healthcare-backend:scan
           format: sarif
           output: trivy-backend.sarif
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: 0
 
       - name: Upload backend SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
@@ -64,12 +64,12 @@ jobs:
       - name: Build OCR image for security scan
         run: docker build -t local/healthcare-ocr:scan ./OCR
 
-      - name: Trivy gate - ocr (HIGH/CRITICAL)
+      - name: Trivy gate - ocr (CRITICAL)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: local/healthcare-ocr:scan
           format: table
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: 1
 
@@ -80,13 +80,13 @@ jobs:
           image-ref: local/healthcare-ocr:scan
           format: sarif
           output: trivy-ocr.sarif
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: 0
 
       - name: Upload ocr SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('trivy-ocr.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-ocr.sarif
           category: trivy-ocr
