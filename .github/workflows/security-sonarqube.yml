@@ -18,29 +18,55 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Normalize Sonar secrets
+        shell: bash
+        env:
+          SONAR_TOKEN_RAW: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL_RAW: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          SONAR_TOKEN_CLEAN="$(printf '%s' "$SONAR_TOKEN_RAW" | tr -d '\r\n[:space:]')"
+          SONAR_HOST_URL_CLEAN="$(printf '%s' "$SONAR_HOST_URL_RAW" | tr -d '\r\n[:space:]' | sed 's:/*$::')"
+          echo "SONAR_TOKEN_CLEAN=$SONAR_TOKEN_CLEAN" >> "$GITHUB_ENV"
+          echo "SONAR_HOST_URL_CLEAN=$SONAR_HOST_URL_CLEAN" >> "$GITHUB_ENV"
+
       - name: Validate SonarQube configuration
         shell: bash
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_CLEAN }}
         run: |
           if [ -n "$SONAR_TOKEN" ] && [ -n "$SONAR_HOST_URL" ]; then
             echo "SonarQube configuration found."
-            exit 0
+          else
+            echo "::error::Missing SONAR_TOKEN or SONAR_HOST_URL."
+            exit 1
           fi
 
-          echo "::error::Missing SONAR_TOKEN or SONAR_HOST_URL."
-          exit 1
+          if [ "$SONAR_HOST_URL" != "https://sonarcloud.io" ]; then
+            echo "::error::SONAR_HOST_URL must be https://sonarcloud.io for SonarCloud."
+            exit 1
+          fi
+
+      - name: Validate Sonar token against SonarCloud API
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+        run: |
+          curl -fsS -u "${SONAR_TOKEN}:" "https://sonarcloud.io/api/authentication/validate" | tee /tmp/sonar-auth.json
+          grep -q '"valid":[[:space:]]*true' /tmp/sonar-auth.json || {
+            echo "::error::SONAR_TOKEN is invalid for SonarCloud API."
+            exit 1
+          }
 
       - name: SonarQube scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_CLEAN }}
 
       - name: SonarQube quality gate
         uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
         timeout-minutes: 10
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
 
