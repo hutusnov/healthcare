@@ -1,13 +1,8 @@
 name: CD Frontend S3 CloudFront
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "BACK-END/PROJECT-TEST/patient-portal/**"
-      - "BACK-END/PROJECT-TEST/admin-panel/**"
-      - ".github/workflows/cd-frontend.yml"
 
 jobs:
   deploy-frontend:
@@ -56,3 +51,4 @@ jobs:
         run: |
           aws s3 sync BACK-END/PROJECT-TEST/admin-panel/dist/ s3://${{ vars.ADMIN_PANEL_S3_BUCKET }} --delete
           aws cloudfront create-invalidation --distribution-id ${{ vars.ADMIN_PANEL_CLOUDFRONT_ID }} --paths "/*"
+

@@ -1,16 +1,8 @@
 name: CI OCR Service
 
 on:
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "OCR/**"
-      - ".github/workflows/ci-ocr.yml"
-  push:
-    branches: [main, develop]
-    paths:
-      - "OCR/**"
-      - ".github/workflows/ci-ocr.yml"
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   validate-ocr:
@@ -27,3 +19,4 @@ jobs:
           cache-dependency-path: OCR/requirements.txt
       - run: pip install -r requirements.txt
       - run: python -m py_compile main.py ocr_services.py util.py
+

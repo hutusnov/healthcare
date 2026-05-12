@@ -1,16 +1,8 @@
 name: CI Admin Panel
 
 on:
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - "BACK-END/PROJECT-TEST/admin-panel/**"
-      - ".github/workflows/ci-admin-panel.yml"
-  push:
-    branches: [main, develop]
-    paths:
-      - "BACK-END/PROJECT-TEST/admin-panel/**"
-      - ".github/workflows/ci-admin-panel.yml"
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   validate-admin-panel:
@@ -31,3 +23,4 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
+

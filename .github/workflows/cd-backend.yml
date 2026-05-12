@@ -1,13 +1,8 @@
 name: CD Backend AWS EC2
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "BACK-END/PROJECT-TEST/**"
-      - "OCR/**"
-      - ".github/workflows/cd-backend.yml"
 
 jobs:
   deploy-backend:
@@ -122,3 +117,4 @@ jobs:
             aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --output json
           done
           [ "$FAILED" -eq 0 ]
+

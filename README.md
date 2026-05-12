@@ -5,6 +5,7 @@
 [![CI Backend](https://github.com/hutusnov/healthcare/actions/workflows/ci-backend.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/ci-backend.yml)
 [![Security Trivy](https://github.com/hutusnov/healthcare/actions/workflows/security-trivy.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/security-trivy.yml)
 [![CD Backend](https://github.com/hutusnov/healthcare/actions/workflows/cd-backend.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/cd-backend.yml)
+[![Unified Pipeline](https://github.com/hutusnov/healthcare/actions/workflows/pipeline-unified.yml/badge.svg)](https://github.com/hutusnov/healthcare/actions/workflows/pipeline-unified.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/hutusnov/healthcare)](https://github.com/hutusnov/healthcare/commits/main)
 [![Repo Size](https://img.shields.io/github/repo-size/hutusnov/healthcare)](https://github.com/hutusnov/healthcare)
 [![Stars](https://img.shields.io/github/stars/hutusnov/healthcare?style=social)](https://github.com/hutusnov/healthcare/stargazers)
