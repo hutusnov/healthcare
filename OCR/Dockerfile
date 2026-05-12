@@ -12,8 +12,7 @@ RUN apt-get update && \
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir --only-binary=:all: --requirement requirements.txt
 
 # Copy application source
 COPY main.py ocr_services.py util.py ./
@@ -21,8 +20,9 @@ COPY models ./models
 COPY data ./data
 
 # Security: run as non-root user
-RUN useradd -m -r appuser
-RUN mkdir -p /tmp/ocr-output && chown -R appuser:appuser /app /tmp/ocr-output
+RUN useradd -m -r appuser && \
+    mkdir -p /tmp/ocr-output && \
+    chown -R appuser:appuser /app /tmp/ocr-output
 USER appuser
 
 # Health check
