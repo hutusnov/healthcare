@@ -3,9 +3,6 @@ name: CD Backend AWS EC2
 on:
   push:
     branches: [main]
-    paths:
-      - "BACK-END/PROJECT-TEST/**"
-      - ".github/workflows/cd-backend.yml"
   workflow_call:
   workflow_dispatch:
 

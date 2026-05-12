@@ -3,14 +3,8 @@ name: CI Backend
 on:
   push:
     branches: [main, develop]
-    paths:
-      - "BACK-END/PROJECT-TEST/**"
-      - ".github/workflows/ci-backend.yml"
   pull_request:
     branches: [main, develop]
-    paths:
-      - "BACK-END/PROJECT-TEST/**"
-      - ".github/workflows/ci-backend.yml"
   workflow_call:
   workflow_dispatch:
 
