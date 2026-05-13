@@ -33,12 +33,13 @@ jobs:
         id: tfroot
         shell: bash
         run: |
-          if [ -d "infra/terraform" ]; then
-            echo "path=infra/terraform" >> "$GITHUB_OUTPUT"
-          elif [ -d "infra/Terraform" ]; then
-            echo "path=infra/Terraform" >> "$GITHUB_OUTPUT"
+          if [ -d "$GITHUB_WORKSPACE/infra/terraform" ]; then
+            echo "path=$GITHUB_WORKSPACE/infra/terraform" >> "$GITHUB_OUTPUT"
+          elif [ -d "$GITHUB_WORKSPACE/infra/Terraform" ]; then
+            echo "path=$GITHUB_WORKSPACE/infra/Terraform" >> "$GITHUB_OUTPUT"
           else
-            echo "Could not find Terraform root under infra/terraform or infra/Terraform"
+            echo "Could not find Terraform root under workspace: $GITHUB_WORKSPACE"
+            ls -la "$GITHUB_WORKSPACE"
             exit 1
           fi
 
