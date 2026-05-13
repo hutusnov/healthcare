@@ -1,0 +1,45 @@
+name: CI Terraform
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/ci-terraform.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/ci-terraform.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  validate-terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.2
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: Terraform init+validate (bootstrap)
+        working-directory: infra/terraform/bootstrap
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Terraform init+validate (dev env)
+        working-directory: infra/terraform/envs/dev
+        run: |
+          terraform init -backend=false
+          terraform validate
