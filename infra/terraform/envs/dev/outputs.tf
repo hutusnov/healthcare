@@ -13,3 +13,27 @@ output "alb_security_group_id" {
 output "vpn_security_group_id" {
   value = module.backend_stack.vpn_security_group_id
 }
+
+output "public_subnet_1_id" {
+  value = module.network_stack.public_subnet_1_id
+}
+
+output "public_subnet_2_id" {
+  value = module.network_stack.public_subnet_2_id
+}
+
+output "private_subnet_1_id" {
+  value = module.network_stack.private_subnet_1_id
+}
+
+output "private_subnet_2_id" {
+  value = module.network_stack.private_subnet_2_id
+}
+
+output "internet_gateway_id" {
+  value = module.network_stack.internet_gateway_id
+}
+
+output "nat_gateway_id" {
+  value = module.network_stack.nat_gateway_id
+}
