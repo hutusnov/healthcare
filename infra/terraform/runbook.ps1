@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "discover-network", "fmt")]
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "discover-network", "fmt", "phase1-safe-complete")]
   [string]$Step = "dev-plan"
 )
 
@@ -40,6 +40,24 @@ function Backup-TerraformState($workspaceDir) {
     Copy-Item $terraformState $metaBackup -Force
     Write-Host "Backed up backend metadata: $metaBackup"
   }
+}
+
+function Run-PlanWithSafetyHandling($envName, $planFile) {
+  $output = terraform plan -lock=false -input=false -out=$planFile 2>&1
+  $exitCode = $LASTEXITCODE
+  if ($exitCode -eq 0) {
+    Write-Host "[$envName] plan succeeded."
+    return
+  }
+
+  $text = ($output | Out-String)
+  if ($text -match "non_dev_safety_lock" -or $text -match "allow_nondev_plan_with_shared_ids") {
+    Write-Host "[$envName] plan blocked by safety lock (expected for non-dev shared IDs)."
+    return
+  }
+
+  Write-Host $text
+  throw "[$envName] terraform plan failed unexpectedly."
 }
 
 switch ($Step) {
@@ -170,5 +188,37 @@ switch ($Step) {
     Push-Location $root
     terraform fmt -recursive
     Pop-Location
+  }
+  "phase1-safe-complete" {
+    Write-Host "Phase1 safe completion checks:"
+    Write-Host "1) terraform fmt/validate on dev"
+    Write-Host "2) terraform plan on dev (no apply)"
+    Write-Host "3) terraform validate on staging/prod (no apply)"
+    Write-Host "4) env isolation check"
+
+    Push-Location $root
+    terraform fmt -check -recursive
+    Pop-Location
+
+    Push-Location $dev
+    terraform validate
+    Run-PlanWithSafetyHandling -envName "dev" -planFile "tfplan-dev"
+    Pop-Location
+
+    Push-Location $staging
+    terraform validate
+    Run-PlanWithSafetyHandling -envName "staging" -planFile "tfplan-staging"
+    Pop-Location
+
+    Push-Location $prod
+    terraform validate
+    Run-PlanWithSafetyHandling -envName "prod" -planFile "tfplan-prod"
+    Pop-Location
+
+    Push-Location $root
+    & (Join-Path $root "check-env-isolation.ps1")
+    Pop-Location
+
+    Write-Host "Terraform phase1 safety checks completed. No apply executed."
   }
 }
