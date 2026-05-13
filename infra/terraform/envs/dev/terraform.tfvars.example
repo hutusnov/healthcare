@@ -6,11 +6,12 @@ backend_ami_id           = "ami-xxxxxxxx"
 key_name                 = "aws-healthcare-key"
 create_backend_instance  = false
 backend_sg_name          = "healthcare-backend-sg-dev-tf"
+backend_sg_description   = "for Backend"
 backend_instance_name    = "NodeJS-Backend-Dev-Terraform"
 backend_ingress_cidrs    = ["10.0.0.0/16"]
+adopt_existing_sg_safely = true
 common_tags = {
   Project = "uit-healthcare"
   Env     = "dev"
   Managed = "terraform"
 }
-

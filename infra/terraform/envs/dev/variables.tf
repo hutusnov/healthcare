@@ -42,6 +42,12 @@ variable "backend_sg_name" {
   default     = "healthcare-backend-sg-tf"
 }
 
+variable "backend_sg_description" {
+  type        = string
+  description = "Description for backend security group"
+  default     = "for Backend"
+}
+
 variable "backend_instance_name" {
   type        = string
   description = "Tag name for backend instance"
@@ -64,3 +70,8 @@ variable "common_tags" {
   }
 }
 
+variable "adopt_existing_sg_safely" {
+  type        = bool
+  description = "When true, ignore SG rule/description drift during initial import phase"
+  default     = true
+}

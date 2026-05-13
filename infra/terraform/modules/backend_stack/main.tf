@@ -4,7 +4,7 @@ data "aws_vpc" "selected" {
 
 resource "aws_security_group" "backend_sg" {
   name        = var.backend_sg_name
-  description = "Backend SG managed by Terraform"
+  description = var.backend_sg_description
   vpc_id      = data.aws_vpc.selected.id
 
   ingress {
@@ -24,6 +24,14 @@ resource "aws_security_group" "backend_sg" {
   tags = merge(var.common_tags, {
     Name = var.backend_sg_name
   })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
 }
 
 resource "aws_instance" "backend" {
@@ -39,4 +47,3 @@ resource "aws_instance" "backend" {
     Name = var.backend_instance_name
   })
 }
-
