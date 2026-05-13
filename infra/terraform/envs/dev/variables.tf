@@ -312,3 +312,12 @@ variable "github_actions_role_name" {
   description = "IAM role name for GitHub Actions deploy"
   default     = "GitHubActionsHealthcareDeployRole"
 }
+
+variable "allowed_workflow_refs" {
+  type        = list(string)
+  description = "Allowed workflow refs for GitHub OIDC role assumption"
+  default = [
+    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/main",
+    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/develop"
+  ]
+}

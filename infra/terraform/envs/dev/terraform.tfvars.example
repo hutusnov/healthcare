@@ -54,6 +54,10 @@ alarm_sns_topic_arn      = ""
 github_owner             = "hutusnov"
 github_repo              = "healthcare"
 github_actions_role_name = "GitHubActionsHealthcareDeployRole"
+allowed_workflow_refs    = [
+  "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/main",
+  "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/develop"
+]
 common_tags = {
   Project = "uit-healthcare"
   Env     = "dev"
