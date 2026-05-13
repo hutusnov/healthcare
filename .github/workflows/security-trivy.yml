@@ -30,25 +30,30 @@ jobs:
       - name: Build backend image for security scan
         run: docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
 
-      - name: Trivy gate - backend (CRITICAL)
-        uses: aquasecurity/trivy-action@v0.35.0
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
         with:
-          image-ref: local/healthcare-backend:scan
-          format: table
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
+          cache: false
+
+      - name: Trivy gate - backend (CRITICAL)
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 1 \
+            local/healthcare-backend:scan
 
       - name: Trivy SARIF - backend
         if: always()
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          image-ref: local/healthcare-backend:scan
-          format: sarif
-          output: trivy-backend.sarif
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: 0
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-backend.sarif \
+            --exit-code 0 \
+            local/healthcare-backend:scan
 
       - name: Upload backend SARIF
         if: always() && hashFiles('trivy-backend.sarif') != ''
@@ -71,25 +76,30 @@ jobs:
       - name: Build OCR image for security scan
         run: docker build -t local/healthcare-ocr:scan ./OCR
 
-      - name: Trivy gate - ocr (CRITICAL)
-        uses: aquasecurity/trivy-action@v0.35.0
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
         with:
-          image-ref: local/healthcare-ocr:scan
-          format: table
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: 1
+          cache: false
+
+      - name: Trivy gate - ocr (CRITICAL)
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 1 \
+            local/healthcare-ocr:scan
 
       - name: Trivy SARIF - ocr
         if: always()
-        uses: aquasecurity/trivy-action@v0.35.0
-        with:
-          image-ref: local/healthcare-ocr:scan
-          format: sarif
-          output: trivy-ocr.sarif
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: 0
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-ocr.sarif \
+            --exit-code 0 \
+            local/healthcare-ocr:scan
 
       - name: Upload ocr SARIF
         if: always() && hashFiles('trivy-ocr.sarif') != ''
