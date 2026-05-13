@@ -221,3 +221,64 @@ variable "vpn_sg_description" {
   description = "VPN security group description"
   default     = "for VPN"
 }
+
+variable "alb_name" {
+  type        = string
+  description = "Application Load Balancer name"
+}
+
+variable "target_group_name" {
+  type        = string
+  description = "Target group name"
+}
+
+variable "target_group_port" {
+  type        = number
+  description = "Target group port"
+  default     = 4000
+}
+
+variable "target_group_protocol" {
+  type        = string
+  description = "Target group protocol"
+  default     = "HTTP"
+}
+
+variable "health_check_path" {
+  type        = string
+  description = "Target group health check path"
+  default     = "/api/health"
+}
+
+variable "http_listener_port" {
+  type        = number
+  description = "HTTP listener port"
+  default     = 80
+}
+
+variable "https_listener_port" {
+  type        = number
+  description = "HTTPS listener port"
+  default     = 443
+}
+
+variable "https_certificate_arn" {
+  type        = string
+  description = "ACM cert ARN for HTTPS listener"
+}
+
+variable "https_ssl_policy" {
+  type        = string
+  description = "SSL policy for HTTPS listener"
+}
+
+variable "https_fixed_response_body" {
+  type        = string
+  description = "HTTPS fixed response body"
+}
+
+variable "target_instance_ids" {
+  type        = list(string)
+  description = "Instance IDs attached to target group"
+  default     = []
+}

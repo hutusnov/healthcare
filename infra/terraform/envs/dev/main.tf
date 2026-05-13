@@ -49,3 +49,23 @@ module "network_stack" {
   private_rtb_assoc_2_id   = var.private_rtb_assoc_2_id
   common_tags              = var.common_tags
 }
+
+module "alb_stack" {
+  source = "../../modules/alb_stack"
+
+  vpc_id                    = var.vpc_id
+  public_subnet_ids         = [var.public_subnet_1_id, var.public_subnet_2_id]
+  alb_security_group_id     = module.backend_stack.alb_security_group_id
+  alb_name                  = var.alb_name
+  target_group_name         = var.target_group_name
+  target_group_port         = var.target_group_port
+  target_group_protocol     = var.target_group_protocol
+  health_check_path         = var.health_check_path
+  http_listener_port        = var.http_listener_port
+  https_listener_port       = var.https_listener_port
+  https_certificate_arn     = var.https_certificate_arn
+  https_ssl_policy          = var.https_ssl_policy
+  https_fixed_response_body = var.https_fixed_response_body
+  target_instance_ids       = var.target_instance_ids
+  common_tags               = var.common_tags
+}
