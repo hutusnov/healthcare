@@ -282,3 +282,15 @@ variable "target_instance_ids" {
   description = "Instance IDs attached to target group"
   default     = []
 }
+
+variable "alarm_prefix" {
+  type        = string
+  description = "Prefix for CloudWatch alarm names"
+  default     = "uit-healthcare-dev"
+}
+
+variable "alarm_sns_topic_arn" {
+  type        = string
+  description = "SNS topic ARN for CloudWatch alarms (optional)"
+  default     = ""
+}

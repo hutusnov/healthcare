@@ -45,3 +45,7 @@ output "alb_dns_name" {
 output "target_group_arn" {
   value = module.alb_stack.target_group_arn
 }
+
+output "alarm_names" {
+  value = module.observability_stack.alarm_names
+}

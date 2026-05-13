@@ -69,3 +69,13 @@ module "alb_stack" {
   target_instance_ids       = var.target_instance_ids
   common_tags               = var.common_tags
 }
+
+module "observability_stack" {
+  source = "../../modules/observability_stack"
+
+  alb_arn              = module.alb_stack.alb_arn
+  target_group_arn     = module.alb_stack.target_group_arn
+  backend_instance_ids = var.target_instance_ids
+  alarm_prefix         = var.alarm_prefix
+  sns_topic_arn        = var.alarm_sns_topic_arn
+}
