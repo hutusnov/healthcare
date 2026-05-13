@@ -48,6 +48,7 @@ Quick runbook steps:
 - `.\runbook.ps1 -Step prod-init`
 - `.\runbook.ps1 -Step prod-plan`
 - `.\runbook.ps1 -Step check-env-isolation`
+- `.\discover-aws-network.ps1 -VpcId vpc-xxxxxxxx -Env staging -Region ap-southeast-1`
 
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
@@ -85,6 +86,9 @@ Notes:
 - Env isolation check:
   - Run `.\check-env-isolation.ps1` (or `.\runbook.ps1 -Step check-env-isolation`) before any non-dev apply.
   - It compares key IDs/names across `dev/staging/prod` tfvars and fails if staging/prod still match dev.
+- Network discovery helper:
+  - Run `.\discover-aws-network.ps1` with target VPC id to print a tfvars-ready network block.
+  - Script is read-only (`describe*` APIs), no create/update/delete actions.
 
 ## Rollback
 - Infra rollback:

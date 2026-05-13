@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "fmt")]
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "discover-network", "fmt")]
   [string]$Step = "dev-plan"
 )
 
@@ -161,6 +161,10 @@ switch ($Step) {
     Push-Location $root
     & (Join-Path $root "check-env-isolation.ps1")
     Pop-Location
+  }
+  "discover-network" {
+    Write-Host "Use discover script directly with required VPC id:"
+    Write-Host ".\discover-aws-network.ps1 -VpcId vpc-xxxxxxxx -Env staging -Region ap-southeast-1"
   }
   "fmt" {
     Push-Location $root
