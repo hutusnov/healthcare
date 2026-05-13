@@ -77,6 +77,10 @@ Notes:
 - Run Unified pipeline and ensure `CI Terraform` + security jobs pass.
 - Merge to `main` only after successful run.
 - Prefer import/adopt strategy for existing resources to avoid accidental recreation.
+- Non-dev safety lock:
+  - `allow_nondev_plan_with_shared_ids = false` by default.
+  - Terraform blocks non-dev plan/apply when env still points to shared IDs.
+  - Turn it on only for intentional, reviewed migration steps.
 
 ## Rollback
 - Infra rollback:

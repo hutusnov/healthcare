@@ -320,3 +320,9 @@ variable "allowed_workflow_refs" {
     "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/*"
   ]
 }
+
+variable "allow_nondev_plan_with_shared_ids" {
+  type        = bool
+  description = "Safety override to allow non-dev plan/apply when environment points to shared IDs."
+  default     = false
+}
