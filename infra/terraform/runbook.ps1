@@ -43,7 +43,10 @@ function Backup-TerraformState($workspaceDir) {
 }
 
 function Run-PlanWithSafetyHandling($envName, $planFile) {
+  $oldErrorAction = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   $output = terraform plan -lock=false -input=false -out=$planFile 2>&1
+  $ErrorActionPreference = $oldErrorAction
   $exitCode = $LASTEXITCODE
   if ($exitCode -eq 0) {
     Write-Host "[$envName] plan succeeded."
