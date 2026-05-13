@@ -45,6 +45,9 @@ For `staging` or `prod`, run the same commands in:
 Quick helper steps:
 - `.\check-env-isolation.ps1`
 - `.\discover-aws-network.ps1 -VpcId vpc-xxxxxxxx -Env staging -Region ap-southeast-1`
+- `.\runbook.ps1 -Step phase1-safe-complete`
+  - Runs fmt/validate/plan checks without apply.
+  - Non-dev plan blocked by `non_dev_safety_lock` is treated as expected safe behavior.
 
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
