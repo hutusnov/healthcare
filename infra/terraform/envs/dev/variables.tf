@@ -317,7 +317,6 @@ variable "allowed_workflow_refs" {
   type        = list(string)
   description = "Allowed workflow refs for GitHub OIDC role assumption"
   default = [
-    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/main",
-    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/develop"
+    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/*"
   ]
 }
