@@ -1,0 +1,103 @@
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
+resource "aws_security_group" "backend_sg" {
+  name        = var.backend_sg_name
+  description = var.backend_sg_description
+  vpc_id      = data.aws_vpc.selected.id
+
+  ingress {
+    from_port   = 4000
+    to_port     = 4000
+    protocol    = "tcp"
+    cidr_blocks = var.backend_ingress_cidrs
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = var.backend_sg_name
+  })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
+}
+
+resource "aws_instance" "backend" {
+  count                       = var.create_backend_instance ? 1 : 0
+  ami                         = var.backend_ami_id
+  instance_type               = var.backend_instance_type
+  subnet_id                   = var.backend_subnet_id
+  key_name                    = var.key_name
+  vpc_security_group_ids      = [aws_security_group.backend_sg.id]
+  associate_public_ip_address = false
+
+  tags = merge(var.common_tags, {
+    Name = var.backend_instance_name
+  })
+}
+
+resource "aws_security_group" "alb_sg" {
+  count = var.manage_alb_sg ? 1 : 0
+
+  name        = var.alb_sg_name
+  description = var.alb_sg_description
+  vpc_id      = data.aws_vpc.selected.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = var.alb_sg_name
+  })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
+}
+
+resource "aws_security_group" "vpn_sg" {
+  count = var.manage_vpn_sg ? 1 : 0
+
+  name        = var.vpn_sg_name
+  description = var.vpn_sg_description
+  vpc_id      = data.aws_vpc.selected.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = var.vpn_sg_name
+  })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
+}
