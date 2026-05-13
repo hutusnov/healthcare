@@ -1,5 +1,8 @@
 name: CI Terraform
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 on:
   push:
     branches: [main, develop]
@@ -71,7 +74,7 @@ jobs:
 
   plan-terraform-dev:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && vars.TF_PLAN_DEV_ENABLED == 'true' && vars.AWS_GHA_ROLE_ARN != ''
+    if: vars.TF_PLAN_DEV_ENABLED == 'true' && vars.AWS_GHA_ROLE_ARN != '' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     needs: [validate-terraform]
     permissions:
       contents: read

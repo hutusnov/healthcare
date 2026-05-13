@@ -2,18 +2,9 @@ name: UIT Healthcare Hybrid Delivery Pipeline
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, develop]
-    paths-ignore:
-      - "deploy/gitops/**"
-      - "deploy/argocd/**"
-  pull_request:
-    branches: [main, develop]
-    paths-ignore:
-      - "deploy/gitops/**"
-      - "deploy/argocd/**"
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   NODE_VERSION: "20"
   PYTHON_VERSION: "3.10"
   REGISTRY_PROVIDER: ${{ vars.REGISTRY_PROVIDER }}
@@ -388,7 +379,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add deploy/gitops deploy/argocd
           git commit -m "[skip ci] gitops: update deploy image tags"
-          git push
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
   deploy-aws-ec2:
     name: Deploy AWS EC2 Backend
@@ -486,6 +478,13 @@ jobs:
               "if ! sudo docker compose version >/dev/null 2>&1; then sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
               "sudo docker rm -f healthcare-backend || true",
               "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
+              "sudo docker system prune -a -f --volumes || true",
+              "sudo docker builder prune -a -f || true",
+              "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
+              "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
+              "sudo apt-get clean || true",
+              "sudo journalctl --vacuum-size=100M || true",
+              "df -h || true",
               "cd /opt/healthcare-backend && (sudo docker compose pull || (sudo systemctl restart docker || true; sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true; sleep 3; sudo docker compose pull))",
               "cd /opt/healthcare-backend && sudo docker compose up -d",
               "sudo docker image prune -f || true",
@@ -891,7 +890,16 @@ jobs:
               "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
               "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/dashboards.yml <<'EOF'\n" + dashboards + "\nEOF",
               "cat > /opt/healthcare-monitoring/grafana/provisioning/dashboards/json/backend-overview.json <<'EOF'\n" + dashboard_json + "\nEOF",
+              "if ! command -v docker >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker.io; fi",
+              "sudo systemctl enable --now docker || true",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && (sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose-v2 || true); fi",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
+              "sudo docker image prune -a -f --filter \"until=168h\" || true",
+              "sudo docker builder prune -a -f || true",
+              "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
+              "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
               "cd /opt/healthcare-monitoring && sudo docker compose down --remove-orphans || true",
+              "cd /opt/healthcare-monitoring && (sudo docker compose pull || (sudo systemctl restart docker || true; sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true; sleep 3; sudo docker compose pull))",
               "cd /opt/healthcare-monitoring && sudo docker compose up -d",
               "sudo docker image prune -f || true",
               "sudo docker image prune -a -f --filter \"until=168h\" || true",
