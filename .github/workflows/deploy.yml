@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   NODE_VERSION: "20"
   PYTHON_VERSION: "3.10"
   REGISTRY_PROVIDER: ${{ vars.REGISTRY_PROVIDER }}
