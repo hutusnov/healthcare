@@ -47,6 +47,7 @@ Quick runbook steps:
 - `.\runbook.ps1 -Step staging-plan`
 - `.\runbook.ps1 -Step prod-init`
 - `.\runbook.ps1 -Step prod-plan`
+- `.\runbook.ps1 -Step check-env-isolation`
 
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
@@ -81,6 +82,9 @@ Notes:
   - `allow_nondev_plan_with_shared_ids = false` by default.
   - Terraform blocks non-dev plan/apply when env still points to shared IDs.
   - Turn it on only for intentional, reviewed migration steps.
+- Env isolation check:
+  - Run `.\check-env-isolation.ps1` (or `.\runbook.ps1 -Step check-env-isolation`) before any non-dev apply.
+  - It compares key IDs/names across `dev/staging/prod` tfvars and fails if staging/prod still match dev.
 
 ## Rollback
 - Infra rollback:

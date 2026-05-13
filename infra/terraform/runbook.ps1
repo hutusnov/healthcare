@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "fmt")]
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "fmt")]
   [string]$Step = "dev-plan"
 )
 
@@ -155,6 +155,11 @@ switch ($Step) {
   "prod-plan" {
     Push-Location $prod
     terraform plan
+    Pop-Location
+  }
+  "check-env-isolation" {
+    Push-Location $root
+    & (Join-Path $root "check-env-isolation.ps1")
     Pop-Location
   }
   "fmt" {
