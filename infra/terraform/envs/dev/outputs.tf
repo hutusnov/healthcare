@@ -37,3 +37,11 @@ output "internet_gateway_id" {
 output "nat_gateway_id" {
   value = module.network_stack.nat_gateway_id
 }
+
+output "alb_dns_name" {
+  value = module.alb_stack.alb_dns_name
+}
+
+output "target_group_arn" {
+  value = module.alb_stack.target_group_arn
+}
