@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { doctorAPI } from '../services/api';
 import { Card, Button, Loading, Alert } from '../components/common';
@@ -68,17 +68,7 @@ export const DoctorDetail = () => {
     const [availableSlots, setAvailableSlots] = useState([]);
     const [slotsLoading, setSlotsLoading] = useState(false);
 
-    useEffect(() => {
-        loadDoctor();
-    }, [id]);
-
-    useEffect(() => {
-        if (doctor) {
-            loadAvailableSlots();
-        }
-    }, [doctor, selectedDate]);
-
-    const loadDoctor = async () => {
+    const loadDoctor = useCallback(async () => {
         setLoading(true);
         try {
             const response = await doctorAPI.getById(id);
@@ -89,9 +79,9 @@ export const DoctorDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, text.loadError]);
 
-    const loadAvailableSlots = async () => {
+    const loadAvailableSlots = useCallback(async () => {
         setSlotsLoading(true);
         try {
             const response = await doctorAPI.getAvailable({
@@ -107,7 +97,17 @@ export const DoctorDetail = () => {
         } finally {
             setSlotsLoading(false);
         }
-    };
+    }, [id, selectedDate]);
+
+    useEffect(() => {
+        loadDoctor();
+    }, [loadDoctor]);
+
+    useEffect(() => {
+        if (doctor) {
+            loadAvailableSlots();
+        }
+    }, [doctor, loadAvailableSlots]);
 
     const handleBookSlot = (slot) => {
         if (!user) {

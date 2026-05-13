@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
@@ -133,19 +133,7 @@ export const BookAppointment = () => {
         { num: STEP_CONFIRM, label: text.stepConfirm },
     ];
 
-    useEffect(() => {
-        loadInitialData();
-    }, []);
-
-    useEffect(() => {
-        if (selectedDoctor) {
-            loadAvailableSlots(selectedDoctor.id);
-        } else {
-            setAvailableSlots([]);
-        }
-    }, [selectedDoctor]);
-
-    const loadInitialData = async () => {
+    const loadInitialData = useCallback(async () => {
         try {
             const [doctorsRes, specialtiesRes, careRes] = await Promise.all([
                 doctorAPI.getAll(),
@@ -173,9 +161,9 @@ export const BookAppointment = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [location.state?.doctorId, text.loadError]);
 
-    const loadAvailableSlots = async (doctorId) => {
+    const loadAvailableSlots = useCallback(async (doctorId) => {
         try {
             const response = await appointmentAPI.getAvailableSlots(doctorId);
             const slots = getListData(getApiData(response)).map(normalizeSlot);
@@ -191,7 +179,19 @@ export const BookAppointment = () => {
             console.error('Lỗi khi tải lịch trống:', err);
             setAvailableSlots([]);
         }
-    };
+    }, [location.state?.slotId]);
+
+    useEffect(() => {
+        loadInitialData();
+    }, [loadInitialData]);
+
+    useEffect(() => {
+        if (selectedDoctor) {
+            loadAvailableSlots(selectedDoctor.id);
+        } else {
+            setAvailableSlots([]);
+        }
+    }, [selectedDoctor, loadAvailableSlots]);
 
     const goToDoctorStep = () => {
         if (!selectedCareProfile) {

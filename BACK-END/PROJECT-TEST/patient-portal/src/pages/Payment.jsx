@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { patientAPI, paymentAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Alert, Loading } from '../components/common';
@@ -63,11 +63,7 @@ export const Payment = () => {
 
         const currency = (amount) => `${Number(amount || 0).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}đ`;
 
-    useEffect(() => {
-        loadAppointment();
-    }, [appointmentId]);
-
-    const loadAppointment = async () => {
+    const loadAppointment = useCallback(async () => {
         try {
             const response = await patientAPI.getAppointments();
             const appointments = getListData(getApiData(response)).map(normalizeAppointment);
@@ -85,7 +81,11 @@ export const Payment = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [appointmentId, text.loadError, text.notFound]);
+
+    useEffect(() => {
+        loadAppointment();
+    }, [loadAppointment]);
 
     const handleMomoPayment = async () => {
         setProcessing(true);
