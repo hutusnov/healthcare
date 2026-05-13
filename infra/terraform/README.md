@@ -10,6 +10,8 @@
   - `modules/iam_github_actions`
 - Environment:
   - `envs/dev`
+  - `envs/staging`
+  - `envs/prod`
 
 ## What is managed now
 - VPC networking objects (adopted/imported safely).
@@ -35,6 +37,10 @@ terraform validate
 terraform plan
 terraform apply
 ```
+
+For `staging` or `prod`, run the same commands in:
+- `infra/terraform/envs/staging`
+- `infra/terraform/envs/prod`
 
 ## Safe change policy
 - Always apply from feature branch first.
