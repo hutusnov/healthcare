@@ -180,7 +180,7 @@ switch ($Step) {
   }
   "check-env-isolation" {
     Push-Location $root
-    & (Join-Path $root "check-env-isolation.ps1")
+    & (Join-Path $root "check-env-isolation.ps1") -AllowSharedStaging
     Pop-Location
   }
   "discover-network" {

@@ -1,7 +1,8 @@
 Param(
   [string]$DevPath = "envs/dev/terraform.tfvars",
   [string]$StagingPath = "envs/staging/terraform.tfvars",
-  [string]$ProdPath = "envs/prod/terraform.tfvars"
+  [string]$ProdPath = "envs/prod/terraform.tfvars",
+  [switch]$AllowSharedStaging
 )
 
 $ErrorActionPreference = "Stop"
@@ -65,8 +66,12 @@ try {
     }
 
     if ($stagingVal -eq $devVal) {
-      Write-Host "[FAIL] staging matches dev for $key => $stagingVal"
-      $hasIssue = $true
+      if ($AllowSharedStaging) {
+        Write-Host "[WARN] staging matches dev for $key => $stagingVal (allowed by -AllowSharedStaging)"
+      } else {
+        Write-Host "[FAIL] staging matches dev for $key => $stagingVal"
+        $hasIssue = $true
+      }
     }
 
     if ($prodVal -eq $devVal) {
