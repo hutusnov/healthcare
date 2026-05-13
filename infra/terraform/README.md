@@ -42,11 +42,9 @@ For `staging` or `prod`, run the same commands in:
 - `infra/terraform/envs/staging`
 - `infra/terraform/envs/prod`
 
-Quick runbook steps:
-- `.\runbook.ps1 -Step staging-init`
-- `.\runbook.ps1 -Step staging-plan`
-- `.\runbook.ps1 -Step prod-init`
-- `.\runbook.ps1 -Step prod-plan`
+Quick helper steps:
+- `.\check-env-isolation.ps1`
+- `.\discover-aws-network.ps1 -VpcId vpc-xxxxxxxx -Env staging -Region ap-southeast-1`
 
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
@@ -60,17 +58,17 @@ Before migrating local state to S3 backend, ensure bootstrap backend resources e
    - Copy `infra/terraform/envs/dev/backend.hcl.example` to `infra/terraform/envs/dev/backend.hcl`
    - Fill real values from bootstrap outputs.
 3. Migrate with automatic local backup:
-   - `cd infra/terraform`
-   - `.\runbook.ps1 -Step dev-migrate-state`
+   - `cd infra/terraform/envs/dev`
+   - backup local state files, then run:
+   - `terraform init -backend-config=backend.hcl -reconfigure -migrate-state`
 4. Verify no infra drift:
-   - `.\runbook.ps1 -Step dev-plan`
+   - `terraform plan`
 
 Notes:
-- `dev-migrate-state` creates `infra/terraform/envs/dev/state-backups/*` before migration.
+- Create local backup copy before migrate (for example `terraform.tfstate.bak` and `.terraform/terraform.tfstate.bak`).
 - Migration only moves Terraform state storage. It does not recreate managed resources.
 - Equivalent migration steps are available for `staging` and `prod`:
-  - `staging-migrate-state`
-  - `prod-migrate-state`
+  - run the same `terraform init ... -migrate-state` in each env directory.
 
 ## Safe change policy
 - Always apply from feature branch first.
@@ -81,6 +79,12 @@ Notes:
   - `allow_nondev_plan_with_shared_ids = false` by default.
   - Terraform blocks non-dev plan/apply when env still points to shared IDs.
   - Turn it on only for intentional, reviewed migration steps.
+- Env isolation check:
+  - Run `.\check-env-isolation.ps1` before any non-dev apply.
+  - It compares key IDs/names across `dev/staging/prod` tfvars and fails if staging/prod still match dev.
+- Network discovery helper:
+  - Run `.\discover-aws-network.ps1` with target VPC id to print a tfvars-ready network block.
+  - Script is read-only (`describe*` APIs), no create/update/delete actions.
 
 ## Rollback
 - Infra rollback:
