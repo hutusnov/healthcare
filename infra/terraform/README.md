@@ -42,6 +42,27 @@ For `staging` or `prod`, run the same commands in:
 - `infra/terraform/envs/staging`
 - `infra/terraform/envs/prod`
 
+## Safe remote state migration (dev)
+Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
+
+1. Bootstrap backend:
+   - `cd infra/terraform/bootstrap`
+   - `terraform init`
+   - `terraform plan`
+   - `terraform apply`
+2. Prepare backend config:
+   - Copy `infra/terraform/envs/dev/backend.hcl.example` to `infra/terraform/envs/dev/backend.hcl`
+   - Fill real values from bootstrap outputs.
+3. Migrate with automatic local backup:
+   - `cd infra/terraform`
+   - `.\runbook.ps1 -Step dev-migrate-state`
+4. Verify no infra drift:
+   - `.\runbook.ps1 -Step dev-plan`
+
+Notes:
+- `dev-migrate-state` creates `infra/terraform/envs/dev/state-backups/*` before migration.
+- Migration only moves Terraform state storage. It does not recreate managed resources.
+
 ## Safe change policy
 - Always apply from feature branch first.
 - Run Unified pipeline and ensure `CI Terraform` + security jobs pass.
