@@ -8,6 +8,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  ci-terraform:
+    name: CI Terraform
+    uses: ./.github/workflows/ci-terraform.yml
+    secrets: inherit
+
   ci-backend:
     name: CI Backend
     uses: ./.github/workflows/ci-backend.yml
