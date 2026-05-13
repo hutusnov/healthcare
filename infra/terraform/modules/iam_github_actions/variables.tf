@@ -19,6 +19,12 @@ variable "aws_region" {
   description = "AWS region used by deploy workflows"
 }
 
+variable "allowed_workflow_refs" {
+  type        = list(string)
+  description = "Allowed GitHub workflow refs that can assume the role (job_workflow_ref claim)"
+  default     = []
+}
+
 variable "backend_instance_ids" {
   type        = list(string)
   description = "Allowed backend EC2 instance IDs for SSM deploy"

@@ -1,5 +1,12 @@
 data "aws_caller_identity" "current" {}
 
+locals {
+  workflow_ref_values = length(var.allowed_workflow_refs) > 0 ? var.allowed_workflow_refs : [
+    "${var.github_owner}/${var.github_repo}/.github/workflows/cd-backend.yml@refs/heads/main",
+    "${var.github_owner}/${var.github_repo}/.github/workflows/cd-backend.yml@refs/heads/develop"
+  ]
+}
+
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 
@@ -38,6 +45,12 @@ data "aws_iam_policy_document" "assume_role" {
         "repo:${var.github_owner}/${var.github_repo}:pull_request",
         "repo:${var.github_owner}/${var.github_repo}:workflow_dispatch"
       ]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:job_workflow_ref"
+      values   = local.workflow_ref_values
     }
   }
 }
