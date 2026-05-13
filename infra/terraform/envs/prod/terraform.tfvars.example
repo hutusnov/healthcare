@@ -63,3 +63,7 @@ common_tags = {
   Env     = "prod"
   Managed = "terraform"
 }
+
+# Safety override: keep false by default.
+# Only set true when you intentionally plan/apply non-dev env that still shares IDs.
+allow_nondev_plan_with_shared_ids = false

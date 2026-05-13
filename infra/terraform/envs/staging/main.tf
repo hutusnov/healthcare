@@ -1,3 +1,18 @@
+locals {
+  env_name = lower(lookup(var.common_tags, "Env", "dev"))
+}
+
+resource "terraform_data" "non_dev_safety_lock" {
+  input = local.env_name
+
+  lifecycle {
+    precondition {
+      condition     = local.env_name == "dev" || var.allow_nondev_plan_with_shared_ids
+      error_message = "Safety lock: non-dev plan/apply is blocked by default. Set allow_nondev_plan_with_shared_ids=true only when you intentionally plan/apply non-dev with shared IDs."
+    }
+  }
+}
+
 module "backend_stack" {
   source = "../../modules/backend_stack"
 
