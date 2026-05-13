@@ -74,7 +74,7 @@ jobs:
 
   plan-terraform-dev:
     runs-on: ubuntu-latest
-    if: vars.TF_PLAN_DEV_ENABLED == 'true' && vars.AWS_GHA_ROLE_ARN != '' && (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: [validate-terraform]
     permissions:
       contents: read
@@ -88,13 +88,31 @@ jobs:
         with:
           terraform_version: 1.15.2
 
+      - name: Precheck plan gate
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ vars.TF_PLAN_DEV_ENABLED }}" != "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip terraform plan: set repository variable TF_PLAN_DEV_ENABLED=true to enable."
+            exit 0
+          fi
+          if [ -z "${{ vars.AWS_GHA_ROLE_ARN }}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip terraform plan: repository variable AWS_GHA_ROLE_ARN is empty."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS credentials (OIDC)
+        if: steps.gate.outputs.enabled == 'true'
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Terraform plan (dev) when tfvars exists
+        if: steps.gate.outputs.enabled == 'true'
         shell: bash
         run: |
           TF_DIR="$GITHUB_WORKSPACE/infra/terraform/envs/dev"
