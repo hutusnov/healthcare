@@ -23,3 +23,7 @@ Then in main stack:
 - `cd ../`
 - `terraform init -backend-config=backend.hcl -reconfigure`
 
+## Safety checklist
+- Do not delete existing local state before confirming migration success.
+- Always run a post-migration `terraform plan` in `envs/dev`.
+- If migration fails, restore from `envs/dev/state-backups` and retry.
