@@ -13,4 +13,10 @@ module "backend_stack" {
   backend_ingress_cidrs    = var.backend_ingress_cidrs
   common_tags              = var.common_tags
   adopt_existing_sg_safely = var.adopt_existing_sg_safely
+  manage_alb_sg            = var.manage_alb_sg
+  alb_sg_name              = var.alb_sg_name
+  alb_sg_description       = var.alb_sg_description
+  manage_vpn_sg            = var.manage_vpn_sg
+  vpn_sg_name              = var.vpn_sg_name
+  vpn_sg_description       = var.vpn_sg_description
 }

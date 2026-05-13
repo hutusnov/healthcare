@@ -6,3 +6,10 @@ output "backend_instance_id" {
   value = try(aws_instance.backend[0].id, null)
 }
 
+output "alb_security_group_id" {
+  value = try(aws_security_group.alb_sg[0].id, null)
+}
+
+output "vpn_security_group_id" {
+  value = try(aws_security_group.vpn_sg[0].id, null)
+}

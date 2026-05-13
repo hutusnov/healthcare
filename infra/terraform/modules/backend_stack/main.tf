@@ -47,3 +47,57 @@ resource "aws_instance" "backend" {
     Name = var.backend_instance_name
   })
 }
+
+resource "aws_security_group" "alb_sg" {
+  count = var.manage_alb_sg ? 1 : 0
+
+  name        = var.alb_sg_name
+  description = var.alb_sg_description
+  vpc_id      = data.aws_vpc.selected.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = var.alb_sg_name
+  })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
+}
+
+resource "aws_security_group" "vpn_sg" {
+  count = var.manage_vpn_sg ? 1 : 0
+
+  name        = var.vpn_sg_name
+  description = var.vpn_sg_description
+  vpc_id      = data.aws_vpc.selected.id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, {
+    Name = var.vpn_sg_name
+  })
+
+  lifecycle {
+    ignore_changes = [
+      description,
+      ingress,
+      egress
+    ]
+  }
+}

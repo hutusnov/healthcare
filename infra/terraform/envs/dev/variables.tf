@@ -75,3 +75,39 @@ variable "adopt_existing_sg_safely" {
   description = "When true, ignore SG rule/description drift during initial import phase"
   default     = true
 }
+
+variable "manage_alb_sg" {
+  type        = bool
+  description = "Whether to manage/import ALB security group"
+  default     = false
+}
+
+variable "alb_sg_name" {
+  type        = string
+  description = "ALB security group name"
+  default     = "ALB-SG"
+}
+
+variable "alb_sg_description" {
+  type        = string
+  description = "ALB security group description"
+  default     = "for Load Balancer"
+}
+
+variable "manage_vpn_sg" {
+  type        = bool
+  description = "Whether to manage/import VPN security group"
+  default     = false
+}
+
+variable "vpn_sg_name" {
+  type        = string
+  description = "VPN security group name"
+  default     = "VPN-SG"
+}
+
+variable "vpn_sg_description" {
+  type        = string
+  description = "VPN security group description"
+  default     = "for VPN"
+}
