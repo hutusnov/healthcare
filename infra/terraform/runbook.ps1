@@ -61,7 +61,7 @@ switch ($Step) {
     if (-not (Test-Path (Join-Path $root "backend.hcl"))) {
       throw "Missing backend.hcl in infra/terraform. Copy from backend.hcl.example first."
     }
-    terraform init -backend-config=backend.hcl -reconfigure
+    terraform init -backend-config backend.hcl -reconfigure
     Pop-Location
   }
   "main-validate" {
@@ -79,7 +79,7 @@ switch ($Step) {
     if (-not (Test-Path (Join-Path $dev "backend.hcl"))) {
       throw "Missing backend.hcl in infra/terraform/envs/dev. Copy from backend.hcl.example first."
     }
-    terraform init -backend-config=backend.hcl -reconfigure
+    terraform init -backend-config backend.hcl -reconfigure
     Pop-Location
   }
   "dev-migrate-state" {
@@ -88,7 +88,7 @@ switch ($Step) {
       throw "Missing backend.hcl in infra/terraform/envs/dev. Copy from backend.hcl.example first."
     }
     Backup-TerraformState $dev
-    terraform init -backend-config=backend.hcl -reconfigure -migrate-state
+    terraform init -backend-config backend.hcl -reconfigure -migrate-state
     Pop-Location
   }
   "dev-validate" {
