@@ -1,20 +1,57 @@
-# Terraform Infrastructure (AWS)
+# UIT Healthcare Terraform Runbook
 
-This folder provides a baseline IaC structure for the UIT Healthcare hybrid-cloud deployment.
+## Scope
+- AWS Infrastructure-as-Code for UIT Healthcare.
+- Current modules in use:
+  - `modules/network_stack`
+  - `modules/backend_stack`
+  - `modules/alb_stack`
+  - `modules/observability_stack`
+  - `modules/iam_github_actions`
+- Environment:
+  - `envs/dev`
 
-## What is included
-- VPC lookup (existing VPC mode)
-- Security Group for backend EC2
-- Optional backend EC2 instance provisioning
+## What is managed now
+- VPC networking objects (adopted/imported safely).
+- Backend, ALB, target group, listeners.
+- CloudWatch alarms for backend and ALB.
+- GitHub OIDC deploy role for AWS SSM-based CD backend.
 
-## Quick start
-1. Install Terraform `>= 1.6`.
-2. Create `terraform.tfvars` from `terraform.tfvars.example`.
-3. Run:
-   - `terraform init`
-   - `terraform plan`
-   - `terraform apply`
+## CI/CD guardrails
+- `CI Terraform` workflow:
+  - `terraform fmt -check`
+  - `terraform validate` for `envs/dev`
+  - optional PR `terraform plan` (only when enabled and `terraform.tfvars` exists)
+- `CD Backend AWS EC2`:
+  - OIDC-only authentication (no static AWS key fallback).
 
-## Notes
-- Current configuration is safe-by-default and does not force replace existing resources.
-- For production migration, import existing resources first (`terraform import`) before managing them.
+## Local operations
+From repo root:
+
+```powershell
+cd infra/terraform/envs/dev
+terraform init -backend-config=backend.hcl -reconfigure
+terraform validate
+terraform plan
+terraform apply
+```
+
+## Safe change policy
+- Always apply from feature branch first.
+- Run Unified pipeline and ensure `CI Terraform` + security jobs pass.
+- Merge to `main` only after successful run.
+- Prefer import/adopt strategy for existing resources to avoid accidental recreation.
+
+## Rollback
+- Infra rollback:
+  - Revert commit in Git.
+  - Re-run `terraform plan` and `terraform apply` from `envs/dev`.
+- Deployment rollback:
+  - Re-run `CD Backend AWS EC2` with previous image tag commit.
+
+## Secrets and state
+- Never commit:
+  - `terraform.tfvars`
+  - `.tfstate*`
+  - provider credentials
+- Use remote state backend and locking for team operations.

@@ -63,3 +63,37 @@ jobs:
           cd "${{ steps.tfroot.outputs.path }}/envs/dev"
           terraform init -backend=false
           terraform validate
+
+  plan-terraform-dev:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && vars.TF_PLAN_DEV_ENABLED == 'true' && vars.AWS_GHA_ROLE_ARN != ''
+    needs: [validate-terraform]
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.2
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform plan (dev) when tfvars exists
+        shell: bash
+        run: |
+          TF_DIR="$GITHUB_WORKSPACE/infra/terraform/envs/dev"
+          if [ ! -f "$TF_DIR/terraform.tfvars" ]; then
+            echo "Skip terraform plan: $TF_DIR/terraform.tfvars not found."
+            exit 0
+          fi
+          cd "$TF_DIR"
+          terraform init -backend=false
+          terraform plan -no-color -input=false -lock=false -out=tfplan
