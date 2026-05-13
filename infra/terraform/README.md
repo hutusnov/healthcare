@@ -5,6 +5,9 @@ We keep the current runtime architecture (AWS + OpenStack) and use Terraform to
 manage AWS resources first in a controlled way.
 
 ## Current scope (safe first step)
+- Moduleized Terraform structure:
+  - `modules/backend_stack`
+  - `envs/dev`
 - Lookup existing AWS VPC (`vpc_id`)
 - Create/manage backend Security Group
 - Optional backend EC2 creation (`create_backend_instance = true/false`)
@@ -27,9 +30,10 @@ PowerShell helper (optional):
 - `./runbook.ps1 -Step bootstrap-init`
 - `./runbook.ps1 -Step bootstrap-plan`
 - `./runbook.ps1 -Step bootstrap-apply`
-- `./runbook.ps1 -Step main-init`
-- `./runbook.ps1 -Step main-validate`
-- `./runbook.ps1 -Step main-plan`
+- `./runbook.ps1 -Step dev-init`
+- `./runbook.ps1 -Step dev-validate`
+- `./runbook.ps1 -Step dev-plan`
+- `./runbook.ps1 -Step fmt`
 
 ## Remote state (recommended)
 Use remote state before real apply:
@@ -37,9 +41,10 @@ Use remote state before real apply:
    - `cd bootstrap`
    - `cp terraform.tfvars.example terraform.tfvars`
    - `terraform init && terraform apply`
-2. Copy `backend.hcl.example` -> `backend.hcl`
+2. Copy `envs/dev/backend.hcl.example` -> `envs/dev/backend.hcl`
 3. Fill generated S3 bucket / DynamoDB table.
-4. Re-init main stack with backend:
+4. Re-init dev stack with backend:
+   - `cd envs/dev`
    - `terraform init -backend-config=backend.hcl -reconfigure`
 
 ## Apply strategy for this repo

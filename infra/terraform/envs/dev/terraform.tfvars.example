@@ -1,0 +1,16 @@
+aws_region               = "ap-southeast-1"
+vpc_id                   = "vpc-xxxxxxxx"
+backend_subnet_id        = "subnet-xxxxxxxx"
+backend_instance_type    = "t3.micro"
+backend_ami_id           = "ami-xxxxxxxx"
+key_name                 = "aws-healthcare-key"
+create_backend_instance  = false
+backend_sg_name          = "healthcare-backend-sg-dev-tf"
+backend_instance_name    = "NodeJS-Backend-Dev-Terraform"
+backend_ingress_cidrs    = ["10.0.0.0/16"]
+common_tags = {
+  Project = "uit-healthcare"
+  Env     = "dev"
+  Managed = "terraform"
+}
+

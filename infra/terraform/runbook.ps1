@@ -1,7 +1,7 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan")]
-  [string]$Step = "main-plan"
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-validate", "dev-plan", "fmt")]
+  [string]$Step = "dev-plan"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +16,7 @@ Require-Command terraform
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bootstrap = Join-Path $root "bootstrap"
+$dev = Join-Path $root "envs\\dev"
 
 switch ($Step) {
   "bootstrap-init" {
@@ -51,5 +52,27 @@ switch ($Step) {
     terraform plan
     Pop-Location
   }
+  "dev-init" {
+    Push-Location $dev
+    if (-not (Test-Path (Join-Path $dev "backend.hcl"))) {
+      throw "Missing backend.hcl in infra/terraform/envs/dev. Copy from backend.hcl.example first."
+    }
+    terraform init -backend-config=backend.hcl -reconfigure
+    Pop-Location
+  }
+  "dev-validate" {
+    Push-Location $dev
+    terraform validate
+    Pop-Location
+  }
+  "dev-plan" {
+    Push-Location $dev
+    terraform plan
+    Pop-Location
+  }
+  "fmt" {
+    Push-Location $root
+    terraform fmt -recursive
+    Pop-Location
+  }
 }
-
