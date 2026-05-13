@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "fmt")]
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "fmt")]
   [string]$Step = "dev-plan"
 )
 
@@ -17,6 +17,8 @@ Require-Command terraform
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bootstrap = Join-Path $root "bootstrap"
 $dev = Join-Path $root "envs\\dev"
+$staging = Join-Path $root "envs\\staging"
+$prod = Join-Path $root "envs\\prod"
 
 function Backup-TerraformState($workspaceDir) {
   $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -98,6 +100,60 @@ switch ($Step) {
   }
   "dev-plan" {
     Push-Location $dev
+    terraform plan
+    Pop-Location
+  }
+  "staging-init" {
+    Push-Location $staging
+    if (-not (Test-Path (Join-Path $staging "backend.hcl"))) {
+      throw "Missing backend.hcl in infra/terraform/envs/staging. Copy from backend.hcl.example first."
+    }
+    terraform init -backend-config backend.hcl -reconfigure
+    Pop-Location
+  }
+  "staging-migrate-state" {
+    Push-Location $staging
+    if (-not (Test-Path (Join-Path $staging "backend.hcl"))) {
+      throw "Missing backend.hcl in infra/terraform/envs/staging. Copy from backend.hcl.example first."
+    }
+    Backup-TerraformState $staging
+    terraform init -backend-config backend.hcl -reconfigure -migrate-state
+    Pop-Location
+  }
+  "staging-validate" {
+    Push-Location $staging
+    terraform validate
+    Pop-Location
+  }
+  "staging-plan" {
+    Push-Location $staging
+    terraform plan
+    Pop-Location
+  }
+  "prod-init" {
+    Push-Location $prod
+    if (-not (Test-Path (Join-Path $prod "backend.hcl"))) {
+      throw "Missing backend.hcl in infra/terraform/envs/prod. Copy from backend.hcl.example first."
+    }
+    terraform init -backend-config backend.hcl -reconfigure
+    Pop-Location
+  }
+  "prod-migrate-state" {
+    Push-Location $prod
+    if (-not (Test-Path (Join-Path $prod "backend.hcl"))) {
+      throw "Missing backend.hcl in infra/terraform/envs/prod. Copy from backend.hcl.example first."
+    }
+    Backup-TerraformState $prod
+    terraform init -backend-config backend.hcl -reconfigure -migrate-state
+    Pop-Location
+  }
+  "prod-validate" {
+    Push-Location $prod
+    terraform validate
+    Pop-Location
+  }
+  "prod-plan" {
+    Push-Location $prod
     terraform plan
     Pop-Location
   }
