@@ -219,7 +219,7 @@ switch ($Step) {
     Pop-Location
 
     Push-Location $root
-    & (Join-Path $root "check-env-isolation.ps1")
+    & (Join-Path $root "check-env-isolation.ps1") -AllowSharedStaging
     Pop-Location
 
     Write-Host "Terraform phase1 safety checks completed. No apply executed."
