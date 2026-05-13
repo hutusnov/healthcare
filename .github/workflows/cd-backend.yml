@@ -9,7 +9,7 @@ on:
 jobs:
   deploy-backend:
     runs-on: ubuntu-latest
-    if: vars.ENABLE_AWS_EC2_DEPLOY == 'true' && (vars.AWS_BACKEND_INSTANCE_IDS != '' || vars.AWS_BACKEND_INSTANCE_ID != '')
+    if: vars.ENABLE_AWS_EC2_DEPLOY == 'true' && vars.AWS_GHA_ROLE_ARN != '' && (vars.AWS_BACKEND_INSTANCE_IDS != '' || vars.AWS_BACKEND_INSTANCE_ID != '')
     permissions:
       contents: read
       packages: write
@@ -38,19 +38,10 @@ jobs:
           docker build -t "${{ steps.meta.outputs.image }}" ./BACK-END/PROJECT-TEST
           docker push "${{ steps.meta.outputs.image }}"
 
-      - name: Configure AWS credentials (OIDC preferred)
-        if: vars.AWS_GHA_ROLE_ARN != ''
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Configure AWS credentials (Access Key fallback)
-        if: vars.AWS_GHA_ROLE_ARN == ''
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Deploy backend over SSM
