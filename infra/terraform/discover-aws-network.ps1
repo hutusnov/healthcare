@@ -108,10 +108,29 @@ if ($null -eq $pub1 -or $null -eq $pub2 -or $null -eq $pri1 -or $null -eq $pri2)
   Write-Host "[WARN] Could not auto-map full 2x public + 2x private subnets. Manual adjustment required."
 }
 
+if ($null -eq $pub1 -and $az1) {
+  $pub1 = ($subnets | Where-Object { $_.AvailabilityZone -eq $az1 } | Sort-Object SubnetId | Select-Object -First 1)
+}
+if ($null -eq $pub2 -and $az2) {
+  $pub2 = ($subnets | Where-Object { $_.AvailabilityZone -eq $az2 } | Sort-Object SubnetId | Select-Object -First 1)
+}
+if ($null -eq $pri1) { $pri1 = $pub1 }
+if ($null -eq $pri2) { $pri2 = $pub2 }
+
 function Find-RtbForSubnet($subnetId, $routeTables) {
   foreach ($rtb in $routeTables.RouteTables) {
     foreach ($assoc in $rtb.Associations) {
       if ($assoc.SubnetId -eq $subnetId) {
+        return @{
+          RouteTableId = $rtb.RouteTableId
+          AssocId      = $assoc.RouteTableAssociationId
+        }
+      }
+    }
+  }
+  foreach ($rtb in $routeTables.RouteTables) {
+    foreach ($assoc in $rtb.Associations) {
+      if ($assoc.Main -eq $true) {
         return @{
           RouteTableId = $rtb.RouteTableId
           AssocId      = $assoc.RouteTableAssociationId
@@ -128,9 +147,9 @@ $pri1Assoc = if ($pri1) { Find-RtbForSubnet -subnetId $pri1.SubnetId -routeTable
 $pri2Assoc = if ($pri2) { Find-RtbForSubnet -subnetId $pri2.SubnetId -routeTables $rtbs } else { $null }
 
 $natResp = AwsJson -ArgList @("ec2", "describe-nat-gateways", "--region", $Region, "--filter", "Name=vpc-id,Values=$VpcId", "--filter", "Name=state,Values=available,pending", "--output", "json")
-$nat = $natResp.NatGateways | Sort-Object NatGatewayId | Select-Object -First 1
-$natId = if ($nat) { $nat.NatGatewayId } else { "nat-REPLACE_ME" }
-$natEip = if ($nat -and $nat.NatGatewayAddresses.Count -gt 0) { $nat.NatGatewayAddresses[0].AllocationId } else { "eipalloc-REPLACE_ME" }
+$nat = $natResp.NatGateways | Where-Object { $_.VpcId -eq $VpcId } | Sort-Object NatGatewayId | Select-Object -First 1
+$natId = if ($nat) { $nat.NatGatewayId } else { "" }
+$natEip = if ($nat -and $nat.NatGatewayAddresses.Count -gt 0) { $nat.NatGatewayAddresses[0].AllocationId } else { "" }
 
 Write-Host ""
 Write-Host "===== Discovery Summary ====="
