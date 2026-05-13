@@ -72,6 +72,23 @@ jobs:
             terraform validate
           done
 
+      - name: Install Checkov (IaC security scanner)
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install checkov
+
+      - name: Checkov scan (soft mode by default)
+        shell: bash
+        run: |
+          TARGET_DIR="${{ steps.tfroot.outputs.path }}"
+          echo "Running Checkov scan on $TARGET_DIR"
+          if [ "${{ vars.TF_SECURITY_STRICT }}" = "true" ]; then
+            checkov -d "$TARGET_DIR" --framework terraform --quiet
+          else
+            checkov -d "$TARGET_DIR" --framework terraform --quiet --soft-fail
+          fi
+
   plan-terraform-dev:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
