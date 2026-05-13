@@ -48,6 +48,7 @@ Quick helper steps:
 - `.\runbook.ps1 -Step phase1-safe-complete`
   - Runs fmt/validate/plan checks without apply.
   - Non-dev plan blocked by `non_dev_safety_lock` is treated as expected safe behavior.
+  - Allows shared `staging` IDs temporarily to avoid extra cost, but still enforces `prod` isolation from `dev`.
 
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
