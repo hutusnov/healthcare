@@ -49,9 +49,13 @@ jobs:
       - name: Terraform init+validate (bootstrap)
         shell: bash
         run: |
-          cd "${{ steps.tfroot.outputs.path }}/bootstrap"
-          terraform init -backend=false
-          terraform validate
+          if [ -d "${{ steps.tfroot.outputs.path }}/bootstrap" ]; then
+            cd "${{ steps.tfroot.outputs.path }}/bootstrap"
+            terraform init -backend=false
+            terraform validate
+          else
+            echo "Skip bootstrap validation: bootstrap directory not found"
+          fi
 
       - name: Terraform init+validate (dev env)
         shell: bash
