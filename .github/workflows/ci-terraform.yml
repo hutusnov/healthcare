@@ -8,12 +8,14 @@ on:
     branches: [main, develop]
     paths:
       - "infra/terraform/**"
+      - "infra/terraform-openstack/**"
       - ".github/workflows/ci-terraform.yml"
       - ".github/workflows/pipeline-unified.yml"
   pull_request:
     branches: [main, develop]
     paths:
       - "infra/terraform/**"
+      - "infra/terraform-openstack/**"
       - ".github/workflows/ci-terraform.yml"
       - ".github/workflows/pipeline-unified.yml"
   workflow_call:
@@ -72,6 +74,23 @@ jobs:
             terraform validate
           done
 
+      - name: Terraform init+validate (OpenStack envs)
+        shell: bash
+        run: |
+          OS_ROOT="$GITHUB_WORKSPACE/infra/terraform-openstack"
+          if [ ! -d "$OS_ROOT" ]; then
+            echo "Skip OpenStack terraform validation: $OS_ROOT not found"
+            exit 0
+          fi
+          for ENV_DIR in "$OS_ROOT"/envs/*; do
+            [ -d "$ENV_DIR" ] || continue
+            [ -f "$ENV_DIR/main.tf" ] || continue
+            echo "Validating OpenStack env: $ENV_DIR"
+            cd "$ENV_DIR"
+            terraform init -backend=false
+            terraform validate
+          done
+
       - name: Install Checkov (IaC security scanner)
         shell: bash
         run: |
@@ -87,6 +106,21 @@ jobs:
             checkov -d "$TARGET_DIR" --framework terraform --quiet
           else
             checkov -d "$TARGET_DIR" --framework terraform --quiet --soft-fail
+          fi
+
+      - name: Checkov scan OpenStack Terraform (soft mode by default)
+        shell: bash
+        run: |
+          OS_ROOT="$GITHUB_WORKSPACE/infra/terraform-openstack"
+          if [ ! -d "$OS_ROOT" ]; then
+            echo "Skip OpenStack checkov scan: $OS_ROOT not found"
+            exit 0
+          fi
+          echo "Running Checkov scan on $OS_ROOT"
+          if [ "${{ vars.TF_SECURITY_STRICT }}" = "true" ]; then
+            checkov -d "$OS_ROOT" --framework terraform --quiet
+          else
+            checkov -d "$OS_ROOT" --framework terraform --quiet --soft-fail
           fi
 
   plan-terraform-dev:
