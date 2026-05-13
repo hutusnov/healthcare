@@ -42,6 +42,12 @@ For `staging` or `prod`, run the same commands in:
 - `infra/terraform/envs/staging`
 - `infra/terraform/envs/prod`
 
+Quick runbook steps:
+- `.\runbook.ps1 -Step staging-init`
+- `.\runbook.ps1 -Step staging-plan`
+- `.\runbook.ps1 -Step prod-init`
+- `.\runbook.ps1 -Step prod-plan`
+
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
 
@@ -62,6 +68,9 @@ Before migrating local state to S3 backend, ensure bootstrap backend resources e
 Notes:
 - `dev-migrate-state` creates `infra/terraform/envs/dev/state-backups/*` before migration.
 - Migration only moves Terraform state storage. It does not recreate managed resources.
+- Equivalent migration steps are available for `staging` and `prod`:
+  - `staging-migrate-state`
+  - `prod-migrate-state`
 
 ## Safe change policy
 - Always apply from feature branch first.
