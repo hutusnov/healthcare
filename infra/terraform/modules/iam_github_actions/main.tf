@@ -2,8 +2,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   workflow_ref_values = length(var.allowed_workflow_refs) > 0 ? var.allowed_workflow_refs : [
-    "${var.github_owner}/${var.github_repo}/.github/workflows/cd-backend.yml@refs/heads/main",
-    "${var.github_owner}/${var.github_repo}/.github/workflows/cd-backend.yml@refs/heads/develop"
+    "${var.github_owner}/${var.github_repo}/.github/workflows/cd-backend.yml@refs/heads/*"
   ]
 }
 
@@ -40,8 +39,7 @@ data "aws_iam_policy_document" "assume_role" {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/main",
-        "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/develop",
+        "repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/*",
         "repo:${var.github_owner}/${var.github_repo}:pull_request",
         "repo:${var.github_owner}/${var.github_repo}:workflow_dispatch"
       ]
