@@ -67,7 +67,8 @@ data "aws_iam_policy_document" "deploy_permissions" {
     ]
     resources = concat(
       [
-        "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/AWS-RunShellScript"
+        "arn:aws:ssm:${var.aws_region}::document/AWS-RunShellScript",
+        "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/*"
       ],
       [
         for id in var.backend_instance_ids :
