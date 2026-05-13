@@ -79,3 +79,13 @@ module "observability_stack" {
   alarm_prefix         = var.alarm_prefix
   sns_topic_arn        = var.alarm_sns_topic_arn
 }
+
+module "iam_github_actions" {
+  source = "../../modules/iam_github_actions"
+
+  github_owner         = var.github_owner
+  github_repo          = var.github_repo
+  role_name            = var.github_actions_role_name
+  aws_region           = var.aws_region
+  backend_instance_ids = var.target_instance_ids
+}

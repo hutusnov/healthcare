@@ -294,3 +294,21 @@ variable "alarm_sns_topic_arn" {
   description = "SNS topic ARN for CloudWatch alarms (optional)"
   default     = ""
 }
+
+variable "github_owner" {
+  type        = string
+  description = "GitHub owner/org"
+  default     = "hutusnov"
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository name"
+  default     = "healthcare"
+}
+
+variable "github_actions_role_name" {
+  type        = string
+  description = "IAM role name for GitHub Actions deploy"
+  default     = "GitHubActionsHealthcareDeployRole"
+}
