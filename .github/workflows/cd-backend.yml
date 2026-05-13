@@ -38,7 +38,15 @@ jobs:
           docker build -t "${{ steps.meta.outputs.image }}" ./BACK-END/PROJECT-TEST
           docker push "${{ steps.meta.outputs.image }}"
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC preferred)
+        if: vars.AWS_GHA_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure AWS credentials (Access Key fallback)
+        if: vars.AWS_GHA_ROLE_ARN == ''
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}

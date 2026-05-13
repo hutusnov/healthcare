@@ -49,3 +49,7 @@ output "target_group_arn" {
 output "alarm_names" {
   value = module.observability_stack.alarm_names
 }
+
+output "github_actions_role_arn" {
+  value = module.iam_github_actions.github_actions_role_arn
+}
