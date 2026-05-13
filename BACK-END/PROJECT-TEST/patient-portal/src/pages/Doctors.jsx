@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { doctorAPI } from '../services/api';
 import { Card, Loading, Input } from '../components/common';
@@ -43,19 +43,7 @@ export const Doctors = () => {
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [selectedSpecialty, setSelectedSpecialty] = useState(searchParams.get('specialty') || '');
 
-    useEffect(() => {
-        loadSpecialties();
-    }, []);
-
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            searchDoctors();
-        }, 250);
-
-        return () => clearTimeout(timeoutId);
-    }, [searchTerm, selectedSpecialty]);
-
-    const loadSpecialties = async () => {
+    const loadSpecialties = useCallback(async () => {
         try {
             const specialtiesRes = await doctorAPI.getSpecialties();
             const data = getListData(getApiData(specialtiesRes));
@@ -63,9 +51,9 @@ export const Doctors = () => {
         } catch (err) {
             console.error('Lỗi khi tải chuyên khoa:', err);
         }
-    };
+    }, []);
 
-    const searchDoctors = async () => {
+    const searchDoctors = useCallback(async () => {
         setLoading(true);
         try {
             const params = {};
@@ -83,7 +71,19 @@ export const Doctors = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [searchTerm, selectedSpecialty, setSearchParams]);
+
+    useEffect(() => {
+        loadSpecialties();
+    }, [loadSpecialties]);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            searchDoctors();
+        }, 250);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchDoctors]);
 
     return (
         <div className="min-h-screen py-8">

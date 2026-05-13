@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { patientAPI, appointmentAPI } from '../services/api';
 import { Card, Button, Loading, Alert } from '../components/common';
@@ -101,11 +101,7 @@ export const Appointments = () => {
 
         const locale = language === 'vi' ? vi : enUS;
 
-    useEffect(() => {
-        loadAppointments();
-    }, []);
-
-    const loadAppointments = async () => {
+    const loadAppointments = useCallback(async () => {
         try {
             const response = await patientAPI.getAppointments();
             const data = getListData(getApiData(response)).map(normalizeAppointment);
@@ -116,7 +112,11 @@ export const Appointments = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [text.loadError]);
+
+    useEffect(() => {
+        loadAppointments();
+    }, [loadAppointments]);
 
     const handleCancel = async (id) => {
         if (!confirm(text.cancelConfirm)) return;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { patientAPI, careProfileAPI } from '../services/api';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Alert, Loading } from '../components/common';
@@ -148,11 +148,7 @@ export const Profile = () => {
 
         const dateLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const [profileRes, careRes] = await Promise.all([
                 patientAPI.getProfile(),
@@ -176,7 +172,11 @@ export const Profile = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [text.loadError]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const handleSavePatientProfile = async () => {
         setSaving(true);
