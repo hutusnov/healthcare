@@ -51,6 +51,15 @@ Current safe import scope:
 
 Compute instances are still read as adopted inventory first. Importing them will be handled in a later step after boot-from-volume and per-node flavor values are modeled, so Terraform does not accidentally plan VM replacement.
 
+## Compute discovery before VM import
+Before importing OpenStack instances as managed Terraform resources, collect the exact live VM shape:
+
+```powershell
+.\discover-openstack-compute.ps1 -Env dev
+```
+
+This script is read-only. It prints each server's status, flavor, image, key pair, attached volumes, and addresses. Use the output to model boot-from-volume instances safely before any compute import.
+
 ## Notes
 - Keep credentials in environment variables or a local `terraform.tfvars` file (ignored by git).
 - Do not run `apply` until `plan` is reviewed and expected.

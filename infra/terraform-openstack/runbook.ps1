@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("dev-init", "dev-validate", "dev-plan-safe", "dev-import-existing-dry-run", "dev-import-existing-execute", "phase-safe-complete")]
+  [ValidateSet("dev-init", "dev-validate", "dev-plan-safe", "dev-import-existing-dry-run", "dev-import-existing-execute", "dev-discover-compute", "phase-safe-complete")]
   [string]$Step = "phase-safe-complete"
 )
 
@@ -49,6 +49,9 @@ switch ($Step) {
   }
   "dev-import-existing-execute" {
     & (Join-Path $root "import-openstack-existing.ps1") -Env dev -Execute
+  }
+  "dev-discover-compute" {
+    & (Join-Path $root "discover-openstack-compute.ps1") -Env dev
   }
   "phase-safe-complete" {
     Write-Host "OpenStack Terraform safe completion checks:"
