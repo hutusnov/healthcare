@@ -1,6 +1,7 @@
 locals {
   create_mode = var.adopt_existing_only == false
   adopt_mode  = var.adopt_existing_only == true
+  manage_core = local.create_mode || local.adopt_mode
   base_tags = [
     var.project_name,
     var.env,
@@ -63,25 +64,37 @@ data "openstack_compute_instance_v2" "existing_worker" {
 }
 
 resource "openstack_networking_network_v2" "cluster" {
-  count          = local.create_mode ? 1 : 0
+  count          = local.manage_core ? 1 : 0
   name           = "${var.project_name}-${var.env}-net"
   admin_state_up = true
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "openstack_networking_subnet_v2" "cluster" {
-  count       = local.create_mode ? 1 : 0
+  count       = local.manage_core ? 1 : 0
   name        = "${var.project_name}-${var.env}-subnet"
   network_id  = openstack_networking_network_v2.cluster[0].id
   cidr        = "192.168.120.0/24"
   ip_version  = 4
   enable_dhcp = true
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "openstack_networking_router_v2" "cluster" {
-  count               = local.create_mode ? 1 : 0
+  count               = local.manage_core ? 1 : 0
   name                = "${var.project_name}-${var.env}-router"
   admin_state_up      = true
   external_network_id = var.external_network_id
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "openstack_networking_router_interface_v2" "cluster" {
@@ -91,9 +104,13 @@ resource "openstack_networking_router_interface_v2" "cluster" {
 }
 
 resource "openstack_networking_secgroup_v2" "cluster" {
-  count       = local.create_mode ? 1 : 0
+  count       = local.manage_core ? 1 : 0
   name        = "${var.project_name}-${var.env}-sg"
   description = "Base security group for UIT Healthcare cluster"
+
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "openstack_networking_secgroup_rule_v2" "ssh" {
