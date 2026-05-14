@@ -552,6 +552,8 @@ jobs:
         env:
           INSTANCE_ID: ${{ vars.AWS_MONITORING_INSTANCE_ID }}
           BACKEND_TARGET: ${{ vars.MONITORING_BACKEND_TARGET }}
+          BACKEND_INSTANCE_IDS: ${{ vars.AWS_BACKEND_INSTANCE_IDS }}
+          BACKEND_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
           OCR_TARGET: ${{ vars.MONITORING_OCR_TARGET }}
           GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
@@ -560,12 +562,39 @@ jobs:
           ALERT_SMTP_USER: ${{ secrets.ALERT_SMTP_USER }}
           ALERT_SMTP_PASS: ${{ secrets.ALERT_SMTP_PASS }}
         run: |
+          if [ -z "${BACKEND_TARGET:-}" ]; then
+            TARGET_IDS="${BACKEND_INSTANCE_IDS:-}"
+            [ -z "$TARGET_IDS" ] && TARGET_IDS="${BACKEND_INSTANCE_ID:-}"
+            TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
+
+            if [ -n "$TARGET_IDS" ]; then
+              BACKEND_TARGET="$(aws ec2 describe-instances \
+                --instance-ids $TARGET_IDS \
+                --filters "Name=instance-state-name,Values=running" \
+                --query 'Reservations[].Instances[].PrivateIpAddress' \
+                --output text | tr '\t' '\n' | awk 'NF { print $1 ":4000" }' | paste -sd, -)"
+            fi
+          fi
+
+          if [ -z "${BACKEND_TARGET:-}" ]; then
+            echo "::error::MONITORING_BACKEND_TARGET is empty and backend private IPs could not be discovered."
+            exit 1
+          fi
+
+          echo "Monitoring backend targets: $BACKEND_TARGET"
+          export BACKEND_TARGET
+
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          backend_target = os.environ.get("BACKEND_TARGET") or "host.docker.internal:4000"
+          backend_targets = [
+            target.strip()
+            for target in os.environ.get("BACKEND_TARGET", "").replace(";", ",").split(",")
+            if target.strip()
+          ]
+          backend_targets_yaml = "\n".join(f"                    - {target}" for target in backend_targets)
           ocr_target = os.environ.get("OCR_TARGET", "").strip()
           grafana_user = os.environ.get("GRAFANA_ADMIN_USER") or "admin"
           grafana_password = os.environ.get("GRAFANA_ADMIN_PASSWORD") or "admin"
@@ -577,8 +606,8 @@ jobs:
             alert_smtp_user = alert_email_from
 
           prometheus = f"""global:
-            scrape_interval: 15s
-            evaluation_interval: 15s
+            scrape_interval: 30s
+            evaluation_interval: 30s
 
           rule_files:
             - /etc/prometheus/alert-rules.yml
@@ -594,7 +623,7 @@ jobs:
               metrics_path: /metrics
               static_configs:
                 - targets:
-                    - {backend_target}
+{backend_targets_yaml}
 
             - job_name: prometheus
               static_configs:
@@ -750,14 +779,14 @@ jobs:
             - name: healthcare-backend
               rules:
                 - alert: BackendDown
-                  expr: up{job="backend-aws"} == 0
-                  for: 2m
+                  expr: max_over_time((sum(up{job="backend-aws"}))[5m:30s]) == 0
+                  for: 5m
                   labels:
                     severity: critical
                     service: backend
                   annotations:
                     summary: "Healthcare backend is down"
-                    description: "Prometheus cannot scrape backend-aws target for more than 2 minutes."
+                    description: "Prometheus cannot scrape backend-aws target continuously for at least 5 minutes."
 
                 - alert: BackendHigh5xxRate
                   expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) > 0.5
