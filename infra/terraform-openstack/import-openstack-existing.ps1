@@ -129,7 +129,14 @@ try {
     }
 
     Write-Host "Importing: $($item.Address)"
-    terraform import -var-file=terraform.tfvars $item.Address $item.Id
+    $terraformArgs = @(
+      "import",
+      "-input=false",
+      "-var-file=terraform.tfvars",
+      [string]$item.Address,
+      [string]$item.Id
+    )
+    & terraform @terraformArgs
     if ($LASTEXITCODE -ne 0) {
       throw "Import failed for $($item.Address)"
     }
