@@ -1,0 +1,137 @@
+Param(
+  [Parameter(Mandatory = $false)]
+  [ValidateSet("dev")]
+  [string]$Env = "dev",
+
+  [Parameter(Mandatory = $false)]
+  [switch]$Execute
+)
+
+$ErrorActionPreference = "Stop"
+
+function Require-Command($Name) {
+  if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+    throw "Missing required command: $Name"
+  }
+}
+
+function Read-TfVars($Path) {
+  $vars = @{}
+  foreach ($line in Get-Content -Path $Path) {
+    $trimmed = $line.Trim()
+    if ($trimmed -eq "" -or $trimmed.StartsWith("#")) {
+      continue
+    }
+
+    if ($trimmed -match '^\s*([A-Za-z0-9_]+)\s*=\s*"([^"]*)"\s*$') {
+      $vars[$matches[1]] = $matches[2]
+      continue
+    }
+
+    if ($trimmed -match '^\s*([A-Za-z0-9_]+)\s*=\s*(true|false)\s*$') {
+      $vars[$matches[1]] = [System.Convert]::ToBoolean($matches[2])
+      continue
+    }
+  }
+
+  return $vars
+}
+
+function Get-RequiredValue($Vars, $Key) {
+  if (-not $Vars.ContainsKey($Key) -or [string]::IsNullOrWhiteSpace([string]$Vars[$Key])) {
+    throw "Missing required value in terraform.tfvars: $Key"
+  }
+
+  return [string]$Vars[$Key]
+}
+
+function Add-Import($Imports, $Address, $Id) {
+  $Imports.Add([PSCustomObject]@{
+      Address = $Address
+      Id      = $Id
+    }) | Out-Null
+}
+
+function Backup-TerraformState($WorkspaceDir) {
+  $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+  $backupDir = Join-Path $WorkspaceDir "state-backups"
+  New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
+
+  foreach ($relativePath in @("terraform.tfstate", "terraform.tfstate.backup", ".terraform\terraform.tfstate")) {
+    $source = Join-Path $WorkspaceDir $relativePath
+    if (Test-Path $source) {
+      $safeName = $relativePath.Replace("\", ".")
+      $dest = Join-Path $backupDir "$safeName.$timestamp.bak"
+      Copy-Item -Path $source -Destination $dest -Force
+      Write-Host "Backed up state file: $dest"
+    }
+  }
+}
+
+function Get-ImportedAddresses {
+  $output = terraform state list 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    return @()
+  }
+
+  return @($output)
+}
+
+Require-Command terraform
+
+if ([string]::IsNullOrWhiteSpace($env:OS_CLOUD) -and [string]::IsNullOrWhiteSpace($env:OS_AUTH_URL)) {
+  throw "OpenStack auth is not loaded. Source your openrc file first, then re-run this script."
+}
+
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$envDir = Join-Path $root "envs\$Env"
+$tfvarsPath = Join-Path $envDir "terraform.tfvars"
+
+if (-not (Test-Path $tfvarsPath)) {
+  throw "Missing tfvars file: $tfvarsPath"
+}
+
+$tfvars = Read-TfVars $tfvarsPath
+$imports = New-Object System.Collections.Generic.List[object]
+
+Add-Import $imports "module.openstack_cluster.openstack_networking_network_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_network_id")
+Add-Import $imports "module.openstack_cluster.openstack_networking_subnet_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_subnet_id")
+Add-Import $imports "module.openstack_cluster.openstack_networking_router_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_router_id")
+Add-Import $imports "module.openstack_cluster.openstack_networking_secgroup_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_secgroup_id")
+
+Write-Host "OpenStack Terraform import plan for env '$Env'"
+Write-Host "Execute mode: $Execute"
+Write-Host ""
+
+foreach ($item in $imports) {
+  Write-Host ("terraform import -var-file=terraform.tfvars {0} {1}" -f $item.Address, $item.Id)
+}
+
+if (-not $Execute) {
+  Write-Host ""
+  Write-Host "Dry-run only. Re-run with -Execute to import these OpenStack resources into local Terraform state."
+  exit 0
+}
+
+Push-Location $envDir
+try {
+  Backup-TerraformState $envDir
+  $existingAddresses = Get-ImportedAddresses
+
+  foreach ($item in $imports) {
+    if ($existingAddresses -contains $item.Address) {
+      Write-Host "Already imported, skipping: $($item.Address)"
+      continue
+    }
+
+    Write-Host "Importing: $($item.Address)"
+    terraform import -var-file=terraform.tfvars $item.Address $item.Id
+    if ($LASTEXITCODE -ne 0) {
+      throw "Import failed for $($item.Address)"
+    }
+  }
+
+  terraform plan -lock=false -input=false
+} finally {
+  Pop-Location
+}
