@@ -12,53 +12,53 @@ locals {
 check "create_mode_inputs" {
   assert {
     condition = local.create_mode == false || (
-      trim(var.external_network_id) != "" &&
-      trim(var.image_name) != "" &&
-      trim(var.flavor_name) != "" &&
-      trim(var.keypair_name) != ""
+      trimspace(var.external_network_id) != "" &&
+      trimspace(var.image_name) != "" &&
+      trimspace(var.flavor_name) != "" &&
+      trimspace(var.keypair_name) != ""
     )
     error_message = "Create mode requires external_network_id, image_name, flavor_name, and keypair_name."
   }
 }
 
 data "openstack_networking_network_v2" "existing_cluster" {
-  count      = local.adopt_mode && trim(var.existing_network_id) != "" ? 1 : 0
+  count      = local.adopt_mode && trimspace(var.existing_network_id) != "" ? 1 : 0
   network_id = var.existing_network_id
   region     = var.region
 }
 
 data "openstack_networking_subnet_v2" "existing_cluster" {
-  count     = local.adopt_mode && trim(var.existing_subnet_id) != "" ? 1 : 0
+  count     = local.adopt_mode && trimspace(var.existing_subnet_id) != "" ? 1 : 0
   subnet_id = var.existing_subnet_id
   region    = var.region
 }
 
 data "openstack_networking_router_v2" "existing_cluster" {
-  count     = local.adopt_mode && trim(var.existing_router_id) != "" ? 1 : 0
+  count     = local.adopt_mode && trimspace(var.existing_router_id) != "" ? 1 : 0
   router_id = var.existing_router_id
   region    = var.region
 }
 
 data "openstack_networking_secgroup_v2" "existing_cluster" {
-  count       = local.adopt_mode && trim(var.existing_secgroup_id) != "" ? 1 : 0
+  count       = local.adopt_mode && trimspace(var.existing_secgroup_id) != "" ? 1 : 0
   secgroup_id = var.existing_secgroup_id
   region      = var.region
 }
 
 data "openstack_compute_instance_v2" "existing_master" {
-  count  = local.adopt_mode && trim(var.existing_master_id) != "" ? 1 : 0
+  count  = local.adopt_mode && trimspace(var.existing_master_id) != "" ? 1 : 0
   id     = var.existing_master_id
   region = var.region
 }
 
 data "openstack_compute_instance_v2" "existing_data_node" {
-  count  = local.adopt_mode && trim(var.existing_data_node_id) != "" ? 1 : 0
+  count  = local.adopt_mode && trimspace(var.existing_data_node_id) != "" ? 1 : 0
   id     = var.existing_data_node_id
   region = var.region
 }
 
 data "openstack_compute_instance_v2" "existing_worker" {
-  count  = local.adopt_mode && trim(var.existing_worker_id) != "" ? 1 : 0
+  count  = local.adopt_mode && trimspace(var.existing_worker_id) != "" ? 1 : 0
   id     = var.existing_worker_id
   region = var.region
 }
