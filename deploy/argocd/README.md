@@ -6,6 +6,7 @@ This directory contains the GitOps entrypoint for the UIT Healthcare hybrid depl
 
 - `bootstrap/`: one-time Argo CD bootstrap manifests.
 - `apps/`: child Argo CD Applications managed by the root app.
+- `runbooks/`: operational bootstrap and rollback steps.
 - `../gitops/apps/aws-backend`: Kubernetes manifests for the public backend workload.
 - `../gitops/apps/private-ocr`: Kubernetes manifests for the private OCR workload.
 
@@ -26,4 +27,6 @@ After bootstrap, Argo CD will own the child apps from `deploy/argocd/apps` and s
 
 - Secrets are intentionally not stored in Git. Create runtime secrets out-of-band before enabling auto-sync for workloads.
 - CI validates Kustomize output, Argo CD manifests, and blocks committed Kubernetes Secret manifests.
+- AppProject limits source repositories, target namespaces, and allowed Kubernetes resource kinds.
+- NetworkPolicy and PodDisruptionBudget are included for safer runtime behavior.
 - Existing EC2-based CD remains available while GitOps is introduced gradually.

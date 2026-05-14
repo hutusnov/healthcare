@@ -55,3 +55,23 @@ jobs:
             exit 1
           fi
           echo "No committed Kubernetes Secret manifests found."
+
+      - name: Enforce pinned production image tags
+        shell: bash
+        run: |
+          if kubectl kustomize deploy/gitops/apps/aws-backend/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
+            echo "Backend GitOps overlay must use immutable image tags."
+            exit 1
+          fi
+          if kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
+            echo "OCR GitOps overlay must use immutable image tags."
+            exit 1
+          fi
+          echo "Production image tags are pinned."
+
+      - name: Verify Argo CD project guardrails
+        shell: bash
+        run: |
+          grep -q 'kind: AppProject' deploy/argocd/bootstrap/healthcare-project.yaml
+          grep -q 'orphanedResources:' deploy/argocd/bootstrap/healthcare-project.yaml
+          grep -q 'namespaceResourceWhitelist:' deploy/argocd/bootstrap/healthcare-project.yaml

@@ -4,6 +4,8 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - service.yaml
+  - networkpolicy.yaml
+  - pdb.yaml
 labels:
   - includeSelectors: true
     pairs:

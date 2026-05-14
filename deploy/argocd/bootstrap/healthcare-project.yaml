@@ -20,9 +20,22 @@ spec:
       kind: ConfigMap
     - group: ""
       kind: Service
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
     - group: apps
       kind: Deployment
     - group: networking.k8s.io
       kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
     - group: policy
       kind: PodDisruptionBudget
+  orphanedResources:
+    warn: true
+  syncWindows:
+    - kind: allow
+      schedule: "0 1-17 * * *"
+      duration: 16h
+      applications:
+        - "*"
+      manualSync: true
