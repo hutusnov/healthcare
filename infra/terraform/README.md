@@ -24,6 +24,13 @@
   - `terraform fmt -check`
   - `terraform validate` for `envs/dev`
   - optional PR `terraform plan` (only when enabled and `terraform.tfvars` exists)
+- `CI Terraform OpenStack` workflow:
+  - validates OpenStack Terraform separately so the split workflow is visible in GitHub Actions.
+  - runs Checkov in soft mode unless `TF_SECURITY_STRICT=true`.
+- `Terraform Drift Detection` workflow:
+  - scheduled/manual drift checks.
+  - AWS drift check is gated by `TF_DRIFT_AWS_DEV_ENABLED=true`.
+  - OpenStack drift check is gated by `TF_DRIFT_OPENSTACK_DEV_ENABLED=true` and requires OpenStack secrets.
 - `CD Backend AWS EC2`:
   - OIDC-only authentication (no static AWS key fallback).
 

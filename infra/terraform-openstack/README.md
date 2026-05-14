@@ -68,6 +68,12 @@ If discovery confirms the live VMs are the intended cluster nodes, import comput
 
 This backs up local `terraform.tfvars`, enables `manage_compute_instances = true`, imports the three existing VMs, and then runs `terraform plan`. The adopted compute resources use `ignore_changes = all` during the initial migration phase to prevent Terraform from replacing boot-from-volume nodes.
 
+## CI and drift checks
+- `CI Terraform OpenStack` validates formatting and Terraform syntax for OpenStack IaC.
+- `Terraform Drift Detection` can run scheduled/manual drift checks.
+- OpenStack drift plan is disabled by default and must be enabled with `TF_DRIFT_OPENSTACK_DEV_ENABLED=true` plus OpenStack credentials in GitHub Secrets.
+- Drift checks do not apply changes; they only run `terraform plan`.
+
 ## Notes
 - Keep credentials in environment variables or a local `terraform.tfvars` file (ignored by git).
 - Do not run `apply` until `plan` is reviewed and expected.

@@ -1,0 +1,64 @@
+name: CI Terraform OpenStack
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform-openstack/**"
+      - ".github/workflows/ci-terraform-openstack.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform-openstack/**"
+      - ".github/workflows/ci-terraform-openstack.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  validate-openstack-terraform:
+    name: validate-openstack-terraform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.2
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infra/terraform-openstack
+
+      - name: Terraform init and validate OpenStack envs
+        shell: bash
+        run: |
+          for ENV_DIR in infra/terraform-openstack/envs/*; do
+            [ -d "$ENV_DIR" ] || continue
+            [ -f "$ENV_DIR/main.tf" ] || continue
+            echo "Validating OpenStack env: $ENV_DIR"
+            cd "$GITHUB_WORKSPACE/$ENV_DIR"
+            terraform init -backend=false
+            terraform validate
+          done
+
+      - name: Install Checkov
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install checkov
+
+      - name: Checkov scan OpenStack Terraform
+        shell: bash
+        run: |
+          if [ "${{ vars.TF_SECURITY_STRICT }}" = "true" ]; then
+            checkov -d infra/terraform-openstack --framework terraform --quiet
+          else
+            checkov -d infra/terraform-openstack --framework terraform --quiet --soft-fail
+          fi
