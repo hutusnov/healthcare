@@ -2,6 +2,8 @@ name: Security Trivy
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TRIVY_CACHE_DIR: ${{ github.workspace }}/.trivy-cache
+  TMPDIR: ${{ github.workspace }}/.trivy-tmp
 
 on:
   push:
@@ -27,6 +29,14 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af --volumes || true
+          mkdir -p "$TRIVY_CACHE_DIR" "$TMPDIR"
+          df -h
+
       - name: Build backend image for security scan
         run: docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
 
@@ -38,6 +48,8 @@ jobs:
       - name: Trivy gate - backend (CRITICAL)
         run: |
           trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
             --severity CRITICAL \
             --ignore-unfixed \
             --format table \
@@ -48,6 +60,8 @@ jobs:
         if: always()
         run: |
           trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
             --severity CRITICAL \
             --ignore-unfixed \
             --format sarif \
@@ -62,6 +76,10 @@ jobs:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
 
+      - name: Cleanup Trivy backend temp files
+        if: always()
+        run: rm -rf "$TMPDIR" "$TRIVY_CACHE_DIR"
+
   trivy-ocr:
     name: Trivy OCR
     runs-on: ubuntu-latest
@@ -72,6 +90,14 @@ jobs:
       - uses: actions/checkout@v6
 
       - uses: docker/setup-buildx-action@v4
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af --volumes || true
+          mkdir -p "$TRIVY_CACHE_DIR" "$TMPDIR"
+          df -h
 
       - name: Build OCR image for security scan
         run: docker build -t local/healthcare-ocr:scan ./OCR
@@ -84,6 +110,8 @@ jobs:
       - name: Trivy gate - ocr (CRITICAL)
         run: |
           trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
             --severity CRITICAL \
             --ignore-unfixed \
             --format table \
@@ -94,6 +122,8 @@ jobs:
         if: always()
         run: |
           trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
             --severity CRITICAL \
             --ignore-unfixed \
             --format sarif \
@@ -107,3 +137,7 @@ jobs:
         with:
           sarif_file: trivy-ocr.sarif
           category: trivy-ocr
+
+      - name: Cleanup Trivy OCR temp files
+        if: always()
+        run: rm -rf "$TMPDIR" "$TRIVY_CACHE_DIR"
