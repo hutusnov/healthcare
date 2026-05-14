@@ -56,6 +56,21 @@ jobs:
           fi
           echo "No committed Kubernetes Secret manifests found."
 
+      - name: Block rendered Kubernetes Secret manifests
+        shell: bash
+        run: |
+          for path in \
+            deploy/argocd/bootstrap \
+            deploy/argocd/apps \
+            deploy/gitops/apps/aws-backend/overlays/prod \
+            deploy/gitops/apps/private-ocr/overlays/prod; do
+            if kubectl kustomize "$path" | grep -nE '^kind:[[:space:]]*Secret[[:space:]]*$'; then
+              echo "Rendered Kubernetes Secret manifests are not allowed from $path."
+              exit 1
+            fi
+          done
+          echo "No rendered Kubernetes Secret manifests found."
+
       - name: Enforce pinned production image tags
         shell: bash
         run: |
@@ -75,3 +90,12 @@ jobs:
           grep -q 'kind: AppProject' deploy/argocd/bootstrap/healthcare-project.yaml
           grep -q 'orphanedResources:' deploy/argocd/bootstrap/healthcare-project.yaml
           grep -q 'namespaceResourceWhitelist:' deploy/argocd/bootstrap/healthcare-project.yaml
+
+      - name: Enforce manual sync until runtime readiness is confirmed
+        shell: bash
+        run: |
+          if grep -R --include='*.yaml' --include='*.yml' -n 'automated:' deploy/argocd deploy/gitops; then
+            echo "Automated Argo CD sync is blocked until runtime readiness is explicitly approved."
+            exit 1
+          fi
+          echo "Argo CD applications remain manual-sync by default."
