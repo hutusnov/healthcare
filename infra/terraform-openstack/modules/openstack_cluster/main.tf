@@ -7,17 +7,15 @@ locals {
   ]
 }
 
-resource "terraform_data" "safe_mode_guard" {
-  lifecycle {
-    precondition {
-      condition = local.create_mode == false || (
-        trim(var.external_network_id) != "" &&
-        trim(var.image_name) != "" &&
-        trim(var.flavor_name) != "" &&
-        trim(var.keypair_name) != ""
-      )
-      error_message = "Create mode requires external_network_id, image_name, flavor_name, and keypair_name."
-    }
+check "create_mode_inputs" {
+  assert {
+    condition = local.create_mode == false || (
+      trim(var.external_network_id) != "" &&
+      trim(var.image_name) != "" &&
+      trim(var.flavor_name) != "" &&
+      trim(var.keypair_name) != ""
+    )
+    error_message = "Create mode requires external_network_id, image_name, flavor_name, and keypair_name."
   }
 }
 
