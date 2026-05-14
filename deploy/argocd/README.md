@@ -28,7 +28,21 @@ After bootstrap, Argo CD will track the child apps from `deploy/argocd/apps`. In
 
 - Secrets are intentionally not stored in Git. Create runtime secrets out-of-band before enabling auto-sync for workloads.
 - CI validates Kustomize output, Argo CD manifests, and blocks committed Kubernetes Secret manifests.
+- Image promotion is performed through the `GitOps Promote Image` workflow, which opens a reviewed PR instead of applying directly to the cluster.
 - AppProject limits source repositories, target namespaces, and allowed Kubernetes resource kinds.
 - NetworkPolicy and PodDisruptionBudget are included for safer runtime behavior.
 - Initial application sync is manual. Enable automated sync only after secrets, image pull access, and capacity are verified.
 - Existing EC2-based CD remains available while GitOps is introduced gradually.
+
+## Promote Images Safely
+
+Use GitHub Actions -> `GitOps Promote Image` when a new backend or OCR image should be promoted through Argo CD.
+
+Required inputs:
+
+- `component`: `backend`, `ocr`, or `both`.
+- `backend_tag`: immutable backend tag when promoting backend.
+- `ocr_tag`: immutable OCR tag when promoting OCR.
+- `base_branch`: normally `main`.
+
+The workflow updates only the production GitOps overlays, renders manifests, blocks committed Secrets, rejects mutable tags such as `latest`, then opens a pull request. After the PR is merged, Argo CD detects the desired state and an operator can sync the affected app manually.
