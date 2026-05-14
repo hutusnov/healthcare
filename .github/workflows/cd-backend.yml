@@ -114,73 +114,48 @@ jobs:
           PY
           TARGET_IDS="$INSTANCE_IDS"; [ -z "$TARGET_IDS" ] && TARGET_IDS="$FALLBACK_INSTANCE_ID"
           TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
-          ONLINE_IDS=""
-          OFFLINE_IDS=""
-          for INSTANCE_ID in $TARGET_IDS; do
-            PING_STATUS="$(aws ssm describe-instance-information \
-              --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
-              --query 'InstanceInformationList[0].PingStatus' \
-              --output text 2>/dev/null || true)"
-            if [ "$PING_STATUS" = "Online" ]; then
-              ONLINE_IDS="${ONLINE_IDS} ${INSTANCE_ID}"
-            else
-              OFFLINE_IDS="${OFFLINE_IDS} ${INSTANCE_ID}"
-            fi
-          done
-
-          ONLINE_IDS="$(echo "$ONLINE_IDS" | xargs || true)"
-          OFFLINE_IDS="$(echo "$OFFLINE_IDS" | xargs || true)"
-
-          if [ -n "$OFFLINE_IDS" ]; then
-            echo "::warning::Skipping undeliverable/offline SSM instances: $OFFLINE_IDS"
-          fi
-
-          if [ -z "$ONLINE_IDS" ]; then
-            echo "::warning::No online SSM backend instances yet. Waiting up to 4 minutes for agent recovery..."
-            for _ in $(seq 1 24); do
-              ONLINE_IDS=""
-              OFFLINE_IDS=""
-              for INSTANCE_ID in $TARGET_IDS; do
-                PING_STATUS="$(aws ssm describe-instance-information \
-                  --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
-                  --query 'InstanceInformationList[0].PingStatus' \
-                  --output text 2>/dev/null || true)"
-                if [ "$PING_STATUS" = "Online" ]; then
-                  ONLINE_IDS="${ONLINE_IDS} ${INSTANCE_ID}"
-                else
-                  OFFLINE_IDS="${OFFLINE_IDS} ${INSTANCE_ID}"
-                fi
-              done
-              ONLINE_IDS="$(echo "$ONLINE_IDS" | xargs || true)"
-              OFFLINE_IDS="$(echo "$OFFLINE_IDS" | xargs || true)"
-              [ -n "$ONLINE_IDS" ] && break
-              sleep 10
-            done
-          fi
-
-          if [ -z "$ONLINE_IDS" ]; then
-            echo "::error::No online SSM backend instances available in target set: $TARGET_IDS"
-            exit 1
-          fi
+          [ -z "$TARGET_IDS" ] && { echo "::error::No backend instance IDs configured."; exit 1; }
 
           FAILED=0
           SUCCEEDED=0
-          for INSTANCE_ID in $ONLINE_IDS; do
-            CMD_ID="$(aws ssm send-command --instance-ids "$INSTANCE_ID" --document-name AWS-RunShellScript --parameters file://commands.json --query 'Command.CommandId' --output text)"
-            if aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$INSTANCE_ID"; then
+          for INSTANCE_ID in $TARGET_IDS; do
+            echo "=== Deploying backend to $INSTANCE_ID ==="
+            ATTEMPT_SUCCESS=0
+            for ATTEMPT in 1 2 3; do
+              echo "Attempt $ATTEMPT/3 for $INSTANCE_ID"
+              CMD_ID="$(aws ssm send-command \
+                --instance-ids "$INSTANCE_ID" \
+                --document-name AWS-RunShellScript \
+                --comment "Deploy healthcare backend from GitHub Actions" \
+                --parameters file://commands.json \
+                --query 'Command.CommandId' \
+                --output text 2>/tmp/ssm_send_err.log || true)"
+
+              if [ -z "$CMD_ID" ] || [ "$CMD_ID" = "None" ]; then
+                echo "::warning::send-command did not return a command id for $INSTANCE_ID"
+                cat /tmp/ssm_send_err.log || true
+                sleep 15
+                continue
+              fi
+
+              if aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$INSTANCE_ID"; then
+                aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --output json
+                ATTEMPT_SUCCESS=1
+                break
+              else
+                aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --output json || true
+                sleep 15
+              fi
+            done
+
+            if [ "$ATTEMPT_SUCCESS" -eq 1 ]; then
               SUCCEEDED=$((SUCCEEDED + 1))
             else
               FAILED=$((FAILED + 1))
+              echo "::error::Backend deploy failed after retries for $INSTANCE_ID"
             fi
-            aws ssm get-command-invocation --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --output json
           done
 
-          if [ "$SUCCEEDED" -eq 0 ]; then
-            echo "::error::Backend deploy failed on all online instances."
-            exit 1
-          fi
-
-          if [ "$FAILED" -gt 0 ]; then
-            echo "::warning::Backend deploy failed on $FAILED instance(s), succeeded on $SUCCEEDED instance(s)."
-          fi
+          echo "Deploy summary: success=$SUCCEEDED, failed=$FAILED, total=$(echo "$TARGET_IDS" | wc -w)"
+          [ "$FAILED" -eq 0 ]
 
