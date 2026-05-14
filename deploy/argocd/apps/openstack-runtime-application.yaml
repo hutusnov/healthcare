@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: uit-healthcare-openstack-runtime
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  labels:
+    app.kubernetes.io/part-of: uit-healthcare
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: uit-healthcare
+  source:
+    repoURL: https://github.com/hutusnov/healthcare.git
+    targetRevision: main
+    path: deploy/gitops/apps/openstack-runtime/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: uit-healthcare
+  syncPolicy:
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true

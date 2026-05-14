@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocr-service
+  namespace: uit-healthcare
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ocr-service
+  template:
+    metadata:
+      labels:
+        app: ocr-service
+      annotations:
+        kubectl.kubernetes.io/restartedAt: "2026-03-29T13:20:25Z"
+    spec:
+      nodeSelector:
+        workload-role: ocr
+      containers:
+        - name: ocr
+          image: ghcr.io/hutusnov/healthcare-ocr:develop-latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8001
+          env:
+            - name: OCR_AUTH_ENABLED
+              value: "true"
+            - name: OCR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ocr-secret
+                  key: api-key
+            - name: OCR_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi

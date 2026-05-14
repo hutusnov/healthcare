@@ -29,16 +29,17 @@ kubectl -n argocd get applications
 
 ```bash
 kubectl -n argocd get app uit-healthcare-root
+kubectl -n argocd get app uit-healthcare-openstack-runtime
 kubectl -n argocd get app uit-healthcare-aws-backend
 kubectl -n argocd get app uit-healthcare-private-ocr
 kubectl -n argocd get app -o wide
 ```
 
-At this point apps should be registered in Argo CD, but not auto-synced. Sync one app only after secrets and cluster capacity are confirmed:
+At this point apps should be registered in Argo CD, but not auto-synced. The safest first sync is the OpenStack runtime app because it adopts existing resources:
 
 ```bash
-argocd app diff uit-healthcare-private-ocr
-argocd app sync uit-healthcare-private-ocr
+argocd app diff uit-healthcare-openstack-runtime
+argocd app sync uit-healthcare-openstack-runtime
 ```
 
 ## Workload Checks After Manual Sync

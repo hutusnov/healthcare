@@ -29,10 +29,10 @@ Date: 2026-05-14
 ## GitOps Applications
 
 - `uit-healthcare-root`: synced and healthy
+- `uit-healthcare-openstack-runtime`: planned as the safe first workload sync target for the existing K3s runtime
 - `uit-healthcare-aws-backend`: registered, manual sync, not deployed yet
 - `uit-healthcare-private-ocr`: registered, manual sync, not deployed yet
 
 ## Safety Decision
 
 Initial application sync is intentionally manual. This prevents Argo CD from creating additional backend/OCR workloads before runtime secrets, image pull access, and cluster capacity are verified.
-

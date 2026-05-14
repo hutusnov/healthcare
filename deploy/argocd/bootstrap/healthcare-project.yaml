@@ -9,6 +9,8 @@ spec:
     - https://github.com/hutusnov/healthcare.git
   destinations:
     - server: https://kubernetes.default.svc
+      namespace: uit-healthcare
+    - server: https://kubernetes.default.svc
       namespace: uit-healthcare-prod
     - server: https://kubernetes.default.svc
       namespace: uit-healthcare-private

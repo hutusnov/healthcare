@@ -1,0 +1,10 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ocr-service
+  namespace: uit-healthcare
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ocr-service

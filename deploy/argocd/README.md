@@ -7,6 +7,7 @@ This directory contains the GitOps entrypoint for the UIT Healthcare hybrid depl
 - `bootstrap/`: one-time Argo CD bootstrap manifests.
 - `apps/`: child Argo CD Applications managed by the root app.
 - `runbooks/`: operational bootstrap and rollback steps.
+- `../gitops/apps/openstack-runtime`: current OpenStack K3s runtime adopted by Argo CD.
 - `../gitops/apps/aws-backend`: Kubernetes manifests for the public backend workload.
 - `../gitops/apps/private-ocr`: Kubernetes manifests for the private OCR workload.
 
