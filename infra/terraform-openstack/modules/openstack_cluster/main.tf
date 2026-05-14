@@ -1,5 +1,6 @@
 locals {
   create_mode = var.adopt_existing_only == false
+  adopt_mode  = var.adopt_existing_only == true
   base_tags = [
     var.project_name,
     var.env,
@@ -19,6 +20,48 @@ check "create_mode_inputs" {
   }
 }
 
+data "openstack_networking_network_v2" "existing_cluster" {
+  count      = local.adopt_mode && trim(var.existing_network_id) != "" ? 1 : 0
+  network_id = var.existing_network_id
+  region     = var.region
+}
+
+data "openstack_networking_subnet_v2" "existing_cluster" {
+  count     = local.adopt_mode && trim(var.existing_subnet_id) != "" ? 1 : 0
+  subnet_id = var.existing_subnet_id
+  region    = var.region
+}
+
+data "openstack_networking_router_v2" "existing_cluster" {
+  count     = local.adopt_mode && trim(var.existing_router_id) != "" ? 1 : 0
+  router_id = var.existing_router_id
+  region    = var.region
+}
+
+data "openstack_networking_secgroup_v2" "existing_cluster" {
+  count       = local.adopt_mode && trim(var.existing_secgroup_id) != "" ? 1 : 0
+  secgroup_id = var.existing_secgroup_id
+  region      = var.region
+}
+
+data "openstack_compute_instance_v2" "existing_master" {
+  count  = local.adopt_mode && trim(var.existing_master_id) != "" ? 1 : 0
+  id     = var.existing_master_id
+  region = var.region
+}
+
+data "openstack_compute_instance_v2" "existing_data_node" {
+  count  = local.adopt_mode && trim(var.existing_data_node_id) != "" ? 1 : 0
+  id     = var.existing_data_node_id
+  region = var.region
+}
+
+data "openstack_compute_instance_v2" "existing_worker" {
+  count  = local.adopt_mode && trim(var.existing_worker_id) != "" ? 1 : 0
+  id     = var.existing_worker_id
+  region = var.region
+}
+
 resource "openstack_networking_network_v2" "cluster" {
   count          = local.create_mode ? 1 : 0
   name           = "${var.project_name}-${var.env}-net"
@@ -26,11 +69,11 @@ resource "openstack_networking_network_v2" "cluster" {
 }
 
 resource "openstack_networking_subnet_v2" "cluster" {
-  count      = local.create_mode ? 1 : 0
-  name       = "${var.project_name}-${var.env}-subnet"
-  network_id = openstack_networking_network_v2.cluster[0].id
-  cidr       = "192.168.120.0/24"
-  ip_version = 4
+  count       = local.create_mode ? 1 : 0
+  name        = "${var.project_name}-${var.env}-subnet"
+  network_id  = openstack_networking_network_v2.cluster[0].id
+  cidr        = "192.168.120.0/24"
+  ip_version  = 4
   enable_dhcp = true
 }
 
@@ -65,11 +108,11 @@ resource "openstack_networking_secgroup_rule_v2" "ssh" {
 }
 
 resource "openstack_compute_instance_v2" "master" {
-  count       = local.create_mode ? 1 : 0
-  name        = var.master_name
-  image_name  = var.image_name
-  flavor_name = var.flavor_name
-  key_pair    = var.keypair_name
+  count           = local.create_mode ? 1 : 0
+  name            = var.master_name
+  image_name      = var.image_name
+  flavor_name     = var.flavor_name
+  key_pair        = var.keypair_name
   security_groups = [openstack_networking_secgroup_v2.cluster[0].name]
   network {
     uuid = openstack_networking_network_v2.cluster[0].id
@@ -80,11 +123,11 @@ resource "openstack_compute_instance_v2" "master" {
 }
 
 resource "openstack_compute_instance_v2" "data_node" {
-  count       = local.create_mode ? 1 : 0
-  name        = var.data_node_name
-  image_name  = var.image_name
-  flavor_name = var.flavor_name
-  key_pair    = var.keypair_name
+  count           = local.create_mode ? 1 : 0
+  name            = var.data_node_name
+  image_name      = var.image_name
+  flavor_name     = var.flavor_name
+  key_pair        = var.keypair_name
   security_groups = [openstack_networking_secgroup_v2.cluster[0].name]
   network {
     uuid = openstack_networking_network_v2.cluster[0].id
@@ -95,11 +138,11 @@ resource "openstack_compute_instance_v2" "data_node" {
 }
 
 resource "openstack_compute_instance_v2" "worker" {
-  count       = local.create_mode ? 1 : 0
-  name        = var.worker_name
-  image_name  = var.image_name
-  flavor_name = var.flavor_name
-  key_pair    = var.keypair_name
+  count           = local.create_mode ? 1 : 0
+  name            = var.worker_name
+  image_name      = var.image_name
+  flavor_name     = var.flavor_name
+  key_pair        = var.keypair_name
   security_groups = [openstack_networking_secgroup_v2.cluster[0].name]
   network {
     uuid = openstack_networking_network_v2.cluster[0].id
