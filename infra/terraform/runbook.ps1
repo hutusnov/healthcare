@@ -1,6 +1,6 @@
 Param(
   [Parameter(Mandatory = $false)]
-  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "discover-network", "fmt", "phase1-safe-complete")]
+  [ValidateSet("bootstrap-init", "bootstrap-plan", "bootstrap-apply", "main-init", "main-validate", "main-plan", "dev-init", "dev-migrate-state", "dev-import-existing-dry-run", "dev-import-existing-execute", "dev-validate", "dev-plan", "staging-init", "staging-migrate-state", "staging-validate", "staging-plan", "prod-init", "prod-migrate-state", "prod-validate", "prod-plan", "check-env-isolation", "discover-network", "fmt", "phase1-safe-complete")]
   [string]$Step = "dev-plan"
 )
 
@@ -113,6 +113,12 @@ switch ($Step) {
     Backup-TerraformState $dev
     terraform init -backend-config backend.hcl -reconfigure -migrate-state
     Pop-Location
+  }
+  "dev-import-existing-dry-run" {
+    & (Join-Path $root "import-aws-existing.ps1") -Env dev
+  }
+  "dev-import-existing-execute" {
+    & (Join-Path $root "import-aws-existing.ps1") -Env dev -Execute
   }
   "dev-validate" {
     Push-Location $dev
