@@ -87,3 +87,8 @@ variable "adopt_existing_only" {
   type    = bool
   default = true
 }
+
+variable "manage_compute_instances" {
+  type    = bool
+  default = false
+}

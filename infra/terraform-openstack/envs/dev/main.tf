@@ -21,5 +21,6 @@ module "openstack_cluster" {
   existing_data_node_id = var.existing_data_node_id
   existing_worker_id    = var.existing_worker_id
 
-  adopt_existing_only = var.adopt_existing_only
+  adopt_existing_only      = var.adopt_existing_only
+  manage_compute_instances = var.manage_compute_instances
 }

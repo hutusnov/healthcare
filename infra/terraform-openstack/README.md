@@ -60,6 +60,14 @@ Before importing OpenStack instances as managed Terraform resources, collect the
 
 This script is read-only. It prints each server's status, flavor, image, key pair, attached volumes, and addresses. Use the output to model boot-from-volume instances safely before any compute import.
 
+If discovery confirms the live VMs are the intended cluster nodes, import compute with the explicit compute flag:
+
+```powershell
+.\import-openstack-existing.ps1 -Env dev -Execute -IncludeCompute
+```
+
+This backs up local `terraform.tfvars`, enables `manage_compute_instances = true`, imports the three existing VMs, and then runs `terraform plan`. The adopted compute resources use `ignore_changes = all` during the initial migration phase to prevent Terraform from replacing boot-from-volume nodes.
+
 ## Notes
 - Keep credentials in environment variables or a local `terraform.tfvars` file (ignored by git).
 - Do not run `apply` until `plan` is reviewed and expected.
