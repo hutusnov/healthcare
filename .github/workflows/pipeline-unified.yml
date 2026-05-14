@@ -25,6 +25,11 @@ jobs:
     uses: ./.github/workflows/ci-terraform-openstack.yml
     secrets: inherit
 
+  ci-gitops-argocd:
+    name: CI GitOps Argo CD
+    uses: ./.github/workflows/ci-gitops-argocd.yml
+    secrets: inherit
+
   ci-backend:
     name: CI Backend
     uses: ./.github/workflows/ci-backend.yml
@@ -63,14 +68,14 @@ jobs:
   cd-frontend:
     name: CD Frontend
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [ci-terraform, ci-terraform-openstack, security-trivy, security-sonarqube]
+    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
     uses: ./.github/workflows/cd-frontend.yml
     secrets: inherit
 
   cd-backend:
     name: CD Backend
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [ci-terraform, ci-terraform-openstack, security-trivy, security-sonarqube]
+    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
     permissions:
       contents: read
       packages: write

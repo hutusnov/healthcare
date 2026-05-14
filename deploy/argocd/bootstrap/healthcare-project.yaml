@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: uit-healthcare
+  namespace: argocd
+spec:
+  description: UIT Healthcare hybrid GitOps project
+  sourceRepos:
+    - https://github.com/hutusnov/healthcare.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: uit-healthcare-prod
+    - server: https://kubernetes.default.svc
+      namespace: uit-healthcare-private
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: policy
+      kind: PodDisruptionBudget

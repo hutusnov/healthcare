@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: uit-healthcare-aws-backend
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: uit-healthcare
+    app.kubernetes.io/managed-by: argocd
 spec:
   project: uit-healthcare
   source:
@@ -18,3 +21,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

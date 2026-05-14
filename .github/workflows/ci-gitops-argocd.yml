@@ -1,0 +1,57 @@
+name: CI GitOps Argo CD
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "deploy/argocd/**"
+      - "deploy/gitops/**"
+      - ".github/workflows/ci-gitops-argocd.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "deploy/argocd/**"
+      - "deploy/gitops/**"
+      - ".github/workflows/ci-gitops-argocd.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  validate-gitops:
+    name: validate-gitops
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.1
+
+      - name: Render Argo CD bootstrap manifests
+        run: kubectl kustomize deploy/argocd/bootstrap
+
+      - name: Render Argo CD application manifests
+        run: kubectl kustomize deploy/argocd/apps
+
+      - name: Render backend GitOps overlay
+        run: kubectl kustomize deploy/gitops/apps/aws-backend/overlays/prod
+
+      - name: Render OCR GitOps overlay
+        run: kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod
+
+      - name: Block committed Kubernetes Secret manifests
+        shell: bash
+        run: |
+          if grep -R --include='*.yml' --include='*.yaml' -nE '^kind:[[:space:]]*Secret[[:space:]]*$' deploy/argocd deploy/gitops; then
+            echo "Kubernetes Secret manifests must not be committed. Use external secret management or sealed secrets."
+            exit 1
+          fi
+          echo "No committed Kubernetes Secret manifests found."

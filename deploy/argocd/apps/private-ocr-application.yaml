@@ -1,20 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: uit-healthcare-aws-backend
+  name: uit-healthcare-private-ocr
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: uit-healthcare
+    app.kubernetes.io/managed-by: argocd
 spec:
   project: uit-healthcare
   source:
     repoURL: https://github.com/hutusnov/healthcare.git
     targetRevision: main
-    path: deploy/gitops/apps/aws-backend/overlays/prod
+    path: deploy/gitops/apps/private-ocr/overlays/prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: uit-healthcare-prod
+    namespace: uit-healthcare-private
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
