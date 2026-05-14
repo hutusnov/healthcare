@@ -22,6 +22,15 @@ terraform validate
 terraform plan -lock=false
 ```
 
+If OpenStack auth is not configured yet, use runbook safe mode:
+```powershell
+cd infra/terraform-openstack
+.\runbook.ps1 -Step phase-safe-complete
+```
+- Runs `init` + `validate`.
+- Runs `plan` only when `OS_AUTH_URL` or `OS_CLOUD` is set.
+- Avoids false failures in local/CI safe checks.
+
 ## Optional adopt/import flow
 1. Fill `terraform.tfvars` with your existing OpenStack IDs.
 2. Run import commands for resources you want Terraform to track.
