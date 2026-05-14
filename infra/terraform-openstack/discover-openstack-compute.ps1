@@ -37,7 +37,11 @@ function Get-RequiredValue($Vars, $Key) {
 }
 
 function Invoke-OpenStackJson($Arguments) {
+  $previousPythonWarnings = $env:PYTHONWARNINGS
+  $env:PYTHONWARNINGS = "ignore"
   $output = & openstack @Arguments -f json 2>&1
+  $env:PYTHONWARNINGS = $previousPythonWarnings
+
   if ($LASTEXITCODE -ne 0) {
     throw "OpenStack CLI failed: openstack $($Arguments -join ' ')`n$output"
   }
