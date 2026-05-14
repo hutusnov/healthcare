@@ -21,6 +21,7 @@ kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
 
 ```bash
 kubectl apply -k deploy/argocd/bootstrap
+kubectl apply -k deploy/argocd/apps
 kubectl -n argocd get applications
 ```
 
@@ -30,6 +31,19 @@ kubectl -n argocd get applications
 kubectl -n argocd get app uit-healthcare-root
 kubectl -n argocd get app uit-healthcare-aws-backend
 kubectl -n argocd get app uit-healthcare-private-ocr
+kubectl -n argocd get app -o wide
+```
+
+At this point apps should be registered in Argo CD, but not auto-synced. Sync one app only after secrets and cluster capacity are confirmed:
+
+```bash
+argocd app diff uit-healthcare-private-ocr
+argocd app sync uit-healthcare-private-ocr
+```
+
+## Workload Checks After Manual Sync
+
+```bash
 kubectl -n uit-healthcare-prod get deploy,svc,pdb,networkpolicy
 kubectl -n uit-healthcare-private get deploy,svc,pdb,networkpolicy
 ```

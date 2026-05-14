@@ -21,7 +21,7 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl apply -k deploy/argocd/bootstrap
 ```
 
-After bootstrap, Argo CD will own the child apps from `deploy/argocd/apps` and sync the GitOps manifests from `deploy/gitops/apps`.
+After bootstrap, Argo CD will track the child apps from `deploy/argocd/apps`. Initial sync is intentionally manual so the current runtime is not changed until the operator explicitly syncs an app.
 
 ## Safety Notes
 
@@ -29,4 +29,5 @@ After bootstrap, Argo CD will own the child apps from `deploy/argocd/apps` and s
 - CI validates Kustomize output, Argo CD manifests, and blocks committed Kubernetes Secret manifests.
 - AppProject limits source repositories, target namespaces, and allowed Kubernetes resource kinds.
 - NetworkPolicy and PodDisruptionBudget are included for safer runtime behavior.
+- Initial application sync is manual. Enable automated sync only after secrets, image pull access, and capacity are verified.
 - Existing EC2-based CD remains available while GitOps is introduced gradually.

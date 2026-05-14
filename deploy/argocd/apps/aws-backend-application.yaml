@@ -18,9 +18,6 @@ spec:
     server: https://kubernetes.default.svc
     namespace: uit-healthcare-prod
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
