@@ -54,6 +54,19 @@ Quick runbook steps:
   - Non-dev plan blocked by `non_dev_safety_lock` is treated as expected safe behavior.
   - Allows shared `staging` IDs temporarily to avoid extra cost, but still enforces `prod` isolation from `dev`.
 
+Safe existing AWS adoption:
+- Dry-run import commands first:
+  - `.\import-aws-existing.ps1 -Env dev`
+- Import existing dev AWS resources into Terraform state:
+  - `.\import-aws-existing.ps1 -Env dev -Execute`
+- Verify state matches real AWS:
+  - `cd envs\dev`
+  - `terraform plan -lock=false -input=false`
+- Expected successful result:
+  - `No changes. Your infrastructure matches the configuration.`
+- The import script backs up local Terraform metadata/state before execution and does not create, update, stop, start, or delete AWS resources.
+- Non-dev import is blocked unless `-AllowNonDev` is explicitly provided.
+
 ## Safe remote state migration (dev)
 Before migrating local state to S3 backend, ensure bootstrap backend resources exist.
 
