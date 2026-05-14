@@ -69,7 +69,11 @@ function Backup-TerraformState($WorkspaceDir) {
 }
 
 function Get-ImportedAddresses {
+  $oldErrorAction = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
   $output = terraform state list 2>$null
+  $ErrorActionPreference = $oldErrorAction
+
   if ($LASTEXITCODE -ne 0) {
     return @()
   }
