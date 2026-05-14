@@ -136,6 +136,29 @@ jobs:
           fi
 
           if [ -z "$ONLINE_IDS" ]; then
+            echo "::warning::No online SSM backend instances yet. Waiting up to 4 minutes for agent recovery..."
+            for _ in $(seq 1 24); do
+              ONLINE_IDS=""
+              OFFLINE_IDS=""
+              for INSTANCE_ID in $TARGET_IDS; do
+                PING_STATUS="$(aws ssm describe-instance-information \
+                  --filters "Key=InstanceIds,Values=${INSTANCE_ID}" \
+                  --query 'InstanceInformationList[0].PingStatus' \
+                  --output text 2>/dev/null || true)"
+                if [ "$PING_STATUS" = "Online" ]; then
+                  ONLINE_IDS="${ONLINE_IDS} ${INSTANCE_ID}"
+                else
+                  OFFLINE_IDS="${OFFLINE_IDS} ${INSTANCE_ID}"
+                fi
+              done
+              ONLINE_IDS="$(echo "$ONLINE_IDS" | xargs || true)"
+              OFFLINE_IDS="$(echo "$OFFLINE_IDS" | xargs || true)"
+              [ -n "$ONLINE_IDS" ] && break
+              sleep 10
+            done
+          fi
+
+          if [ -z "$ONLINE_IDS" ]; then
             echo "::error::No online SSM backend instances available in target set: $TARGET_IDS"
             exit 1
           fi
