@@ -1,7 +1,8 @@
 locals {
-  create_mode = var.adopt_existing_only == false
-  adopt_mode  = var.adopt_existing_only == true
-  manage_core = local.create_mode || local.adopt_mode
+  create_mode            = var.adopt_existing_only == false
+  adopt_mode             = var.adopt_existing_only == true
+  manage_core            = local.create_mode || local.adopt_mode
+  manage_compute_adopted = local.adopt_mode && var.manage_compute_instances
   base_tags = [
     var.project_name,
     var.env,
@@ -166,5 +167,32 @@ resource "openstack_compute_instance_v2" "worker" {
   }
   metadata = {
     role = "worker"
+  }
+}
+
+resource "openstack_compute_instance_v2" "adopted_master" {
+  count = local.manage_compute_adopted ? 1 : 0
+  name  = var.master_name
+
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+resource "openstack_compute_instance_v2" "adopted_data_node" {
+  count = local.manage_compute_adopted ? 1 : 0
+  name  = var.data_node_name
+
+  lifecycle {
+    ignore_changes = all
+  }
+}
+
+resource "openstack_compute_instance_v2" "adopted_worker" {
+  count = local.manage_compute_adopted ? 1 : 0
+  name  = var.worker_name
+
+  lifecycle {
+    ignore_changes = all
   }
 }

@@ -4,7 +4,10 @@ Param(
   [string]$Env = "dev",
 
   [Parameter(Mandatory = $false)]
-  [switch]$Execute
+  [switch]$Execute,
+
+  [Parameter(Mandatory = $false)]
+  [switch]$IncludeCompute
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,6 +53,18 @@ function Add-Import($Imports, $Address, $Id) {
       Address = $Address
       Id      = $Id
     }) | Out-Null
+}
+
+function Enable-ComputeManagement($TfVarsPath) {
+  $content = Get-Content -Path $TfVarsPath -Raw
+  if ($content -match '(?m)^\s*manage_compute_instances\s*=') {
+    $updated = $content -replace '(?m)^\s*manage_compute_instances\s*=.*$', 'manage_compute_instances = true'
+    Set-Content -Path $TfVarsPath -Value $updated -NoNewline
+    return
+  }
+
+  Add-Content -Path $TfVarsPath -Value "`n# Enabled by import-openstack-existing.ps1 after VM adoption review."
+  Add-Content -Path $TfVarsPath -Value "manage_compute_instances = true"
 }
 
 function Backup-TerraformState($WorkspaceDir) {
@@ -103,8 +118,15 @@ Add-Import $imports "module.openstack_cluster.openstack_networking_subnet_v2.clu
 Add-Import $imports "module.openstack_cluster.openstack_networking_router_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_router_id")
 Add-Import $imports "module.openstack_cluster.openstack_networking_secgroup_v2.cluster[0]" (Get-RequiredValue $tfvars "existing_secgroup_id")
 
+if ($IncludeCompute) {
+  Add-Import $imports "module.openstack_cluster.openstack_compute_instance_v2.adopted_master[0]" (Get-RequiredValue $tfvars "existing_master_id")
+  Add-Import $imports "module.openstack_cluster.openstack_compute_instance_v2.adopted_data_node[0]" (Get-RequiredValue $tfvars "existing_data_node_id")
+  Add-Import $imports "module.openstack_cluster.openstack_compute_instance_v2.adopted_worker[0]" (Get-RequiredValue $tfvars "existing_worker_id")
+}
+
 Write-Host "OpenStack Terraform import plan for env '$Env'"
 Write-Host "Execute mode: $Execute"
+Write-Host "Include compute: $IncludeCompute"
 Write-Host ""
 
 foreach ($item in $imports) {
@@ -120,6 +142,13 @@ if (-not $Execute) {
 Push-Location $envDir
 try {
   Backup-TerraformState $envDir
+  if ($IncludeCompute) {
+    $tfvarsBackup = Join-Path $envDir ("terraform.tfvars." + (Get-Date -Format "yyyyMMdd-HHmmss") + ".bak")
+    Copy-Item -Path $tfvarsPath -Destination $tfvarsBackup -Force
+    Write-Host "Backed up tfvars before enabling compute management: $tfvarsBackup"
+    Enable-ComputeManagement $tfvarsPath
+  }
+
   $existingAddresses = Get-ImportedAddresses
 
   foreach ($item in $imports) {

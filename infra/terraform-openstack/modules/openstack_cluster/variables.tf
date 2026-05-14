@@ -19,3 +19,4 @@ variable "existing_data_node_id" { type = string }
 variable "existing_worker_id" { type = string }
 
 variable "adopt_existing_only" { type = bool }
+variable "manage_compute_instances" { type = bool }
