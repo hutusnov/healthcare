@@ -6,7 +6,7 @@ This directory contains the GitOps entrypoint for the UIT Healthcare hybrid depl
 
 - `bootstrap/`: one-time Argo CD bootstrap manifests.
 - `apps/`: child Argo CD Applications managed by the root app.
-- `runbooks/`: operational bootstrap and rollback steps.
+- `runbooks/`: operational bootstrap, drift check, manual sync, and rollback steps.
 - `scripts/`: read-only operational checks for live Argo CD state.
 - `../gitops/apps/openstack-runtime`: current OpenStack K3s runtime adopted by Argo CD.
 - `../gitops/apps/aws-backend`: Kubernetes manifests for the public backend workload.
@@ -35,6 +35,7 @@ After bootstrap, Argo CD will track the child apps from `deploy/argocd/apps`. In
 - Initial application sync is manual. Enable automated sync only after secrets, image pull access, and capacity are verified.
 - Existing EC2-based CD remains available while GitOps is introduced gradually.
 - Drift checks are read-only and documented in `runbooks/DRIFT_CHECK.md`.
+- Manual sync is documented in `runbooks/MANUAL_SYNC.md` and guarded by `scripts/pre-sync-check.ps1`.
 
 ## Promote Images Safely
 
