@@ -103,6 +103,8 @@ jobs:
             f"echo {json.dumps(os.environ.get('GHCR_TOKEN',''))} | sudo docker login ghcr.io -u {json.dumps(os.environ.get('GHCR_USERNAME',''))} --password-stdin || true",
             "sudo systemctl enable --now docker || true",
             "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker-compose-plugin || true; fi",
+            "if ! sudo docker compose version >/dev/null 2>&1; then ARCH=$(uname -m); case \"$ARCH\" in x86_64|amd64) COMPOSE_ARCH=x86_64 ;; aarch64|arm64) COMPOSE_ARCH=aarch64 ;; *) echo \"Unsupported arch: $ARCH\"; exit 1 ;; esac; sudo mkdir -p /usr/local/lib/docker/cli-plugins; sudo curl -fsSL \"https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-${COMPOSE_ARCH}\" -o /usr/local/lib/docker/cli-plugins/docker-compose; sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
+            "sudo docker compose version",
             "sudo docker system prune -a -f --volumes || true",
             "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
             "cd /opt/healthcare-backend && sudo docker compose down --remove-orphans || true",
@@ -131,7 +133,7 @@ jobs:
             cat /tmp/ec2_discovery_err.log || true
           fi
 
-          TARGET_IDS="$(echo "$TARGET_IDS" | tr ' ' '\n' | sed '/^$/d' | sort -u | xargs)"
+          TARGET_IDS="$(echo "$TARGET_IDS" | tr '\t ' '\n' | sed '/^$/d' | sort -u | xargs)"
           [ -z "$TARGET_IDS" ] && { echo "::error::No backend instance IDs configured or discovered."; exit 1; }
 
           ONLINE_IDS=""
