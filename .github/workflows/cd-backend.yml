@@ -116,9 +116,33 @@ jobs:
           TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
           [ -z "$TARGET_IDS" ] && { echo "::error::No backend instance IDs configured."; exit 1; }
 
+          ONLINE_IDS=""
+          OFFLINE_IDS=""
+          for INSTANCE_ID in $TARGET_IDS; do
+            PING_STATUS="$(aws ssm describe-instance-information \
+              --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+              --query 'InstanceInformationList[0].PingStatus' \
+              --output text 2>/tmp/ssm_ping_err.log || true)"
+
+            if [ "$PING_STATUS" = "Online" ]; then
+              ONLINE_IDS="$ONLINE_IDS $INSTANCE_ID"
+            else
+              OFFLINE_IDS="$OFFLINE_IDS $INSTANCE_ID"
+              echo "::warning::Skipping $INSTANCE_ID because SSM PingStatus is '${PING_STATUS:-Unknown}'. Check SSM agent/IAM/VPC endpoints before expecting HA deployment."
+              cat /tmp/ssm_ping_err.log || true
+            fi
+          done
+
+          ONLINE_IDS="$(echo "$ONLINE_IDS" | xargs)"
+          OFFLINE_IDS="$(echo "$OFFLINE_IDS" | xargs)"
+          if [ -z "$ONLINE_IDS" ]; then
+            echo "::error::No online SSM backend instances available in target set: $TARGET_IDS"
+            exit 1
+          fi
+
           FAILED=0
           SUCCEEDED=0
-          for INSTANCE_ID in $TARGET_IDS; do
+          for INSTANCE_ID in $ONLINE_IDS; do
             echo "=== Deploying backend to $INSTANCE_ID ==="
             ATTEMPT_SUCCESS=0
             for ATTEMPT in 1 2 3; do
@@ -156,6 +180,9 @@ jobs:
             fi
           done
 
-          echo "Deploy summary: success=$SUCCEEDED, failed=$FAILED, total=$(echo "$TARGET_IDS" | wc -w)"
-          [ "$FAILED" -eq 0 ]
+          echo "Deploy summary: success=$SUCCEEDED, failed=$FAILED, online_targets=$(echo "$ONLINE_IDS" | wc -w), configured_targets=$(echo "$TARGET_IDS" | wc -w)"
+          if [ -n "$OFFLINE_IDS" ]; then
+            echo "::warning::Configured backend instances not deployed because SSM is offline/undeliverable: $OFFLINE_IDS"
+          fi
+          [ "$SUCCEEDED" -gt 0 ] && [ "$FAILED" -eq 0 ]
 
