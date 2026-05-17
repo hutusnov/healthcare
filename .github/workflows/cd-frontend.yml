@@ -23,8 +23,13 @@ jobs:
       - name: Build patient portal
         working-directory: BACK-END/PROJECT-TEST/patient-portal
         run: |
+          : "${VITE_API_URL:=http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api}"
           npm ci
           npm run build
+          if grep -R "localhost:4000\\|localhost:8000" dist; then
+            echo "::error::Production patient portal bundle still contains localhost API endpoints."
+            exit 1
+          fi
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_OCR_URL: ${{ secrets.VITE_OCR_URL }}
@@ -34,8 +39,13 @@ jobs:
       - name: Build admin panel
         working-directory: BACK-END/PROJECT-TEST/admin-panel
         run: |
+          : "${VITE_API_URL:=http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api}"
           npm ci
           npm run build
+          if grep -R "localhost:4000\\|localhost:8000" dist; then
+            echo "::error::Production admin panel bundle still contains localhost API endpoints."
+            exit 1
+          fi
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
@@ -56,4 +66,3 @@ jobs:
         run: |
           aws s3 sync BACK-END/PROJECT-TEST/admin-panel/dist/ s3://${{ vars.ADMIN_PANEL_S3_BUCKET }} --delete
           aws cloudfront create-invalidation --distribution-id ${{ vars.ADMIN_PANEL_CLOUDFRONT_ID }} --paths "/*"
-

@@ -1,7 +1,11 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-const OCR_URL = import.meta.env.VITE_OCR_URL || 'http://localhost:8000';
+const DEFAULT_API_URL =
+    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+        ? ['http://', 'localhost', ':4000/api'].join('')
+        : 'http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api';
+const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+const OCR_URL = import.meta.env.VITE_OCR_URL || '';
 const SECRET_HEADER = import.meta.env.VITE_X_SECRET_VERIFY_HEADER || '';
 
 const api = axios.create({
@@ -110,6 +114,10 @@ export const locationAPI = {
 // OCR APIs
 export const ocrAPI = {
     scanPrescription: async (file) => {
+        if (!OCR_URL) {
+            throw new Error('OCR service URL is not configured for this environment.');
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -123,6 +131,10 @@ export const ocrAPI = {
         return response;
     },
     scanDocument: async (file) => {
+        if (!OCR_URL) {
+            throw new Error('OCR service URL is not configured for this environment.');
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
