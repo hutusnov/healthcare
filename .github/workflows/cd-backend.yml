@@ -114,7 +114,25 @@ jobs:
           PY
           TARGET_IDS="$INSTANCE_IDS"; [ -z "$TARGET_IDS" ] && TARGET_IDS="$FALLBACK_INSTANCE_ID"
           TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs)"
-          [ -z "$TARGET_IDS" ] && { echo "::error::No backend instance IDs configured."; exit 1; }
+
+          DISCOVERED_IDS="$(aws ec2 describe-instances \
+            --filters \
+              Name=tag:Project,Values=uit-healthcare \
+              Name=tag:Component,Values=backend \
+              Name=instance-state-name,Values=running \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text 2>/tmp/ec2_discovery_err.log || true)"
+
+          if [ -n "$DISCOVERED_IDS" ]; then
+            echo "Discovered active backend instances by tags: $DISCOVERED_IDS"
+            TARGET_IDS="$TARGET_IDS $DISCOVERED_IDS"
+          else
+            echo "::warning::No backend instances discovered by Project=uit-healthcare,Component=backend tags."
+            cat /tmp/ec2_discovery_err.log || true
+          fi
+
+          TARGET_IDS="$(echo "$TARGET_IDS" | tr ' ' '\n' | sed '/^$/d' | sort -u | xargs)"
+          [ -z "$TARGET_IDS" ] && { echo "::error::No backend instance IDs configured or discovered."; exit 1; }
 
           ONLINE_IDS=""
           OFFLINE_IDS=""
@@ -142,6 +160,7 @@ jobs:
 
           FAILED=0
           SUCCEEDED=0
+          SUCCEEDED_IDS=""
           for INSTANCE_ID in $ONLINE_IDS; do
             echo "=== Deploying backend to $INSTANCE_ID ==="
             ATTEMPT_SUCCESS=0
@@ -174,6 +193,7 @@ jobs:
 
             if [ "$ATTEMPT_SUCCESS" -eq 1 ]; then
               SUCCEEDED=$((SUCCEEDED + 1))
+              SUCCEEDED_IDS="$SUCCEEDED_IDS $INSTANCE_ID"
             else
               FAILED=$((FAILED + 1))
               echo "::error::Backend deploy failed after retries for $INSTANCE_ID"
@@ -184,5 +204,31 @@ jobs:
           if [ -n "$OFFLINE_IDS" ]; then
             echo "::warning::Configured backend instances not deployed because SSM is offline/undeliverable: $OFFLINE_IDS"
           fi
+
+          TG_ARN="$(aws elbv2 describe-target-groups \
+            --names healthcare-backend-tg \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text 2>/tmp/tg_lookup_err.log || true)"
+          if [ "$TG_ARN" != "None" ] && [ -n "$TG_ARN" ] && [ -n "$(echo "$SUCCEEDED_IDS" | xargs)" ]; then
+            TARGET_ARGS=""
+            for INSTANCE_ID in $SUCCEEDED_IDS; do
+              TARGET_ARGS="$TARGET_ARGS Id=$INSTANCE_ID,Port=4000"
+            done
+            echo "Registering successfully deployed backend targets in ALB target group: $SUCCEEDED_IDS"
+            aws elbv2 register-targets --target-group-arn "$TG_ARN" --targets $TARGET_ARGS
+
+            if [ -n "$OFFLINE_IDS" ]; then
+              OFFLINE_TARGET_ARGS=""
+              for INSTANCE_ID in $OFFLINE_IDS; do
+                OFFLINE_TARGET_ARGS="$OFFLINE_TARGET_ARGS Id=$INSTANCE_ID,Port=4000"
+              done
+              echo "::warning::Deregistering offline backend targets from ALB target group: $OFFLINE_IDS"
+              aws elbv2 deregister-targets --target-group-arn "$TG_ARN" --targets $OFFLINE_TARGET_ARGS || true
+            fi
+          else
+            echo "::warning::Could not resolve healthcare-backend-tg or no successful backend deployments; skipping target group update."
+            cat /tmp/tg_lookup_err.log || true
+          fi
+
           [ "$SUCCEEDED" -gt 0 ] && [ "$FAILED" -eq 0 ]
 
