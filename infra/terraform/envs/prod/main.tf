@@ -16,24 +16,25 @@ resource "terraform_data" "non_dev_safety_lock" {
 module "backend_stack" {
   source = "../../modules/backend_stack"
 
-  vpc_id                   = var.vpc_id
-  backend_subnet_id        = var.backend_subnet_id
-  backend_ami_id           = var.backend_ami_id
-  key_name                 = var.key_name
-  backend_instance_type    = var.backend_instance_type
-  create_backend_instance  = var.create_backend_instance
-  backend_sg_name          = var.backend_sg_name
-  backend_sg_description   = var.backend_sg_description
-  backend_instance_name    = var.backend_instance_name
-  backend_ingress_cidrs    = var.backend_ingress_cidrs
-  common_tags              = var.common_tags
-  adopt_existing_sg_safely = var.adopt_existing_sg_safely
-  manage_alb_sg            = var.manage_alb_sg
-  alb_sg_name              = var.alb_sg_name
-  alb_sg_description       = var.alb_sg_description
-  manage_vpn_sg            = var.manage_vpn_sg
-  vpn_sg_name              = var.vpn_sg_name
-  vpn_sg_description       = var.vpn_sg_description
+  vpc_id                       = var.vpc_id
+  backend_subnet_id            = var.backend_subnet_id
+  backend_ami_id               = var.backend_ami_id
+  key_name                     = var.key_name
+  backend_instance_type        = var.backend_instance_type
+  create_backend_instance      = var.create_backend_instance
+  backend_sg_name              = var.backend_sg_name
+  backend_sg_description       = var.backend_sg_description
+  backend_instance_name        = var.backend_instance_name
+  backend_ingress_cidrs        = var.backend_ingress_cidrs
+  monitoring_security_group_id = var.monitoring_security_group_id
+  common_tags                  = var.common_tags
+  adopt_existing_sg_safely     = var.adopt_existing_sg_safely
+  manage_alb_sg                = var.manage_alb_sg
+  alb_sg_name                  = var.alb_sg_name
+  alb_sg_description           = var.alb_sg_description
+  manage_vpn_sg                = var.manage_vpn_sg
+  vpn_sg_name                  = var.vpn_sg_name
+  vpn_sg_description           = var.vpn_sg_description
 }
 
 module "network_stack" {

@@ -170,6 +170,12 @@ variable "backend_ingress_cidrs" {
   default     = ["10.0.0.0/16"]
 }
 
+variable "monitoring_security_group_id" {
+  type        = string
+  description = "Optional monitoring security group allowed to scrape backend metrics on port 4000"
+  default     = ""
+}
+
 variable "common_tags" {
   type        = map(string)
   description = "Common tags for all resources"
