@@ -69,23 +69,230 @@ jobs:
           echo "instance-id=$selected" >> "$GITHUB_OUTPUT"
 
       - name: Deploy monitoring over SSM
+        shell: bash
         env:
           MONITORING_INSTANCE_ID: ${{ steps.monitoring-target.outputs.instance-id }}
+          BACKEND_TARGET: ${{ vars.MONITORING_BACKEND_TARGET }}
+          BACKEND_INSTANCE_IDS: ${{ vars.AWS_BACKEND_INSTANCE_IDS }}
+          BACKEND_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
+          GRAFANA_ADMIN_USER: ${{ secrets.GRAFANA_ADMIN_USER }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_SMTP_USER: ${{ secrets.ALERT_SMTP_USER }}
+          ALERT_SMTP_PASS: ${{ secrets.ALERT_SMTP_PASS }}
         run: |
-          COMMANDS=$(cat <<'JSON'
-          {"commands":[
-            "set -e",
-            "sudo systemctl enable --now docker || true",
-            "sudo docker image prune -a -f --filter \"until=168h\" || true",
-            "sudo rm -rf /var/lib/containerd/io.containerd.content.v1.content/ingest/* || true",
-            "sudo rm -rf /var/lib/containerd/tmpmounts/* || true",
-            "cd /opt/healthcare-monitoring && (sudo docker compose pull || (sudo systemctl restart docker || true; sleep 3; sudo docker compose pull))",
-            "cd /opt/healthcare-monitoring && sudo docker compose up -d",
-            "for i in $(seq 1 20); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && curl -fsS http://127.0.0.1:9093/-/ready && exit 0; sleep 5; done; exit 1"
-          ]}
-          JSON
-          )
-          echo "$COMMANDS" > commands-monitoring.json
+          set -euo pipefail
+
+          if [ -z "${BACKEND_TARGET:-}" ]; then
+            BACKEND_TARGET="$(aws ec2 describe-instances \
+              --filters \
+                "Name=instance-state-name,Values=running" \
+                "Name=tag:Project,Values=uit-healthcare" \
+                "Name=tag:Component,Values=backend" \
+              --query 'Reservations[].Instances[].PrivateIpAddress' \
+              --output text | tr '\t' '\n' | awk 'NF { print $1 ":4000" }' | paste -sd, -)"
+          fi
+
+          if [ -z "${BACKEND_TARGET:-}" ]; then
+            TARGET_IDS="${BACKEND_INSTANCE_IDS:-}"
+            [ -z "$TARGET_IDS" ] && TARGET_IDS="${BACKEND_INSTANCE_ID:-}"
+            TARGET_IDS="$(echo "$TARGET_IDS" | tr ',;' ' ' | xargs || true)"
+            if [ -n "$TARGET_IDS" ]; then
+              BACKEND_TARGET="$(aws ec2 describe-instances \
+                --instance-ids $TARGET_IDS \
+                --filters "Name=instance-state-name,Values=running" \
+                --query 'Reservations[].Instances[].PrivateIpAddress' \
+                --output text | tr '\t' '\n' | awk 'NF { print $1 ":4000" }' | paste -sd, -)"
+            fi
+          fi
+
+          if [ -z "${BACKEND_TARGET:-}" ]; then
+            echo "::error::No running backend targets found for monitoring."
+            exit 1
+          fi
+
+          echo "Monitoring backend targets: $BACKEND_TARGET"
+          export BACKEND_TARGET
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          backend_targets = [
+              target.strip()
+              for target in os.environ["BACKEND_TARGET"].replace(";", ",").split(",")
+              if target.strip()
+          ]
+          backend_targets_yaml = "\n".join(f"                    - {target}" for target in backend_targets)
+
+          grafana_user = os.environ.get("GRAFANA_ADMIN_USER") or "admin"
+          grafana_password = os.environ.get("GRAFANA_ADMIN_PASSWORD") or "admin"
+          alert_email_from = os.environ.get("ALERT_EMAIL_FROM", "").strip()
+          alert_email_to = os.environ.get("ALERT_EMAIL_TO", "").strip()
+          alert_smtp_user = os.environ.get("ALERT_SMTP_USER", "").strip() or alert_email_from
+          alert_smtp_pass = os.environ.get("ALERT_SMTP_PASS", "").strip()
+
+          compose = """services:
+            prometheus:
+              image: prom/prometheus:v2.53.0
+              container_name: healthcare-prometheus
+              restart: unless-stopped
+              ports:
+                - "9090:9090"
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+                - prometheus_data:/prometheus
+              command:
+                - "--config.file=/etc/prometheus/prometheus.yml"
+                - "--storage.tsdb.retention.time=7d"
+              depends_on:
+                - alertmanager
+
+            grafana:
+              image: grafana/grafana:11.1.0
+              container_name: healthcare-grafana
+              restart: unless-stopped
+              ports:
+                - "3000:3000"
+              env_file:
+                - .env
+              volumes:
+                - grafana_data:/var/lib/grafana
+                - ./grafana/provisioning:/etc/grafana/provisioning:ro
+              depends_on:
+                - prometheus
+
+            alertmanager:
+              image: prom/alertmanager:v0.27.0
+              container_name: healthcare-alertmanager
+              restart: unless-stopped
+              ports:
+                - "9093:9093"
+              volumes:
+                - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+              command:
+                - "--config.file=/etc/alertmanager/alertmanager.yml"
+
+          volumes:
+            prometheus_data:
+            grafana_data:
+          """
+
+          prometheus = f"""global:
+            scrape_interval: 30s
+            evaluation_interval: 30s
+
+          rule_files:
+            - /etc/prometheus/alert-rules.yml
+
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets:
+                      - alertmanager:9093
+
+          scrape_configs:
+            - job_name: backend-aws
+              metrics_path: /metrics
+              static_configs:
+                - targets:
+          {backend_targets_yaml}
+
+            - job_name: prometheus
+              static_configs:
+                - targets:
+                    - localhost:9090
+          """
+
+          alert_rules = """groups:
+            - name: healthcare-backend
+              rules:
+                - alert: BackendDown
+                  expr: max_over_time((sum(up{job="backend-aws"}))[5m:30s]) == 0
+                  for: 5m
+                  labels:
+                    severity: critical
+                    service: backend
+                  annotations:
+                    summary: "Healthcare backend is down"
+                    description: "Prometheus cannot scrape any backend-aws target continuously for at least 5 minutes."
+          """
+
+          if alert_email_from and alert_email_to and alert_smtp_user and alert_smtp_pass:
+              alertmanager = f"""global:
+            resolve_timeout: 5m
+            smtp_smarthost: smtp.gmail.com:587
+            smtp_from: {alert_email_from}
+            smtp_auth_username: {alert_smtp_user}
+            smtp_auth_password: {alert_smtp_pass}
+            smtp_require_tls: true
+
+          route:
+            receiver: default-email
+            group_by: ['alertname', 'service']
+            group_wait: 30s
+            group_interval: 5m
+            repeat_interval: 2h
+
+          receivers:
+            - name: default-email
+              email_configs:
+                - to: {alert_email_to}
+                  send_resolved: true
+          """
+          else:
+              alertmanager = """global:
+            resolve_timeout: 5m
+
+          route:
+            receiver: null
+
+          receivers:
+            - name: null
+          """
+
+          grafana_env = f"""GF_SECURITY_ADMIN_USER={grafana_user}
+          GF_SECURITY_ADMIN_PASSWORD={grafana_password}
+          GF_USERS_ALLOW_SIGN_UP=false
+          """
+
+          datasources = """apiVersion: 1
+
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+              editable: true
+          """
+
+          commands = [
+              "set -e",
+              "sudo mkdir -p /opt/healthcare-monitoring/grafana/provisioning/datasources",
+              "cat > /opt/healthcare-monitoring/docker-compose.yml <<'EOF'\n" + compose + "\nEOF",
+              "cat > /opt/healthcare-monitoring/prometheus.yml <<'EOF'\n" + prometheus + "\nEOF",
+              "cat > /opt/healthcare-monitoring/alert-rules.yml <<'EOF'\n" + alert_rules + "\nEOF",
+              "cat > /opt/healthcare-monitoring/alertmanager.yml <<'EOF'\n" + alertmanager + "\nEOF",
+              "cat > /opt/healthcare-monitoring/.env <<'EOF'\n" + grafana_env + "\nEOF",
+              "cat > /opt/healthcare-monitoring/grafana/provisioning/datasources/datasources.yml <<'EOF'\n" + datasources + "\nEOF",
+              "if ! command -v docker >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y docker.io; fi",
+              "sudo systemctl enable --now docker",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo apt-get update && (sudo apt-get install -y docker-compose-plugin || sudo apt-get install -y docker-compose-v2 || true); fi",
+              "if ! sudo docker compose version >/dev/null 2>&1; then sudo mkdir -p /usr/local/lib/docker/cli-plugins && sudo curl -fsSL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; fi",
+              "cd /opt/healthcare-monitoring && sudo docker compose down --remove-orphans || true",
+              "sudo docker image prune -a -f --filter \"until=168h\" || true",
+              "cd /opt/healthcare-monitoring && sudo docker compose pull",
+              "cd /opt/healthcare-monitoring && sudo docker compose up -d",
+              "for i in $(seq 1 30); do curl -fsS http://127.0.0.1:9090/-/ready && curl -fsS http://127.0.0.1:3000/api/health && curl -fsS http://127.0.0.1:9093/-/ready && exit 0; sleep 5; done; sudo docker ps; exit 1",
+          ]
+
+          Path("commands-monitoring.json").write_text(json.dumps({"commands": commands}))
+          PY
+
           CID=$(aws ssm send-command --instance-ids "$MONITORING_INSTANCE_ID" --document-name AWS-RunShellScript --parameters file://commands-monitoring.json --query 'Command.CommandId' --output text)
           aws ssm wait command-executed --command-id "$CID" --instance-id "$MONITORING_INSTANCE_ID"
           aws ssm get-command-invocation --command-id "$CID" --instance-id "$MONITORING_INSTANCE_ID" --output json
