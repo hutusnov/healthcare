@@ -7,7 +7,6 @@ spec:
   description: UIT Healthcare hybrid GitOps project
   sourceRepos:
     - https://github.com/hutusnov/healthcare.git
-    - https://prometheus-community.github.io/helm-charts
   destinations:
     - server: https://kubernetes.default.svc
       namespace: uit-healthcare
@@ -15,23 +14,9 @@ spec:
       namespace: uit-healthcare-prod
     - server: https://kubernetes.default.svc
       namespace: uit-healthcare-private
-    - server: https://kubernetes.default.svc
-      namespace: monitoring
-    - server: https://kubernetes.default.svc
-      namespace: kube-system
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
-    - group: admissionregistration.k8s.io
-      kind: MutatingWebhookConfiguration
-    - group: admissionregistration.k8s.io
-      kind: ValidatingWebhookConfiguration
-    - group: apiextensions.k8s.io
-      kind: CustomResourceDefinition
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
     - group: ""
       kind: ConfigMap
@@ -39,18 +24,10 @@ spec:
       kind: Service
     - group: ""
       kind: ServiceAccount
-    - group: ""
-      kind: Secret
     - group: autoscaling
       kind: HorizontalPodAutoscaler
     - group: apps
       kind: Deployment
-    - group: apps
-      kind: DaemonSet
-    - group: apps
-      kind: StatefulSet
-    - group: batch
-      kind: Job
     - group: networking.k8s.io
       kind: Ingress
     - group: networking.k8s.io
@@ -61,24 +38,6 @@ spec:
       kind: Role
     - group: rbac.authorization.k8s.io
       kind: RoleBinding
-    - group: monitoring.coreos.com
-      kind: Alertmanager
-    - group: monitoring.coreos.com
-      kind: AlertmanagerConfig
-    - group: monitoring.coreos.com
-      kind: PodMonitor
-    - group: monitoring.coreos.com
-      kind: Probe
-    - group: monitoring.coreos.com
-      kind: Prometheus
-    - group: monitoring.coreos.com
-      kind: PrometheusRule
-    - group: monitoring.coreos.com
-      kind: ScrapeConfig
-    - group: monitoring.coreos.com
-      kind: ServiceMonitor
-    - group: monitoring.coreos.com
-      kind: ThanosRuler
   orphanedResources:
     warn: true
   syncWindows:
