@@ -14,6 +14,8 @@ spec:
       namespace: uit-healthcare-prod
     - server: https://kubernetes.default.svc
       namespace: uit-healthcare-private
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -22,6 +24,8 @@ spec:
       kind: ConfigMap
     - group: ""
       kind: Service
+    - group: ""
+      kind: ServiceAccount
     - group: autoscaling
       kind: HorizontalPodAutoscaler
     - group: apps
@@ -32,6 +36,10 @@ spec:
       kind: NetworkPolicy
     - group: policy
       kind: PodDisruptionBudget
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
   orphanedResources:
     warn: true
   syncWindows:

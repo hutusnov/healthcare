@@ -47,6 +47,9 @@ jobs:
       - name: Render OCR GitOps overlay
         run: kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod
 
+      - name: Render OpenStack monitoring GitOps overlay
+        run: kubectl kustomize deploy/gitops/apps/openstack-monitoring/overlays/prod
+
       - name: Block committed Kubernetes Secret manifests
         shell: bash
         run: |
@@ -63,7 +66,8 @@ jobs:
             deploy/argocd/bootstrap \
             deploy/argocd/apps \
             deploy/gitops/apps/aws-backend/overlays/prod \
-            deploy/gitops/apps/private-ocr/overlays/prod; do
+            deploy/gitops/apps/private-ocr/overlays/prod \
+            deploy/gitops/apps/openstack-monitoring/overlays/prod; do
             if kubectl kustomize "$path" | grep -nE '^kind:[[:space:]]*Secret[[:space:]]*$'; then
               echo "Rendered Kubernetes Secret manifests are not allowed from $path."
               exit 1
@@ -80,6 +84,10 @@ jobs:
           fi
           if kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
             echo "OCR GitOps overlay must use immutable image tags."
+            exit 1
+          fi
+          if kubectl kustomize deploy/gitops/apps/openstack-monitoring/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
+            echo "Monitoring GitOps overlay must use immutable image tags."
             exit 1
           fi
           echo "Production image tags are pinned."
