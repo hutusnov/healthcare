@@ -13,6 +13,7 @@ on:
 jobs:
   ci-terraform:
     name: CI Terraform
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     permissions:
       contents: read
       id-token: write
@@ -22,11 +23,13 @@ jobs:
 
   ci-terraform-openstack:
     name: CI Terraform OpenStack
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     uses: ./.github/workflows/ci-terraform-openstack.yml
     secrets: inherit
 
   ci-gitops-argocd:
     name: CI GitOps Argo CD
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     uses: ./.github/workflows/ci-gitops-argocd.yml
     secrets: inherit
 

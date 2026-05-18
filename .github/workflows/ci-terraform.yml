@@ -5,14 +5,14 @@ env:
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "infra/terraform/**"
       - "infra/terraform-openstack/**"
       - ".github/workflows/ci-terraform.yml"
       - ".github/workflows/pipeline-unified.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "infra/terraform/**"
       - "infra/terraform-openstack/**"

@@ -5,14 +5,14 @@ env:
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "deploy/argocd/**"
       - "deploy/gitops/**"
       - ".github/workflows/ci-gitops-argocd.yml"
       - ".github/workflows/pipeline-unified.yml"
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - "deploy/argocd/**"
       - "deploy/gitops/**"
