@@ -47,9 +47,6 @@ jobs:
       - name: Render OCR GitOps overlay
         run: kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod
 
-      - name: Render OpenStack monitoring GitOps overlay
-        run: kubectl kustomize deploy/gitops/apps/openstack-monitoring/overlays/prod
-
       - name: Block committed Kubernetes Secret manifests
         shell: bash
         run: |
@@ -66,8 +63,7 @@ jobs:
             deploy/argocd/bootstrap \
             deploy/argocd/apps \
             deploy/gitops/apps/aws-backend/overlays/prod \
-            deploy/gitops/apps/private-ocr/overlays/prod \
-            deploy/gitops/apps/openstack-monitoring/overlays/prod; do
+            deploy/gitops/apps/private-ocr/overlays/prod; do
             if kubectl kustomize "$path" | grep -nE '^kind:[[:space:]]*Secret[[:space:]]*$'; then
               echo "Rendered Kubernetes Secret manifests are not allowed from $path."
               exit 1
@@ -86,11 +82,16 @@ jobs:
             echo "OCR GitOps overlay must use immutable image tags."
             exit 1
           fi
-          if kubectl kustomize deploy/gitops/apps/openstack-monitoring/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
-            echo "Monitoring GitOps overlay must use immutable image tags."
-            exit 1
-          fi
           echo "Production image tags are pinned."
+
+      - name: Verify monitoring Helm release is pinned and manual
+        shell: bash
+        run: |
+          grep -q 'repoURL: https://prometheus-community.github.io/helm-charts' deploy/argocd/apps/openstack-monitoring-application.yaml
+          grep -q 'chart: kube-prometheus-stack' deploy/argocd/apps/openstack-monitoring-application.yaml
+          grep -q 'targetRevision: 83.0.0' deploy/argocd/apps/openstack-monitoring-application.yaml
+          grep -q 'releaseName: o11y' deploy/argocd/apps/openstack-monitoring-application.yaml
+          grep -q 'kubernetes.io/hostname: data-core-node' deploy/argocd/apps/openstack-monitoring-application.yaml
 
       - name: Verify Argo CD project guardrails
         shell: bash
