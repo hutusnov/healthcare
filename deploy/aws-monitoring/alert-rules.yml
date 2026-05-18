@@ -1,0 +1,23 @@
+groups:
+  - name: healthcare-backend
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend-aws"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: backend
+        annotations:
+          summary: "Healthcare backend is down"
+          description: "Prometheus cannot scrape backend-aws target for more than 2 minutes."
+
+      - alert: BackendHigh5xxRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: backend
+        annotations:
+          summary: "High backend 5xx rate"
+          description: "Backend 5xx rate is above 0.5 req/s during the last 5 minutes."
+

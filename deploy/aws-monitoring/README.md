@@ -14,6 +14,7 @@ It is designed for the current hybrid runtime:
 - `Grafana`
 - `Loki`
 - `Promtail`
+- `Alertmanager` (email notifications)
 
 ## Current scrape path
 
@@ -28,6 +29,8 @@ Out of the box:
 - `docker-compose.yml`: monitoring runtime
 - `.env.example`: Grafana credentials
 - `prometheus.yml`: scrape configuration
+- `alert-rules.yml`: alert rules evaluated by Prometheus
+- `alertmanager.yml`: notification routing and SMTP settings
 - `loki-config.yml`: Loki configuration
 - `promtail-config.yml`: Docker log shipping config
 - `grafana/provisioning`: datasources and starter dashboard
@@ -37,6 +40,7 @@ Out of the box:
 - `3000`: Grafana
 - `9090`: Prometheus
 - `3100`: Loki
+- `9093`: Alertmanager
 
 ## Recommended deployment choices
 
@@ -59,3 +63,7 @@ And these secrets are set:
 
 - `GRAFANA_ADMIN_USER`
 - `GRAFANA_ADMIN_PASSWORD`
+- `ALERT_EMAIL_FROM` (Gmail address used as sender)
+- `ALERT_EMAIL_TO` (receiver email address)
+- `ALERT_SMTP_USER` (usually same as `ALERT_EMAIL_FROM`)
+- `ALERT_SMTP_PASS` (Gmail app password)
