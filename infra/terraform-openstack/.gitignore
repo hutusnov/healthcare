@@ -1,0 +1,11 @@
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars.*.bak
+state-backups/
+**/state-backups/
+crash.log
+terraform.tfvars
+**/terraform.tfvars
+tfplan*
+\$planFile

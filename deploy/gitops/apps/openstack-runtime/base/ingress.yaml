@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: main-ingress
+  namespace: uit-healthcare
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.hutus.id.vn
+      secretName: tls-secret
+  rules:
+    - host: api.hutus.id.vn
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-api
+                port:
+                  number: 4000
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-api
+                port:
+                  number: 4000

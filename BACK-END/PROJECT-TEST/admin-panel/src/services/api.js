@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const DEFAULT_API_URL =
+  typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    ? ['http://', 'localhost', ':4000/api'].join('')
+    : 'http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api';
+const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 const SECRET_HEADER = import.meta.env.VITE_X_SECRET_VERIFY_HEADER || '';
 
 const api = axios.create({

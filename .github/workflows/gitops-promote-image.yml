@@ -1,0 +1,156 @@
+name: GitOps Promote Image
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "Component to promote"
+        required: true
+        default: "both"
+        type: choice
+        options:
+          - backend
+          - ocr
+          - both
+      backend_tag:
+        description: "Immutable backend image tag, usually the commit SHA"
+        required: false
+        type: string
+      ocr_tag:
+        description: "Immutable OCR image tag, usually the commit SHA"
+        required: false
+        type: string
+      base_branch:
+        description: "Target branch for the promotion PR"
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote-image:
+    name: promote-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.1
+
+      - name: Update GitOps image tags
+        shell: bash
+        env:
+          COMPONENT: ${{ inputs.component }}
+          BACKEND_TAG: ${{ inputs.backend_tag }}
+          OCR_TAG: ${{ inputs.ocr_tag }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          component = os.environ["COMPONENT"]
+          backend_tag = os.environ.get("BACKEND_TAG", "").strip()
+          ocr_tag = os.environ.get("OCR_TAG", "").strip()
+          tag_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{6,127}$")
+
+          def require_tag(name, tag):
+              if not tag:
+                  raise SystemExit(f"{name}_tag is required when component is '{component}'.")
+              if tag in {"latest", "main", "develop"}:
+                  raise SystemExit(f"{name}_tag must be immutable, not '{tag}'.")
+              if not tag_pattern.match(tag):
+                  raise SystemExit(f"{name}_tag contains unsupported characters or is too short.")
+
+          def set_new_tag(path, tag):
+              text = path.read_text(encoding="utf-8")
+              updated = re.sub(r"(?m)^(\s*newTag:\s*).+$", rf"\g<1>{tag}", text, count=1)
+              if updated == text:
+                  raise SystemExit(f"Could not find newTag in {path}")
+              path.write_text(updated, encoding="utf-8")
+
+          if component in {"backend", "both"}:
+              require_tag("backend", backend_tag)
+              set_new_tag(Path("deploy/gitops/apps/aws-backend/overlays/prod/kustomization.yaml"), backend_tag)
+
+          if component in {"ocr", "both"}:
+              require_tag("ocr", ocr_tag)
+              set_new_tag(Path("deploy/gitops/apps/private-ocr/overlays/prod/kustomization.yaml"), ocr_tag)
+          PY
+
+      - name: Validate rendered GitOps manifests
+        shell: bash
+        run: |
+          kubectl kustomize deploy/argocd/bootstrap >/tmp/argocd-bootstrap.yaml
+          kubectl kustomize deploy/argocd/apps >/tmp/argocd-apps.yaml
+          kubectl kustomize deploy/gitops/apps/aws-backend/overlays/prod >/tmp/gitops-backend.yaml
+          kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod >/tmp/gitops-ocr.yaml
+
+      - name: Enforce production GitOps safety gates
+        shell: bash
+        run: |
+          if grep -R --include='*.yml' --include='*.yaml' -nE '^kind:[[:space:]]*Secret[[:space:]]*$' deploy/argocd deploy/gitops; then
+            echo "Kubernetes Secret manifests must not be committed."
+            exit 1
+          fi
+          if grep -R --include='kustomization.yaml' -nE 'newTag:[[:space:]]*(latest|main|develop)$' deploy/gitops/apps; then
+            echo "Production GitOps image tags must be immutable."
+            exit 1
+          fi
+
+      - name: Create promotion pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMPONENT: ${{ inputs.component }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          BACKEND_TAG: ${{ inputs.backend_tag }}
+          OCR_TAG: ${{ inputs.ocr_tag }}
+        run: |
+          if git diff --quiet; then
+            echo "No GitOps image tag changes detected."
+            exit 0
+          fi
+
+          short_stamp="$(date -u +%Y%m%d%H%M%S)"
+          branch="gitops/promote-${COMPONENT}-${short_stamp}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add deploy/gitops/apps/*/overlays/prod/kustomization.yaml
+          git commit -m "gitops: promote ${COMPONENT} image"
+          git push origin "$branch"
+
+          body_file="$(mktemp)"
+          {
+            echo "## GitOps image promotion"
+            echo
+            echo "- Component: \`${COMPONENT}\`"
+            echo "- Backend tag: \`${BACKEND_TAG:-unchanged}\`"
+            echo "- OCR tag: \`${OCR_TAG:-unchanged}\`"
+            echo
+            echo "Safety checks passed:"
+            echo "- Rendered Argo CD bootstrap and application manifests"
+            echo "- Rendered backend and OCR Kustomize overlays"
+            echo "- Blocked committed Kubernetes Secret manifests"
+            echo "- Enforced immutable production image tags"
+            echo
+            echo "After merge, Argo CD will detect the desired-state change. Sync remains manual unless the app policy is changed intentionally."
+          } > "$body_file"
+
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$branch" \
+            --title "gitops: promote ${COMPONENT} image" \
+            --body-file "$body_file"

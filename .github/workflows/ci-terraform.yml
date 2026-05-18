@@ -1,0 +1,176 @@
+name: CI Terraform
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**"
+      - "infra/terraform-openstack/**"
+      - ".github/workflows/ci-terraform.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**"
+      - "infra/terraform-openstack/**"
+      - ".github/workflows/ci-terraform.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  validate-terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.2
+
+      - name: Resolve Terraform root
+        id: tfroot
+        shell: bash
+        run: |
+          if [ -d "$GITHUB_WORKSPACE/infra/terraform" ]; then
+            echo "path=$GITHUB_WORKSPACE/infra/terraform" >> "$GITHUB_OUTPUT"
+          elif [ -d "$GITHUB_WORKSPACE/infra/Terraform" ]; then
+            echo "path=$GITHUB_WORKSPACE/infra/Terraform" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not find Terraform root under workspace: $GITHUB_WORKSPACE"
+            ls -la "$GITHUB_WORKSPACE"
+            exit 1
+          fi
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive "${{ steps.tfroot.outputs.path }}"
+
+      - name: Terraform init+validate (bootstrap)
+        shell: bash
+        run: |
+          if [ -d "${{ steps.tfroot.outputs.path }}/bootstrap" ]; then
+            cd "${{ steps.tfroot.outputs.path }}/bootstrap"
+            terraform init -backend=false
+            terraform validate
+          else
+            echo "Skip bootstrap validation: bootstrap directory not found"
+          fi
+
+      - name: Terraform init+validate (all envs)
+        shell: bash
+        run: |
+          for ENV_DIR in "${{ steps.tfroot.outputs.path }}"/envs/*; do
+            [ -d "$ENV_DIR" ] || continue
+            [ -f "$ENV_DIR/main.tf" ] || continue
+            echo "Validating env: $ENV_DIR"
+            cd "$ENV_DIR"
+            terraform init -backend=false
+            terraform validate
+          done
+
+      - name: Terraform init+validate (OpenStack envs)
+        shell: bash
+        run: |
+          OS_ROOT="$GITHUB_WORKSPACE/infra/terraform-openstack"
+          if [ ! -d "$OS_ROOT" ]; then
+            echo "Skip OpenStack terraform validation: $OS_ROOT not found"
+            exit 0
+          fi
+          for ENV_DIR in "$OS_ROOT"/envs/*; do
+            [ -d "$ENV_DIR" ] || continue
+            [ -f "$ENV_DIR/main.tf" ] || continue
+            echo "Validating OpenStack env: $ENV_DIR"
+            cd "$ENV_DIR"
+            terraform init -backend=false
+            terraform validate
+          done
+
+      - name: Install Checkov (IaC security scanner)
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install checkov
+
+      - name: Checkov scan (soft mode by default)
+        shell: bash
+        run: |
+          TARGET_DIR="${{ steps.tfroot.outputs.path }}"
+          echo "Running Checkov scan on $TARGET_DIR"
+          if [ "${{ vars.TF_SECURITY_STRICT }}" = "true" ]; then
+            checkov -d "$TARGET_DIR" --framework terraform --quiet
+          else
+            checkov -d "$TARGET_DIR" --framework terraform --quiet --soft-fail
+          fi
+
+      - name: Checkov scan OpenStack Terraform (soft mode by default)
+        shell: bash
+        run: |
+          OS_ROOT="$GITHUB_WORKSPACE/infra/terraform-openstack"
+          if [ ! -d "$OS_ROOT" ]; then
+            echo "Skip OpenStack checkov scan: $OS_ROOT not found"
+            exit 0
+          fi
+          echo "Running Checkov scan on $OS_ROOT"
+          if [ "${{ vars.TF_SECURITY_STRICT }}" = "true" ]; then
+            checkov -d "$OS_ROOT" --framework terraform --quiet
+          else
+            checkov -d "$OS_ROOT" --framework terraform --quiet --soft-fail
+          fi
+
+  plan-terraform-dev:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [validate-terraform]
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.2
+
+      - name: Precheck plan gate
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ vars.TF_PLAN_DEV_ENABLED }}" != "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip terraform plan: set repository variable TF_PLAN_DEV_ENABLED=true to enable."
+            exit 0
+          fi
+          if [ -z "${{ vars.AWS_GHA_ROLE_ARN }}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip terraform plan: repository variable AWS_GHA_ROLE_ARN is empty."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        if: steps.gate.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform plan (dev) when tfvars exists
+        if: steps.gate.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          TF_DIR="$GITHUB_WORKSPACE/infra/terraform/envs/dev"
+          if [ ! -f "$TF_DIR/terraform.tfvars" ]; then
+            echo "Skip terraform plan: $TF_DIR/terraform.tfvars not found."
+            exit 0
+          fi
+          cd "$TF_DIR"
+          terraform init -backend=false
+          terraform plan -no-color -input=false -lock=false -out=tfplan

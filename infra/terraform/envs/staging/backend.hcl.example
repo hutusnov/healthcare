@@ -1,0 +1,5 @@
+bucket         = "uit-healthcare-tfstate"
+key            = "envs/staging/terraform.tfstate"
+region         = "ap-southeast-1"
+dynamodb_table = "uit-healthcare-tf-lock"
+encrypt        = true

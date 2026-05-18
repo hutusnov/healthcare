@@ -1,0 +1,7 @@
+aws_region               = "ap-southeast-1"
+vpc_id                   = "vpc-xxxxxxxx"
+backend_subnet_id        = "subnet-xxxxxxxx"
+backend_instance_type    = "t3.micro"
+backend_ami_id           = "ami-xxxxxxxx"
+key_name                 = "aws-healthcare-key"
+create_backend_instance  = false

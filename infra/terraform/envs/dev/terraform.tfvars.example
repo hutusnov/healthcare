@@ -1,0 +1,70 @@
+aws_region               = "ap-southeast-1"
+vpc_id                   = "vpc-xxxxxxxx"
+public_subnet_1_id       = "subnet-xxxxxxxx"
+public_subnet_1_cidr     = "10.0.0.0/20"
+public_subnet_1_az       = "ap-southeast-1a"
+public_subnet_2_id       = "subnet-xxxxxxxx"
+public_subnet_2_cidr     = "10.0.16.0/20"
+public_subnet_2_az       = "ap-southeast-1b"
+private_subnet_1_id      = "subnet-xxxxxxxx"
+private_subnet_1_cidr    = "10.0.128.0/20"
+private_subnet_1_az      = "ap-southeast-1a"
+private_subnet_2_id      = "subnet-xxxxxxxx"
+private_subnet_2_cidr    = "10.0.144.0/20"
+private_subnet_2_az      = "ap-southeast-1b"
+igw_id                   = "igw-xxxxxxxx"
+nat_gateway_id           = "nat-xxxxxxxx"
+nat_eip_allocation_id    = "eipalloc-xxxxxxxx"
+public_route_table_id    = "rtb-xxxxxxxx"
+private_route_table_1_id = "rtb-xxxxxxxx"
+private_route_table_2_id = "rtb-xxxxxxxx"
+public_rtb_assoc_1_id    = "rtbassoc-xxxxxxxx"
+public_rtb_assoc_2_id    = "rtbassoc-xxxxxxxx"
+private_rtb_assoc_1_id   = "rtbassoc-xxxxxxxx"
+private_rtb_assoc_2_id   = "rtbassoc-xxxxxxxx"
+backend_subnet_id        = "subnet-xxxxxxxx"
+backend_instance_type    = "t3.micro"
+backend_ami_id           = "ami-xxxxxxxx"
+key_name                 = "aws-healthcare-key"
+create_backend_instance  = false
+backend_sg_name          = "healthcare-backend-sg-dev-tf"
+backend_sg_description   = "for Backend"
+backend_instance_name    = "NodeJS-Backend-Dev-Terraform"
+backend_ingress_cidrs    = ["10.0.0.0/16"]
+monitoring_security_group_id = "sg-xxxxxxxx"
+adopt_existing_sg_safely = true
+manage_alb_sg            = true
+alb_sg_name              = "ALB-SG"
+alb_sg_description       = "for Load Balancer"
+manage_vpn_sg            = true
+vpn_sg_name              = "VPN-SG"
+vpn_sg_description       = "for VPN"
+alb_name                 = "healthcare-backend-alb"
+target_group_name        = "healthcare-backend-tg"
+target_group_port        = 4000
+target_group_protocol    = "HTTP"
+health_check_path        = "/api/health"
+http_listener_port       = 80
+https_listener_port      = 443
+https_certificate_arn    = "arn:aws:acm:ap-southeast-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+https_ssl_policy         = "ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09"
+https_fixed_response_body = "Forbidden: Direct access is not allowed"
+target_instance_ids      = ["i-xxxxxxxx", "i-yyyyyyyy"]
+alarm_prefix             = "uit-healthcare-dev"
+alarm_sns_topic_arn      = ""
+github_owner             = "hutusnov"
+github_repo              = "healthcare"
+github_actions_role_name = "GitHubActionsHealthcareDeployRole"
+allowed_workflow_refs    = [
+  "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/main",
+  "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/develop"
+]
+common_tags = {
+  Project = "uit-healthcare"
+  Env     = "dev"
+  Managed = "terraform"
+}
+
+# Safety override: keep false by default.
+# Only set true when you intentionally plan/apply non-dev env that still shares IDs.
+allow_nondev_plan_with_shared_ids = false

@@ -1,0 +1,91 @@
+name: Unified DevSecOps Pipeline
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  ci-terraform:
+    name: CI Terraform
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    uses: ./.github/workflows/ci-terraform.yml
+    secrets: inherit
+
+  ci-terraform-openstack:
+    name: CI Terraform OpenStack
+    uses: ./.github/workflows/ci-terraform-openstack.yml
+    secrets: inherit
+
+  ci-gitops-argocd:
+    name: CI GitOps Argo CD
+    uses: ./.github/workflows/ci-gitops-argocd.yml
+    secrets: inherit
+
+  ci-backend:
+    name: CI Backend
+    uses: ./.github/workflows/ci-backend.yml
+    secrets: inherit
+
+  ci-patient-portal:
+    name: CI Patient Portal
+    uses: ./.github/workflows/ci-patient-portal.yml
+    secrets: inherit
+
+  ci-admin-panel:
+    name: CI Admin Panel
+    uses: ./.github/workflows/ci-admin-panel.yml
+    secrets: inherit
+
+  ci-ocr:
+    name: CI OCR
+    uses: ./.github/workflows/ci-ocr.yml
+    secrets: inherit
+
+  security-trivy:
+    name: Security Trivy
+    needs: [ci-backend, ci-ocr]
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/security-trivy.yml
+    secrets: inherit
+
+  security-sonarqube:
+    name: Security SonarQube
+    needs: [ci-backend, ci-patient-portal, ci-admin-panel, ci-ocr]
+    uses: ./.github/workflows/security-sonarqube.yml
+    secrets: inherit
+
+  cd-frontend:
+    name: CD Frontend
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    uses: ./.github/workflows/cd-frontend.yml
+    secrets: inherit
+
+  cd-backend:
+    name: CD Backend
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/cd-backend.yml
+    secrets: inherit
+
+  cd-monitoring:
+    name: CD Monitoring
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [cd-backend]
+    uses: ./.github/workflows/cd-monitoring.yml
+    secrets: inherit

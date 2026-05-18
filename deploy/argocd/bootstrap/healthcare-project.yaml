@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: uit-healthcare
+  namespace: argocd
+spec:
+  description: UIT Healthcare hybrid GitOps project
+  sourceRepos:
+    - https://github.com/hutusnov/healthcare.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: uit-healthcare
+    - server: https://kubernetes.default.svc
+      namespace: uit-healthcare-prod
+    - server: https://kubernetes.default.svc
+      namespace: uit-healthcare-private
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+  orphanedResources:
+    warn: true
+  syncWindows:
+    - kind: allow
+      schedule: "0 1-17 * * *"
+      duration: 16h
+      applications:
+        - "*"
+      manualSync: true

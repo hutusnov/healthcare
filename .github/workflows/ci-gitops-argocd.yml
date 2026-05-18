@@ -1,0 +1,113 @@
+name: CI GitOps Argo CD
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "deploy/argocd/**"
+      - "deploy/gitops/**"
+      - ".github/workflows/ci-gitops-argocd.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "deploy/argocd/**"
+      - "deploy/gitops/**"
+      - ".github/workflows/ci-gitops-argocd.yml"
+      - ".github/workflows/pipeline-unified.yml"
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  validate-gitops:
+    name: validate-gitops
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.34.1
+
+      - name: Render Argo CD bootstrap manifests
+        run: kubectl kustomize deploy/argocd/bootstrap
+
+      - name: Render Argo CD application manifests
+        run: kubectl kustomize deploy/argocd/apps
+
+      - name: Render backend GitOps overlay
+        run: kubectl kustomize deploy/gitops/apps/aws-backend/overlays/prod
+
+      - name: Render OCR GitOps overlay
+        run: kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod
+
+      - name: Block committed Kubernetes Secret manifests
+        shell: bash
+        run: |
+          if grep -R --include='*.yml' --include='*.yaml' -nE '^kind:[[:space:]]*Secret[[:space:]]*$' deploy/argocd deploy/gitops; then
+            echo "Kubernetes Secret manifests must not be committed. Use external secret management or sealed secrets."
+            exit 1
+          fi
+          echo "No committed Kubernetes Secret manifests found."
+
+      - name: Block rendered Kubernetes Secret manifests
+        shell: bash
+        run: |
+          for path in \
+            deploy/argocd/bootstrap \
+            deploy/argocd/apps \
+            deploy/gitops/apps/aws-backend/overlays/prod \
+            deploy/gitops/apps/private-ocr/overlays/prod; do
+            if kubectl kustomize "$path" | grep -nE '^kind:[[:space:]]*Secret[[:space:]]*$'; then
+              echo "Rendered Kubernetes Secret manifests are not allowed from $path."
+              exit 1
+            fi
+          done
+          echo "No rendered Kubernetes Secret manifests found."
+
+      - name: Enforce pinned production image tags
+        shell: bash
+        run: |
+          if kubectl kustomize deploy/gitops/apps/aws-backend/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
+            echo "Backend GitOps overlay must use immutable image tags."
+            exit 1
+          fi
+          if kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod | grep -nE 'image: .*:(latest|main|develop)$'; then
+            echo "OCR GitOps overlay must use immutable image tags."
+            exit 1
+          fi
+          echo "Production image tags are pinned."
+
+      - name: Verify Argo CD project guardrails
+        shell: bash
+        run: |
+          grep -q 'kind: AppProject' deploy/argocd/bootstrap/healthcare-project.yaml
+          grep -q 'orphanedResources:' deploy/argocd/bootstrap/healthcare-project.yaml
+          grep -q 'namespaceResourceWhitelist:' deploy/argocd/bootstrap/healthcare-project.yaml
+
+      - name: Verify Argo CD application paths
+        shell: bash
+        run: |
+          for app in deploy/argocd/apps/*-application.yaml deploy/argocd/bootstrap/root-application.yaml; do
+            path="$(grep -E '^[[:space:]]*path:' "$app" | head -n1 | awk '{print $2}' || true)"
+            if [ -n "$path" ] && [ ! -d "$path" ]; then
+              echo "Application source path does not exist: $app -> $path"
+              exit 1
+            fi
+          done
+          echo "All Argo CD application source paths exist."
+
+      - name: Enforce manual sync until runtime readiness is confirmed
+        shell: bash
+        run: |
+          if grep -R --include='*.yaml' --include='*.yml' -n 'automated:' deploy/argocd deploy/gitops; then
+            echo "Automated Argo CD sync is blocked until runtime readiness is explicitly approved."
+            exit 1
+          fi
+          echo "Argo CD applications remain manual-sync by default."

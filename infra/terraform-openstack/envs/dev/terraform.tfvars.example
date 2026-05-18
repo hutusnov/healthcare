@@ -1,0 +1,25 @@
+project_name = "uit-healthcare"
+env          = "dev"
+region       = "RegionOne"
+
+# Existing IDs for adopt/import-first workflow
+existing_network_id   = ""
+existing_subnet_id    = ""
+existing_router_id    = ""
+existing_secgroup_id  = ""
+existing_master_id    = ""
+existing_data_node_id = ""
+existing_worker_id    = ""
+
+# Create-mode inputs (keep empty while adopt_existing_only=true)
+external_network_id = ""
+image_name          = ""
+flavor_name         = ""
+keypair_name        = ""
+
+master_name    = "k3s-master-vpn"
+data_node_name = "data-core-node"
+worker_name    = "ai-ocr-worker"
+
+# Safety default: no create
+adopt_existing_only = true

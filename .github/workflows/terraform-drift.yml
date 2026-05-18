@@ -1,0 +1,119 @@
+name: Terraform Drift Detection
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+jobs:
+  aws-dev-drift:
+    name: AWS dev drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.2
+
+      - name: Precheck AWS drift gate
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ vars.TF_DRIFT_AWS_DEV_ENABLED }}" != "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip AWS drift detection: set TF_DRIFT_AWS_DEV_ENABLED=true to enable."
+            exit 0
+          fi
+          if [ -z "${{ vars.AWS_GHA_ROLE_ARN }}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip AWS drift detection: AWS_GHA_ROLE_ARN is empty."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        if: steps.gate.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform plan drift check
+        if: steps.gate.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          TF_DIR="$GITHUB_WORKSPACE/infra/terraform/envs/dev"
+          if [ ! -f "$TF_DIR/terraform.tfvars" ]; then
+            echo "Skip AWS drift detection: $TF_DIR/terraform.tfvars is not committed."
+            exit 0
+          fi
+          cd "$TF_DIR"
+          terraform init -backend=false
+          terraform plan -detailed-exitcode -lock=false -input=false -no-color
+
+  openstack-dev-drift:
+    name: OpenStack dev drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.2
+
+      - name: Terraform validate OpenStack
+        shell: bash
+        run: |
+          cd infra/terraform-openstack/envs/dev
+          terraform init -backend=false
+          terraform validate
+
+      - name: Precheck OpenStack drift gate
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ vars.TF_DRIFT_OPENSTACK_DEV_ENABLED }}" != "true" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Skip OpenStack drift detection: set TF_DRIFT_OPENSTACK_DEV_ENABLED=true to enable."
+            exit 0
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform plan drift check OpenStack
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          OS_AUTH_URL: ${{ secrets.OS_AUTH_URL }}
+          OS_PROJECT_NAME: ${{ secrets.OS_PROJECT_NAME }}
+          OS_PROJECT_ID: ${{ secrets.OS_PROJECT_ID }}
+          OS_USERNAME: ${{ secrets.OS_USERNAME }}
+          OS_PASSWORD: ${{ secrets.OS_PASSWORD }}
+          OS_USER_DOMAIN_NAME: ${{ secrets.OS_USER_DOMAIN_NAME }}
+          OS_PROJECT_DOMAIN_NAME: ${{ secrets.OS_PROJECT_DOMAIN_NAME }}
+          OS_REGION_NAME: ${{ secrets.OS_REGION_NAME }}
+          OS_INTERFACE: ${{ secrets.OS_INTERFACE }}
+          OS_IDENTITY_API_VERSION: ${{ secrets.OS_IDENTITY_API_VERSION }}
+        shell: bash
+        run: |
+          TF_DIR="$GITHUB_WORKSPACE/infra/terraform-openstack/envs/dev"
+          if [ ! -f "$TF_DIR/terraform.tfvars" ]; then
+            echo "Skip OpenStack drift detection: $TF_DIR/terraform.tfvars is not committed."
+            exit 0
+          fi
+          if [ -z "$OS_AUTH_URL" ] || [ -z "$OS_USERNAME" ] || [ -z "$OS_PASSWORD" ]; then
+            echo "OpenStack drift enabled but required OpenStack secrets are missing."
+            exit 1
+          fi
+          cd "$TF_DIR"
+          terraform init -backend=false
+          terraform plan -detailed-exitcode -lock=false -input=false -no-color

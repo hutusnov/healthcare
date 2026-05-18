@@ -4,7 +4,7 @@ metadata:
   name: uit-healthcare-aws-backend
   namespace: argocd
 spec:
-  project: default
+  project: uit-healthcare
   source:
     repoURL: https://github.com/hutusnov/healthcare.git
     targetRevision: main
@@ -13,8 +13,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: uit-healthcare-prod
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true

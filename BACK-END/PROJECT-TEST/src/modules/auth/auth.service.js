@@ -53,7 +53,8 @@ async function register({ email, password, fullName, role = 'PATIENT', specialty
   // DOCTOR and ADMIN accounts must be created by admin
   const safeRole = 'PATIENT';
   if (role !== 'PATIENT') {
-    console.warn(`[SECURITY] Blocked role escalation attempt: ${email} tried to register as ${role}`);
+    // Do not log user-controlled values (email/role) to avoid log injection and sensitive data exposure.
+    console.warn('[SECURITY] Blocked role escalation attempt during public registration');
   }
 
   // 1) Email unique

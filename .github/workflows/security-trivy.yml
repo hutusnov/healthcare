@@ -1,0 +1,156 @@
+name: Security Trivy
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TRIVY_CACHE_DIR: ${{ github.workspace }}/.trivy-cache
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: trivy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trivy-backend:
+    name: Trivy Backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare Trivy workspace
+        run: mkdir -p "$GITHUB_WORKSPACE/.trivy-cache" "$GITHUB_WORKSPACE/.trivy-tmp"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af --volumes || true
+          mkdir -p "$TRIVY_CACHE_DIR" "$GITHUB_WORKSPACE/.trivy-tmp"
+          df -h
+
+      - name: Build backend image for security scan
+        run: docker build -t local/healthcare-backend:scan ./BACK-END/PROJECT-TEST
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+        with:
+          cache: false
+
+      - name: Trivy gate - backend (CRITICAL)
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 1 \
+            local/healthcare-backend:scan
+
+      - name: Trivy SARIF - backend
+        if: always()
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-backend.sarif \
+            --exit-code 0 \
+            local/healthcare-backend:scan
+
+      - name: Upload backend SARIF
+        if: always() && hashFiles('trivy-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+      - name: Cleanup Trivy backend temp files
+        if: always()
+        run: rm -rf "$GITHUB_WORKSPACE/.trivy-tmp" "$TRIVY_CACHE_DIR"
+
+  trivy-ocr:
+    name: Trivy OCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare Trivy workspace
+        run: mkdir -p "$GITHUB_WORKSPACE/.trivy-cache" "$GITHUB_WORKSPACE/.trivy-tmp"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Free runner disk space
+        shell: bash
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af --volumes || true
+          mkdir -p "$TRIVY_CACHE_DIR" "$GITHUB_WORKSPACE/.trivy-tmp"
+          df -h
+
+      - name: Build OCR image for security scan
+        run: docker build -t local/healthcare-ocr:scan ./OCR
+
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.6
+        with:
+          cache: false
+
+      - name: Trivy gate - ocr (CRITICAL)
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 1 \
+            local/healthcare-ocr:scan
+
+      - name: Trivy SARIF - ocr
+        if: always()
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-ocr.sarif \
+            --exit-code 0 \
+            local/healthcare-ocr:scan
+
+      - name: Upload ocr SARIF
+        if: always() && hashFiles('trivy-ocr.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-ocr.sarif
+          category: trivy-ocr
+
+      - name: Cleanup Trivy OCR temp files
+        if: always()
+        run: rm -rf "$GITHUB_WORKSPACE/.trivy-tmp" "$TRIVY_CACHE_DIR"

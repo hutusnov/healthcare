@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -9,31 +9,14 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [token, setToken] = useState(localStorage.getItem('token'));
 
-    useEffect(() => {
-        if (token) {
-            // Try to load user from localStorage first
-            const savedUser = localStorage.getItem('user');
-            if (savedUser) {
-                try {
-                    const userData = JSON.parse(savedUser);
-                    // Patient portal: accept PATIENT role
-                    if (userData.role === 'PATIENT') {
-                        setUser(userData);
-                        setLoading(false);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Không thể đọc thông tin user đã lưu', e);
-                }
-            }
-            // If no saved user or invalid, try to load from API
-            loadUser();
-        } else {
-            setLoading(false);
-        }
-    }, [token]);
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+    }, []);
 
-    const loadUser = async () => {
+    const loadUser = useCallback(async () => {
         try {
             const response = await authAPI.getCurrentUser();
             const userData = response.data?.user || response.data?.data?.user || response.data?.data;
@@ -42,7 +25,6 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Định dạng phản hồi không hợp lệ');
             }
 
-            // Patient portal accepts PATIENT role only
             if (userData.role !== 'PATIENT') {
                 throw new Error('Chỉ bệnh nhân mới có thể truy cập. Vui lòng sử dụng ứng dụng phù hợp.');
             }
@@ -55,27 +37,46 @@ export const AuthProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [logout]);
+
+    useEffect(() => {
+        if (token) {
+            const savedUser = localStorage.getItem('user');
+            if (savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    if (userData.role === 'PATIENT') {
+                        setUser(userData);
+                        setLoading(false);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Không thể đọc thông tin user đã lưu', e);
+                }
+            }
+            loadUser();
+            return;
+        }
+        setLoading(false);
+    }, [token, loadUser]);
 
     const login = async (email, password) => {
         try {
             const response = await authAPI.login({ email, password });
-            // Response format: { success, message, data: { token, user } }
-            const { token, user } = response.data.data || response.data;
+            const { token: authToken, user: authUser } = response.data.data || response.data;
 
-            if (!user || !token) {
+            if (!authUser || !authToken) {
                 throw new Error('Định dạng phản hồi không hợp lệ');
             }
 
-            // Only allow PATIENT role
-            if (user.role !== 'PATIENT') {
+            if (authUser.role !== 'PATIENT') {
                 throw new Error('Chỉ bệnh nhân mới có thể đăng nhập vào cổng này.');
             }
 
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
-            setToken(token);
-            setUser(user);
+            localStorage.setItem('token', authToken);
+            localStorage.setItem('user', JSON.stringify(authUser));
+            setToken(authToken);
+            setUser(authUser);
             return { success: true };
         } catch (error) {
             if (error.response?.status === 401) {
@@ -91,16 +92,16 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await authAPI.register({
                 ...data,
-                role: 'PATIENT', // Force PATIENT role
+                role: 'PATIENT',
             });
 
-            const { token, user } = response.data.data || response.data;
+            const { token: authToken, user: authUser } = response.data.data || response.data;
 
-            if (token && user) {
-                localStorage.setItem('token', token);
-                localStorage.setItem('user', JSON.stringify(user));
-                setToken(token);
-                setUser(user);
+            if (authToken && authUser) {
+                localStorage.setItem('token', authToken);
+                localStorage.setItem('user', JSON.stringify(authUser));
+                setToken(authToken);
+                setUser(authUser);
             }
 
             return { success: true, message: 'Đăng ký thành công!' };
@@ -108,13 +109,6 @@ export const AuthProvider = ({ children }) => {
             const message = error.response?.data?.message || error.message || 'Đăng ký thất bại';
             return { success: false, error: message };
         }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setToken(null);
-        setUser(null);
     };
 
     return (

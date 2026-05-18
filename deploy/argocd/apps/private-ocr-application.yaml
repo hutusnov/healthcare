@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: uit-healthcare-private-ocr
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app.kubernetes.io/part-of: uit-healthcare
+    app.kubernetes.io/managed-by: argocd
+spec:
+  project: uit-healthcare
+  source:
+    repoURL: https://github.com/hutusnov/healthcare.git
+    targetRevision: main
+    path: deploy/gitops/apps/private-ocr/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: uit-healthcare-private
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
