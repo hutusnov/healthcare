@@ -13,7 +13,23 @@ Safety defaults:
 
 Current live migration backup is stored on `k3s-master-vpn` under `~/healthcare-backups/`.
 
-Access Grafana through the VPN with:
+## External Access via Cloudflare Tunnel
+
+Monitoring dashboards are exposed through Cloudflare Tunnel using 2-level domain
+structure (`*-healthcare.htsnov.com`) to stay within the Cloudflare Free Plan SSL
+certificate limits.
+
+| Service    | URL                                        | Backend Service                            | Port |
+| ---------- | ------------------------------------------ | ------------------------------------------ | ---- |
+| Grafana    | https://grafana-healthcare.htsnov.com      | o11y-grafana                               | 80   |
+| Prometheus | https://prometheus-healthcare.htsnov.com   | o11y-kube-prometheus-stack-prometheus       | 9090 |
+
+TLS is terminated by Nginx Ingress Controller using Cloudflare Origin CA
+certificates issued via `cert-manager` + `ClusterOriginIssuer`.
+
+Access is protected by Cloudflare Zero Trust Access policies.
+
+## Local Port-Forward (VPN fallback)
 
 ```powershell
 kubectl -n monitoring port-forward svc/o11y-grafana 3000:80

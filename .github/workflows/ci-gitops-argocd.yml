@@ -47,6 +47,12 @@ jobs:
       - name: Render OCR GitOps overlay
         run: kubectl kustomize deploy/gitops/apps/private-ocr/overlays/prod
 
+      - name: Render monitoring ingress manifests
+        run: kubectl kustomize deploy/gitops/apps/openstack-monitoring/base
+
+      - name: Render ArgoCD ingress manifests
+        run: kubectl kustomize deploy/argocd/ingress
+
       - name: Block committed Kubernetes Secret manifests
         shell: bash
         run: |
@@ -62,8 +68,10 @@ jobs:
           for path in \
             deploy/argocd/bootstrap \
             deploy/argocd/apps \
+            deploy/argocd/ingress \
             deploy/gitops/apps/aws-backend/overlays/prod \
-            deploy/gitops/apps/private-ocr/overlays/prod; do
+            deploy/gitops/apps/private-ocr/overlays/prod \
+            deploy/gitops/apps/openstack-monitoring/base; do
             if kubectl kustomize "$path" | grep -nE '^kind:[[:space:]]*Secret[[:space:]]*$'; then
               echo "Rendered Kubernetes Secret manifests are not allowed from $path."
               exit 1
