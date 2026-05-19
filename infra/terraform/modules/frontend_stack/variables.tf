@@ -52,5 +52,5 @@ variable "common_tags" {
 variable "cloudflare_zone_id" {
   type        = string
   description = "Cloudflare Zone ID cho htsnov.com (lấy từ Cloudflare dashboard)"
-  default     = ""  # Điền vào sau khi có API token
+  default     = "" # Điền vào sau khi có API token
 }

@@ -26,14 +26,14 @@ resource "aws_s3_bucket" "admin" {
 resource "aws_s3_bucket_website_configuration" "portal" {
   bucket = aws_s3_bucket.portal.id
   index_document { suffix = "index.html" }
-  error_document { key    = "index.html" }
+  error_document { key = "index.html" }
   lifecycle { ignore_changes = all }
 }
 
 resource "aws_s3_bucket_website_configuration" "admin" {
   bucket = aws_s3_bucket.admin.id
   index_document { suffix = "index.html" }
-  error_document { key    = "index.html" }
+  error_document { key = "index.html" }
   lifecycle { ignore_changes = all }
 }
 
