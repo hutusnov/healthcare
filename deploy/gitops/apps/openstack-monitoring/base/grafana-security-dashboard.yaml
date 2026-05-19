@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-security-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  security-overview.json: |-
+    {
+      "title": "UIT Healthcare - Security Overview",
+      "uid": "security-overview",
+      "tags": ["security", "wazuh"],
+      "timezone": "browser",
+      "refresh": "1m",
+      "schemaVersion": 39,
+      "time": {"from": "now-24h", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "title": "SSH Auth Failures",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "targets": [{
+            "expr": "{job=~\".*\"} |~ \"(?i)authentication failure|failed password|invalid user\"",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 2,
+          "title": "K3s System Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 10},
+          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "targets": [{
+            "expr": "{namespace=\"kube-system\"}",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ]
+    }

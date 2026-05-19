@@ -5,3 +5,5 @@ resources:
   - prometheus-ingress.yaml
   - networkpolicy.yaml
   - grafana-loki-datasource.yaml
+  - grafana-loki-dashboard.yaml
+  - grafana-security-dashboard.yaml
