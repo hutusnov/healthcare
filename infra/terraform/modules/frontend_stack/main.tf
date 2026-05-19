@@ -235,7 +235,7 @@ resource "cloudflare_record" "portal" {
   zone_id = data.cloudflare_zone.main.id
   name    = "healthcare"
   type    = "CNAME"
-  value   = aws_cloudfront_distribution.portal.domain_name
+  content = aws_cloudfront_distribution.portal.domain_name
   proxied = false
   ttl     = 1
   lifecycle { ignore_changes = all }
@@ -245,7 +245,7 @@ resource "cloudflare_record" "admin" {
   zone_id = data.cloudflare_zone.main.id
   name    = "admin"
   type    = "CNAME"
-  value   = aws_cloudfront_distribution.admin.domain_name
+  content = aws_cloudfront_distribution.admin.domain_name
   proxied = false
   ttl     = 1
   lifecycle { ignore_changes = all }
