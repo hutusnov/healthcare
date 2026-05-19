@@ -65,6 +65,15 @@ spec:
         summary: "Pod not ready: {{ $labels.pod }}"
         description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready"
 
+    - alert: OCRServiceDown
+      expr: kube_pod_status_ready{namespace="uit-healthcare",pod=~"ocr-service.*",condition="true"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "OCR Service is DOWN"
+        description: "OCR pod {{ $labels.pod }} is not ready in namespace {{ $labels.namespace }}"
+
   - name: healthcare.backend
     rules:
     - alert: BackendDown
@@ -75,12 +84,3 @@ spec:
       annotations:
         summary: "Backend AWS is DOWN"
         description: "Backend instance {{ $labels.instance }} is not responding"
-
-    - alert: OCRServiceDown
-      expr: up{job="aws-backend-app"} == 0
-      for: 2m
-      labels:
-        severity: critical
-      annotations:
-        summary: "OCR Service is DOWN"
-        description: "OCR service is not responding"
