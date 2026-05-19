@@ -4,3 +4,4 @@ resources:
   - grafana-ingress.yaml
   - prometheus-ingress.yaml
   - networkpolicy.yaml
+  - grafana-loki-datasource.yaml
