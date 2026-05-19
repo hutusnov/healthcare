@@ -46,6 +46,26 @@ resource "aws_security_group_rule" "monitoring_scrape_backend" {
   description              = "Allow Prometheus monitoring node to scrape backend metrics"
 }
 
+resource "aws_security_group_rule" "be_from_vpn_subnet" {
+  type              = "ingress"
+  from_port         = 4000
+  to_port           = 4000
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/20"] # VPN node subnet
+  security_group_id = aws_security_group.backend_sg.id
+  description       = "Prometheus scrape via WireGuard VPN node"
+}
+
+resource "aws_security_group_rule" "be_from_vpn_node" {
+  type              = "ingress"
+  from_port         = 4000
+  to_port           = 4000
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.5.40/32"] # VPN node private IP
+  security_group_id = aws_security_group.backend_sg.id
+  description       = "VPN node private IP"
+}
+
 resource "aws_instance" "backend" {
   count                       = var.create_backend_instance ? 1 : 0
   ami                         = var.backend_ami_id

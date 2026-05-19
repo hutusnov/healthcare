@@ -4,7 +4,7 @@ resources:
   - namespace.yaml
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
+  # - ingress.yaml  # Disabled: backend runs on EC2 Docker (CloudFront → ALB), not K8s. Kept for future migration.
   - networkpolicy.yaml
   - pdb.yaml
 labels:
