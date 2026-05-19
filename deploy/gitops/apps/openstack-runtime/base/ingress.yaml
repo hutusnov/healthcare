@@ -10,10 +10,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - api.hutus.id.vn
+        - api.htsnov.com
       secretName: tls-secret
   rules:
-    - host: api.hutus.id.vn
+    - host: api.htsnov.com
       http:
         paths:
           - path: /api

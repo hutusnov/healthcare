@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: api.hutus.id.vn
+    - host: api.htsnov.com
       http:
         paths:
           - path: /

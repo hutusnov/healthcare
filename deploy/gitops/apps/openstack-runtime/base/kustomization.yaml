@@ -6,6 +6,6 @@ resources:
   - backend-service.yaml
   - ocr-deployment.yaml
   - ocr-service.yaml
-  - ingress.yaml
+  # - ingress.yaml  # Disabled: backend runs on EC2 Docker (CloudFront → ALB), not K3s. Kept for future migration.
   - backend-pdb.yaml
   - ocr-pdb.yaml
