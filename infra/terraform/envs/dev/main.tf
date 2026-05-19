@@ -106,3 +106,9 @@ module "iam_github_actions" {
   allowed_workflow_refs = var.allowed_workflow_refs
   backend_instance_ids  = var.target_instance_ids
 }
+
+module "frontend_stack" {
+  source = "../../modules/frontend_stack"
+
+  common_tags = var.common_tags
+}
