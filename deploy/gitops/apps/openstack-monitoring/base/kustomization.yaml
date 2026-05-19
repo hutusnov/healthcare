@@ -7,3 +7,4 @@ resources:
   - grafana-loki-datasource.yaml
   - grafana-loki-dashboard.yaml
   - grafana-security-dashboard.yaml
+  - healthcare-alerts.yaml

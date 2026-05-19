@@ -1,0 +1,86 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: healthcare-infrastructure-rules
+  namespace: monitoring
+  labels:
+    release: o11y
+spec:
+  groups:
+  - name: healthcare.nodes
+    rules:
+    - alert: NodeDiskHigh
+      expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs",mountpoint="/"} / node_filesystem_size_bytes{fstype!="tmpfs",mountpoint="/"}) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Node disk usage high: {{ $labels.instance }}"
+        description: "Disk usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+    - alert: NodeDiskCritical
+      expr: (1 - node_filesystem_avail_bytes{fstype!="tmpfs",mountpoint="/"} / node_filesystem_size_bytes{fstype!="tmpfs",mountpoint="/"}) * 100 > 90
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Node disk critical: {{ $labels.instance }}"
+        description: "Disk usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+    - alert: NodeMemoryHigh
+      expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Node memory high: {{ $labels.instance }}"
+        description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+    - alert: NodeCPUHigh
+      expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Node CPU high: {{ $labels.instance }}"
+        description: "CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+
+  - name: healthcare.pods
+    rules:
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod crash looping: {{ $labels.pod }}"
+        description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value | humanize }} times"
+
+    - alert: PodNotReady
+      expr: kube_pod_status_ready{condition="true"} == 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Pod not ready: {{ $labels.pod }}"
+        description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready"
+
+  - name: healthcare.backend
+    rules:
+    - alert: BackendDown
+      expr: up{job="aws-backend-app"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Backend AWS is DOWN"
+        description: "Backend instance {{ $labels.instance }} is not responding"
+
+    - alert: OCRServiceDown
+      expr: up{job="aws-backend-app"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "OCR Service is DOWN"
+        description: "OCR service is not responding"
