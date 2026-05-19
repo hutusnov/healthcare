@@ -16,6 +16,8 @@ spec:
       namespace: uit-healthcare-private
     - server: https://kubernetes.default.svc
       namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: argocd
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
