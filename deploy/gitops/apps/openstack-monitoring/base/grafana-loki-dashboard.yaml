@@ -18,9 +18,9 @@ data:
       "panels": [
         {
           "id": 1,
-          "title": "Pod Logs by Namespace",
+          "title": "K3s Pod Logs by Namespace",
           "type": "logs",
-          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 0},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
           "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
           "targets": [{
             "expr": "{namespace=~\"monitoring|uit-healthcare|uit-healthcare-private|argocd\"}",
@@ -36,12 +36,64 @@ data:
         },
         {
           "id": 2,
-          "title": "Error Logs",
+          "title": "K3s Error Logs",
           "type": "logs",
-          "gridPos": {"h": 12, "w": 24, "x": 0, "y": 12},
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 10},
           "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
           "targets": [{
             "expr": "{namespace=~\"monitoring|uit-healthcare|uit-healthcare-private\"} |~ \"(?i)error|exception|fatal\"",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 3,
+          "title": "AWS Backend Docker Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 20},
+          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "targets": [{
+            "expr": "{job=\"aws-docker\"}",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true
+          }
+        },
+        {
+          "id": 4,
+          "title": "AWS Nodes System Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 30},
+          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "targets": [{
+            "expr": "{job=\"system-logs\", node=~\"ip-10-0.*\"}",
+            "refId": "A"
+          }],
+          "options": {
+            "showTime": true,
+            "showLabels": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 5,
+          "title": "AWS Backend Error Logs",
+          "type": "logs",
+          "gridPos": {"h": 10, "w": 24, "x": 0, "y": 40},
+          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "targets": [{
+            "expr": "{job=\"aws-docker\"} |~ \"(?i)error|exception|fatal\"",
             "refId": "A"
           }],
           "options": {
