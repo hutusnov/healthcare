@@ -4,3 +4,4 @@ resources:
   - openstack-runtime-application.yaml
   - aws-backend-application.yaml
   - private-ocr-application.yaml
+  - openstack-monitoring-application.yaml
