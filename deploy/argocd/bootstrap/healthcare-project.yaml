@@ -14,6 +14,8 @@ spec:
       namespace: uit-healthcare-prod
     - server: https://kubernetes.default.svc
       namespace: uit-healthcare-private
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
