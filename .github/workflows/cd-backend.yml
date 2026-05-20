@@ -234,3 +234,22 @@ jobs:
 
           [ "$SUCCEEDED" -gt 0 ] && [ "$FAILED" -eq 0 ]
 
+
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [deploy-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

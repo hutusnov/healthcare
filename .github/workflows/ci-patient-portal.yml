@@ -33,3 +33,22 @@ jobs:
           VITE_OCR_API_KEY: ${{ secrets.VITE_OCR_API_KEY }}
           VITE_X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
 
+
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [validate-patient-portal]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

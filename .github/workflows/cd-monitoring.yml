@@ -296,3 +296,22 @@ jobs:
           CID=$(aws ssm send-command --instance-ids "$MONITORING_INSTANCE_ID" --document-name AWS-RunShellScript --parameters file://commands-monitoring.json --query 'Command.CommandId' --output text)
           aws ssm wait command-executed --command-id "$CID" --instance-id "$MONITORING_INSTANCE_ID"
           aws ssm get-command-invocation --command-id "$CID" --instance-id "$MONITORING_INSTANCE_ID" --output json
+
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [deploy-monitoring]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

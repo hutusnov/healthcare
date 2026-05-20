@@ -27,3 +27,22 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m py_compile main.py ocr_services.py util.py
 
+
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [validate-ocr]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
