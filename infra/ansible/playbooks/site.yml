@@ -1,0 +1,12 @@
+---
+# Master playbook - chạy toàn bộ theo đúng thứ tự
+# ansible-playbook -i inventory/hosts.yml playbooks/site.yml
+
+- name: Base setup (tất cả nodes)
+  import_playbook: packages.yml
+
+- name: WireGuard VPN
+  import_playbook: wireguard.yml
+
+- name: Promtail log shipper
+  import_playbook: promtail.yml

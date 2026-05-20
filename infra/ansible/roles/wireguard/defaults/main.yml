@@ -1,0 +1,28 @@
+---
+wireguard_interface: wg0
+wireguard_listen_port: 51820
+wireguard_mode: server          # server | client
+
+# WireGuard network (CIDR gán cho VPN tunnel)
+wireguard_network: "10.10.0.0/24"
+
+# Key paths trên remote host (không commit nội dung vào repo)
+wireguard_key_dir: /etc/wireguard
+wireguard_private_key_file: "{{ wireguard_key_dir }}/{{ wireguard_interface }}.key"
+wireguard_public_key_file: "{{ wireguard_key_dir }}/{{ wireguard_interface }}.pub"
+
+# Danh sách peers (điền khi biết public keys)
+# wireguard_peers:
+#   - name: data-core-node
+#     pubkey: "<BASE64_PUBKEY>"
+#     allowed_ips: 10.10.0.2/32
+#   - name: ai-ocr-worker
+#     pubkey: "<BASE64_PUBKEY>"
+#     allowed_ips: 10.10.0.3/32
+wireguard_peers: []
+
+# Client-only vars
+wireguard_server_endpoint: ""   # "MASTER_IP:51820"
+wireguard_server_pubkey: ""
+wireguard_server_allowed_ips: "10.10.0.0/24"
+wireguard_keepalive: 25

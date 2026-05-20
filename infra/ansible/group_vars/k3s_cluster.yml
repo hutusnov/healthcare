@@ -1,0 +1,14 @@
+# Vars cho toàn bộ k3s cluster (master + workers)
+k3s_version: v1.30.2+k3s1
+k3s_config_dir: /etc/rancher/k3s
+
+# Promtail version
+promtail_version: "2.9.8"
+promtail_config_dir: /etc/promtail
+promtail_data_dir: /var/lib/promtail
+
+# Log labels gửi kèm lên Loki
+promtail_labels:
+  project: "{{ project_name }}"
+  env: "{{ env }}"
+  node: "{{ inventory_hostname }}"

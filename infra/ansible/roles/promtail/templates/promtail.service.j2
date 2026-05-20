@@ -1,0 +1,13 @@
+# Managed by Ansible
+[Unit]
+Description=Promtail log shipper
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{ promtail_binary }} -config.file={{ promtail_config_file }}
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

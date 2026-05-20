@@ -1,0 +1,13 @@
+# Managed by Ansible — DO NOT EDIT MANUALLY
+# Template: roles/wireguard/templates/wg0-client.conf.j2
+[Interface]
+Address    = {{ wireguard_ip }}/32
+PrivateKey = {{ wg_privkey_raw['content'] | b64decode | trim }}
+DNS        = 8.8.8.8
+
+[Peer]
+# k3s-master-vpn
+PublicKey            = {{ wireguard_server_pubkey }}
+Endpoint             = {{ wireguard_server_endpoint }}
+AllowedIPs           = {{ wireguard_server_allowed_ips }}
+PersistentKeepalive  = {{ wireguard_keepalive }}

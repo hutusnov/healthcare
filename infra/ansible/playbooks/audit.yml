@@ -1,0 +1,586 @@
+---
+# Playbook: audit.yml
+# Mục đích: Quét toàn bộ services, packages, configs trên tất cả nodes
+# Chạy: ansible-playbook -i inventory/hosts.yml playbooks/audit.yml
+# Output: /tmp/audit-report/ trên máy local
+
+- name: Audit all nodes — services, packages, configs
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    # ── 1. System Info ──
+    - name: Collect OS and kernel info
+      set_fact:
+        system_info:
+          hostname: "{{ ansible_hostname }}"
+          os: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
+          kernel: "{{ ansible_kernel }}"
+          architecture: "{{ ansible_architecture }}"
+          uptime_seconds: "{{ ansible_uptime_seconds }}"
+          total_memory_mb: "{{ ansible_memtotal_mb }}"
+          cpu_cores: "{{ ansible_processor_vcpus }}"
+          ipv4_addresses: "{{ ansible_all_ipv4_addresses }}"
+
+    # ── 2. Systemd Services (running) ──
+    - name: List all running systemd services
+      shell: systemctl list-units --type=service --state=running --no-pager --no-legend | awk '{print $1}'
+      register: running_services
+      changed_when: false
+
+    - name: List all enabled systemd services
+      shell: systemctl list-unit-files --type=service --state=enabled --no-pager --no-legend | awk '{print $1}'
+      register: enabled_services
+      changed_when: false
+
+    # ── 3. Docker / Containers ──
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_version
+      ignore_errors: true
+      changed_when: false
+
+    - name: List running Docker containers
+      shell: docker ps --format '{{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Image{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}\t{{ '{{' }}.Ports{{ '}}' }}'
+      register: docker_containers
+      when: docker_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: List Docker compose projects
+      shell: docker compose ls --format 'table' 2>/dev/null || echo "N/A"
+      register: docker_compose_projects
+      when: docker_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    # ── 4. K3s / Kubernetes ──
+    - name: Check if K3s is installed
+      command: k3s --version
+      register: k3s_version
+      ignore_errors: true
+      changed_when: false
+
+    - name: List K3s nodes
+      shell: k3s kubectl get nodes -o wide --no-headers 2>/dev/null || echo "N/A"
+      register: k3s_nodes
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    # ── 4b. Helm Releases ──
+    - name: Check if Helm is installed
+      command: helm version --short
+      register: helm_version
+      ignore_errors: true
+      changed_when: false
+
+    - name: List all Helm releases (all namespaces)
+      shell: helm list -A --output table 2>/dev/null || echo "N/A"
+      register: helm_releases
+      when: helm_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: Get Helm values for each release
+      shell: |
+        for rel in $(helm list -A -q 2>/dev/null); do
+          ns=$(helm list -A --filter "^${rel}$" --output json 2>/dev/null | grep -o '"namespace":"[^"]*"' | head -1 | cut -d'"' -f4)
+          echo "══ $rel (ns: $ns) ══"
+          helm get values "$rel" -n "$ns" 2>/dev/null || echo "(no custom values)"
+          echo ""
+        done
+      register: helm_values
+      when: helm_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    # ── 4c. K8s Resources Overview ──
+    - name: List all namespaces
+      shell: k3s kubectl get ns --no-headers 2>/dev/null | awk '{print $1, $2}' || echo "N/A"
+      register: k8s_namespaces
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: List all pods (all namespaces)
+      shell: k3s kubectl get pods -A -o wide --no-headers 2>/dev/null || echo "N/A"
+      register: k8s_pods
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: List ConfigMaps in monitoring namespace
+      shell: k3s kubectl get configmaps -n monitoring --no-headers 2>/dev/null | awk '{print $1, $3}' || echo "N/A"
+      register: k8s_configmaps
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: List Secrets in monitoring namespace (names only)
+      shell: k3s kubectl get secrets -n monitoring --no-headers 2>/dev/null | awk '{print $1, $2}' || echo "N/A"
+      register: k8s_secrets
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    - name: List ArgoCD Applications (detailed health/sync)
+      shell: |
+        k3s kubectl get applications -n argocd \
+          -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,REPO:.spec.source.repoURL,PATH:.spec.source.path' \
+          2>/dev/null || echo "N/A"
+      register: argocd_apps
+      when: k3s_version.rc == 0
+      ignore_errors: true
+      changed_when: false
+
+    # ── 5. Listening Ports ──
+    - name: List all listening TCP ports
+      shell: ss -tlnp | tail -n +2 | awk '{print $4, $6}' | sort
+      register: listening_ports
+      changed_when: false
+
+    # ── 6. Installed Packages (key packages only) ──
+    - name: Check key packages
+      shell: |
+        for pkg in docker-ce docker.io k3s wireguard-tools prometheus-node-exporter \
+                   promtail nginx postgresql wazuh-agent cloudflared; do
+          if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+            ver=$(dpkg -l "$pkg" 2>/dev/null | grep "^ii" | awk '{print $3}')
+            echo "$pkg=$ver"
+          fi
+        done
+      register: key_packages
+      changed_when: false
+
+    # ── 7. Cron Jobs ──
+    - name: List crontabs
+      shell: |
+        echo "=== root ==="
+        crontab -l 2>/dev/null || echo "(none)"
+        echo "=== ubuntu ==="
+        crontab -u ubuntu -l 2>/dev/null || echo "(none)"
+      register: cron_jobs
+      changed_when: false
+
+    # ── 8. WireGuard ──
+    - name: Check WireGuard status
+      shell: wg show 2>/dev/null || echo "WireGuard not active"
+      register: wg_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 9. Config files inventory ──
+    - name: List config files in /etc
+      shell: |
+        for f in /etc/wireguard/wg0.conf \
+                 /etc/promtail/config.yaml \
+                 /etc/prometheus/prometheus.yml \
+                 /etc/systemd/system/promtail.service \
+                 /etc/systemd/system/node_exporter.service \
+                 /etc/cloudflared/config.yml \
+                 /etc/rancher/k3s/config.yaml \
+                 /var/ossec/etc/ossec.conf; do
+          if [ -f "$f" ]; then
+            echo "EXISTS: $f ($(stat -c %s "$f") bytes, modified $(stat -c %y "$f" | cut -d. -f1))"
+          fi
+        done
+      register: config_files
+      changed_when: false
+
+    # ── 9b. Promtail config content ──
+    - name: Dump Promtail config content
+      shell: cat /etc/promtail/config.yaml 2>/dev/null || echo "Promtail config not found"
+      register: promtail_config_content
+      ignore_errors: true
+      changed_when: false
+
+    # ── 9c. Wazuh Agent Status ──
+    - name: Check Wazuh agent status
+      shell: |
+        if [ -x /var/ossec/bin/wazuh-control ]; then
+          /var/ossec/bin/wazuh-control status 2>/dev/null
+        elif [ -x /var/ossec/bin/ossec-control ]; then
+          /var/ossec/bin/ossec-control status 2>/dev/null
+        else
+          echo "Wazuh agent not installed"
+        fi
+      register: wazuh_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 9d. Cloudflared Tunnel Status ──
+    - name: Check Cloudflared tunnel status
+      shell: |
+        if command -v cloudflared &>/dev/null; then
+          echo "Version: $(cloudflared --version 2>/dev/null)"
+          echo ""
+          echo "=== Running tunnels ==="
+          cloudflared tunnel list 2>/dev/null || echo "(cannot list — may need credentials)"
+          echo ""
+          echo "=== Tunnel config ==="
+          cat /etc/cloudflared/config.yml 2>/dev/null || \
+          cat /root/.cloudflared/config.yml 2>/dev/null || \
+          cat /home/ubuntu/.cloudflared/config.yml 2>/dev/null || \
+          echo "(config not found)"
+        else
+          echo "cloudflared not installed"
+        fi
+      register: cloudflared_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 9e. Node Exporter Health Check ──
+    - name: Check Node Exporter metrics endpoint
+      shell: |
+        if curl -sf --max-time 3 http://localhost:9100/metrics | head -5; then
+          echo ""
+          echo "STATUS: Node Exporter responding OK on :9100"
+        else
+          echo "STATUS: Node Exporter NOT responding on :9100"
+        fi
+      register: node_exporter_check
+      ignore_errors: true
+      changed_when: false
+
+    # ── 9f. AWS SSM Agent Status ──
+    - name: Check AWS SSM agent status
+      shell: |
+        if systemctl is-active amazon-ssm-agent &>/dev/null; then
+          echo "Status: $(systemctl is-active amazon-ssm-agent)"
+          echo "Version: $(snap list amazon-ssm-agent 2>/dev/null | tail -1 | awk '{print $2}' || dpkg -l amazon-ssm-agent 2>/dev/null | grep ^ii | awk '{print $3}' || echo 'unknown')"
+        else
+          echo "AWS SSM Agent not running or not installed"
+        fi
+      register: ssm_agent_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 10. Disk Usage ──
+    - name: Check disk usage
+      shell: df -h --output=source,size,used,avail,pcent,target -x tmpfs -x devtmpfs | tail -n +2
+      register: disk_usage
+      changed_when: false
+
+    # ── 11. iptables / nftables ──
+    - name: Dump iptables rules
+      shell: iptables-save 2>/dev/null | grep -v '^#' | head -200 || echo "iptables not available"
+      register: iptables_rules
+      ignore_errors: true
+      changed_when: false
+
+    - name: Dump nftables rules
+      shell: nft list ruleset 2>/dev/null | head -200 || echo "nftables not available"
+      register: nftables_rules
+      ignore_errors: true
+      changed_when: false
+
+    - name: Check UFW status
+      shell: ufw status verbose 2>/dev/null || echo "UFW not installed"
+      register: ufw_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 12. Sysctl (non-default tweaks) ──
+    - name: List sysctl overrides
+      shell: |
+        echo "=== /etc/sysctl.conf (custom lines) ==="
+        grep -v '^#' /etc/sysctl.conf 2>/dev/null | grep -v '^$' || echo "(empty)"
+        echo ""
+        echo "=== /etc/sysctl.d/*.conf ==="
+        for f in /etc/sysctl.d/*.conf; do
+          [ -f "$f" ] || continue
+          custom=$(grep -v '^#' "$f" | grep -v '^$')
+          [ -n "$custom" ] && echo "── $f ──" && echo "$custom"
+        done
+      register: sysctl_overrides
+      changed_when: false
+
+    # ── 13. SSH Config ──
+    - name: Check SSH server config
+      shell: |
+        echo "Port: $(grep -E '^Port ' /etc/ssh/sshd_config 2>/dev/null || echo 'default(22)')"
+        echo "PermitRootLogin: $(grep -E '^PermitRootLogin' /etc/ssh/sshd_config 2>/dev/null || echo 'default')"
+        echo "PasswordAuth: $(grep -E '^PasswordAuthentication' /etc/ssh/sshd_config 2>/dev/null || echo 'default')"
+        echo "AuthorizedKeys files:"
+        for u in root ubuntu; do
+          f="/home/$u/.ssh/authorized_keys"
+          [ "$u" = "root" ] && f="/root/.ssh/authorized_keys"
+          if [ -f "$f" ]; then
+            count=$(wc -l < "$f")
+            echo "  $u: $count keys"
+          fi
+        done
+      register: ssh_config
+      changed_when: false
+
+    # ── 14. User Accounts (non-system) ──
+    - name: List non-system users
+      shell: awk -F: '$3 >= 1000 && $1 != "nobody" {print $1, "uid="$3, "home="$6, "shell="$7}' /etc/passwd
+      register: user_accounts
+      changed_when: false
+
+    - name: List sudoers
+      shell: |
+        echo "=== /etc/sudoers.d/ ==="
+        for f in /etc/sudoers.d/*; do
+          [ -f "$f" ] || continue
+          echo "── $(basename $f) ──"
+          cat "$f" 2>/dev/null | grep -v '^#' | grep -v '^$'
+        done
+        echo ""
+        echo "=== groups with sudo ==="
+        getent group sudo 2>/dev/null || echo "(none)"
+      register: sudoers_config
+      changed_when: false
+
+    # ── 15. Custom Systemd Units (non-vendor) ──
+    - name: List custom systemd units
+      shell: |
+        echo "=== /etc/systemd/system/ (custom) ==="
+        find /etc/systemd/system/ -maxdepth 1 -name '*.service' -o -name '*.timer' 2>/dev/null | sort
+        echo ""
+        echo "=== /etc/systemd/system/*.service.d/ (overrides) ==="
+        find /etc/systemd/system/ -path '*.service.d/*.conf' 2>/dev/null | sort
+      register: custom_systemd
+      changed_when: false
+
+    # ── 16. Fail2ban ──
+    - name: Check fail2ban status
+      shell: |
+        if command -v fail2ban-client &>/dev/null; then
+          fail2ban-client status 2>/dev/null
+        else
+          echo "fail2ban not installed"
+        fi
+      register: fail2ban_status
+      ignore_errors: true
+      changed_when: false
+
+    # ── 17. Logrotate custom configs ──
+    - name: List logrotate custom configs
+      shell: |
+        for f in /etc/logrotate.d/*; do
+          [ -f "$f" ] || continue
+          echo "$(basename $f)"
+        done
+      register: logrotate_configs
+      changed_when: false
+
+    # ── 18. APT Sources / Repositories ──
+    - name: List APT sources
+      shell: |
+        echo "=== /etc/apt/sources.list ==="
+        grep -v '^#' /etc/apt/sources.list 2>/dev/null | grep -v '^$' || echo "(empty)"
+        echo ""
+        echo "=== /etc/apt/sources.list.d/ ==="
+        for f in /etc/apt/sources.list.d/*; do
+          [ -f "$f" ] || continue
+          echo "── $(basename $f) ──"
+          grep -v '^#' "$f" | grep -v '^$'
+        done
+      register: apt_sources
+      changed_when: false
+
+    # ── 19. Loaded Kernel Modules ──
+    - name: List loaded kernel modules (non-default)
+      shell: lsmod | awk 'NR>1 {print $1}' | sort
+      register: kernel_modules
+      changed_when: false
+
+    # ── 20. Mounts & Swap ──
+    - name: List mounts and swap
+      shell: |
+        echo "=== /etc/fstab (custom entries) ==="
+        grep -v '^#' /etc/fstab | grep -v '^$'
+        echo ""
+        echo "=== Swap ==="
+        swapon --show 2>/dev/null || echo "No swap"
+        echo ""
+        echo "=== NFS/CIFS mounts ==="
+        mount | grep -E 'nfs|cifs' || echo "(none)"
+      register: mounts_swap
+      changed_when: false
+
+    # ── 21. Environment Variables (global) ──
+    - name: List global environment configs
+      shell: |
+        echo "=== /etc/environment ==="
+        cat /etc/environment 2>/dev/null || echo "(empty)"
+        echo ""
+        echo "=== /etc/profile.d/*.sh ==="
+        for f in /etc/profile.d/*.sh; do
+          [ -f "$f" ] || continue
+          content=$(grep -v '^#' "$f" | grep -v '^$')
+          [ -n "$content" ] && echo "── $(basename $f) ──" && echo "$content"
+        done
+      register: global_env
+      changed_when: false
+
+    # ── Build Report ──
+    - name: Build node report
+      set_fact:
+        node_report: |
+          ══════════════════════════════════════════════════════
+          NODE: {{ system_info.hostname }}
+          OS: {{ system_info.os }} | Kernel: {{ system_info.kernel }}
+          CPU: {{ system_info.cpu_cores }} cores | RAM: {{ system_info.total_memory_mb }}MB
+          IPs: {{ system_info.ipv4_addresses | join(', ') }}
+          Uptime: {{ (system_info.uptime_seconds | int / 3600) | round(1) }}h
+          ══════════════════════════════════════════════════════
+
+          ── Running Services ({{ running_services.stdout_lines | length }}) ──
+          {{ running_services.stdout }}
+
+          ── Enabled Services ({{ enabled_services.stdout_lines | length }}) ──
+          {{ enabled_services.stdout }}
+
+          ── Key Packages Installed ──
+          {{ key_packages.stdout | default('(none)') }}
+
+          ── Docker ──
+          Version: {{ docker_version.stdout | default('Not installed') }}
+          Containers:
+          {{ docker_containers.stdout | default('N/A') }}
+          Compose Projects:
+          {{ docker_compose_projects.stdout | default('N/A') }}
+
+          ── K3s ──
+          Version: {{ k3s_version.stdout | default('Not installed') }}
+          Nodes: {{ k3s_nodes.stdout | default('N/A') }}
+
+          ── Helm Releases ──
+          Version: {{ helm_version.stdout | default('Not installed') }}
+          {{ helm_releases.stdout | default('N/A') }}
+
+          ── Helm Custom Values (per release) ──
+          {{ helm_values.stdout | default('N/A') }}
+
+          ── K8s Namespaces ──
+          {{ k8s_namespaces.stdout | default('N/A') }}
+
+          ── K8s Pods (all namespaces) ──
+          {{ k8s_pods.stdout | default('N/A') }}
+
+          ── ConfigMaps (monitoring) ──
+          {{ k8s_configmaps.stdout | default('N/A') }}
+
+          ── Secrets (monitoring, names only) ──
+          {{ k8s_secrets.stdout | default('N/A') }}
+
+          ── ArgoCD Applications (Health/Sync) ──
+          {{ argocd_apps.stdout | default('N/A') }}
+
+          ── Wazuh Agent ──
+          {{ wazuh_status.stdout | default('N/A') }}
+
+          ── Cloudflared Tunnel ──
+          {{ cloudflared_status.stdout | default('N/A') }}
+
+          ── Node Exporter (:9100) ──
+          {{ node_exporter_check.stdout | default('N/A') }}
+
+          ── AWS SSM Agent ──
+          {{ ssm_agent_status.stdout | default('N/A') }}
+
+          ── WireGuard ──
+          {{ wg_status.stdout | default('Not configured') }}
+
+          ── Listening Ports ──
+          {{ listening_ports.stdout }}
+
+          ── Config Files ──
+          {{ config_files.stdout | default('(none found)') }}
+
+          ── Promtail Config Content ──
+          {{ promtail_config_content.stdout | default('(not found)') }}
+
+          ── Cron Jobs ──
+          {{ cron_jobs.stdout }}
+
+          ── Disk Usage ──
+          {{ disk_usage.stdout }}
+
+          ── iptables Rules ──
+          {{ iptables_rules.stdout | default('N/A') }}
+
+          ── nftables Rules ──
+          {{ nftables_rules.stdout | default('N/A') }}
+
+          ── UFW Status ──
+          {{ ufw_status.stdout | default('N/A') }}
+
+          ── Sysctl Overrides ──
+          {{ sysctl_overrides.stdout | default('(none)') }}
+
+          ── SSH Config ──
+          {{ ssh_config.stdout }}
+
+          ── User Accounts (non-system) ──
+          {{ user_accounts.stdout }}
+
+          ── Sudoers ──
+          {{ sudoers_config.stdout }}
+
+          ── Custom Systemd Units ──
+          {{ custom_systemd.stdout | default('(none)') }}
+
+          ── Fail2ban ──
+          {{ fail2ban_status.stdout | default('N/A') }}
+
+          ── Logrotate Configs ──
+          {{ logrotate_configs.stdout | default('(none)') }}
+
+          ── APT Sources / Repositories ──
+          {{ apt_sources.stdout }}
+
+          ── Loaded Kernel Modules ──
+          {{ kernel_modules.stdout }}
+
+          ── Mounts & Swap ──
+          {{ mounts_swap.stdout }}
+
+          ── Global Environment Variables ──
+          {{ global_env.stdout }}
+
+    - name: Print report to console
+      debug:
+        msg: "{{ node_report }}"
+
+    # ── Save report locally ──
+    - name: Save report to local file
+      delegate_to: localhost
+      become: false
+      copy:
+        content: "{{ node_report }}"
+        dest: "/tmp/audit-report/{{ inventory_hostname }}.txt"
+
+  # ── Post-run: tổng hợp ──
+  post_tasks:
+    - name: Summary — create index
+      delegate_to: localhost
+      become: false
+      run_once: true
+      shell: |
+        echo "=== AUDIT SUMMARY $(date) ===" > /tmp/audit-report/INDEX.txt
+        echo "" >> /tmp/audit-report/INDEX.txt
+        for f in /tmp/audit-report/*.txt; do
+          [ "$(basename "$f")" = "INDEX.txt" ] && continue
+          node=$(basename "$f" .txt)
+          echo "── $node ──" >> /tmp/audit-report/INDEX.txt
+          grep -A1 "Running Services" "$f" >> /tmp/audit-report/INDEX.txt
+          grep -A1 "Key Packages" "$f" >> /tmp/audit-report/INDEX.txt
+          echo "" >> /tmp/audit-report/INDEX.txt
+        done
+        echo "Full reports: /tmp/audit-report/*.txt" >> /tmp/audit-report/INDEX.txt
+      changed_when: false
+
+  pre_tasks:
+    - name: Ensure local report directory exists
+      delegate_to: localhost
+      become: false
+      run_once: true
+      file:
+        path: /tmp/audit-report
+        state: directory

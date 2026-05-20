@@ -1,0 +1,76 @@
+---
+- name: Install WireGuard
+  ansible.builtin.apt:
+    name: wireguard
+    state: present
+    update_cache: true
+
+- name: Ensure wireguard key dir exists (chmod 700)
+  ansible.builtin.file:
+    path: "{{ wireguard_key_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Check if private key exists
+  ansible.builtin.stat:
+    path: "{{ wireguard_private_key_file }}"
+  register: wg_privkey_stat
+
+- name: Generate WireGuard keypair (nếu chưa có)
+  when: not wg_privkey_stat.stat.exists
+  block:
+    - name: Generate private key
+      ansible.builtin.shell: wg genkey > {{ wireguard_private_key_file }}
+      args:
+        creates: "{{ wireguard_private_key_file }}"
+
+    - name: Set private key permissions
+      ansible.builtin.file:
+        path: "{{ wireguard_private_key_file }}"
+        mode: "0600"
+
+    - name: Derive public key
+      ansible.builtin.shell: wg pubkey < {{ wireguard_private_key_file }} > {{ wireguard_public_key_file }}
+
+- name: Read public key
+  ansible.builtin.slurp:
+    src: "{{ wireguard_public_key_file }}"
+  register: wg_pubkey_raw
+
+- name: Set wg_pubkey fact (accessible via hostvars)
+  ansible.builtin.set_fact:
+    wg_pubkey: "{{ wg_pubkey_raw['content'] | b64decode | trim }}"
+
+- name: Read private key
+  ansible.builtin.slurp:
+    src: "{{ wireguard_private_key_file }}"
+  register: wg_privkey_raw
+  no_log: true
+
+- name: Deploy wg0.conf (server)
+  when: wireguard_mode == 'server'
+  ansible.builtin.template:
+    src: wg0-server.conf.j2
+    dest: "{{ wireguard_key_dir }}/{{ wireguard_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart WireGuard
+
+- name: Deploy wg0.conf (client)
+  when: wireguard_mode == 'client'
+  ansible.builtin.template:
+    src: wg0-client.conf.j2
+    dest: "{{ wireguard_key_dir }}/{{ wireguard_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart WireGuard
+
+- name: Enable và start WireGuard
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    enabled: true
+    state: started

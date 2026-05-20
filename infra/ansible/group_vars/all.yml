@@ -1,0 +1,28 @@
+# Vars áp dụng cho tất cả hosts
+ansible_user: ubuntu
+ansible_python_interpreter: /usr/bin/python3
+
+# Project info
+project_name: uit-healthcare
+env: dev
+
+# Loki endpoint (Promtail gửi log về đây)
+loki_url: http://localhost:3100   # đổi thành IP/domain của Loki server nếu external
+
+# Timezone
+system_timezone: Asia/Ho_Chi_Minh
+
+# Base packages cài trên tất cả nodes
+base_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - net-tools
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - jq
+  - unzip
+  - fail2ban

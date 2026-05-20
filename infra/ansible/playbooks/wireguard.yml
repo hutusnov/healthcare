@@ -1,0 +1,29 @@
+---
+# Setup WireGuard VPN
+# ansible-playbook -i inventory/hosts.yml playbooks/wireguard.yml
+#
+# Lưu ý: private keys KHÔNG được commit vào repo.
+# Cách dùng:
+#   1. Chạy lần đầu: playbook tự generate key trên server
+#   2. Hoặc truyền key qua Ansible Vault:
+#      ansible-playbook ... --ask-vault-pass -e @vault/wireguard_keys.yml
+
+- name: Setup WireGuard on master (server mode)
+  hosts: k3s_master
+  become: true
+
+  roles:
+    - role: wireguard
+      vars:
+        wireguard_mode: server
+
+- name: Setup WireGuard on workers (client mode)
+  hosts: k3s_workers
+  become: true
+
+  roles:
+    - role: wireguard
+      vars:
+        wireguard_mode: client
+        wireguard_server_endpoint: "{{ hostvars[groups['k3s_master'][0]]['ansible_host'] }}:{{ wireguard_listen_port | default(51820) }}"
+        wireguard_server_pubkey: "{{ hostvars[groups['k3s_master'][0]]['wg_pubkey'] | default('') }}"
