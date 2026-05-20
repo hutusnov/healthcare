@@ -89,6 +89,7 @@ jobs:
   trivy-ocr:
     name: Trivy OCR
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: read
       security-events: write
@@ -109,7 +110,13 @@ jobs:
           df -h
 
       - name: Build OCR image for security scan
-        run: docker build -t local/healthcare-ocr:scan ./OCR
+        uses: docker/build-push-action@v6
+        with:
+          context: ./OCR
+          tags: local/healthcare-ocr:scan
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@v0.2.6
@@ -154,3 +161,21 @@ jobs:
       - name: Cleanup Trivy OCR temp files
         if: always()
         run: rm -rf "$GITHUB_WORKSPACE/.trivy-tmp" "$TRIVY_CACHE_DIR"
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [trivy-backend, trivy-ocr]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -176,3 +176,22 @@ jobs:
           cd "$TF_DIR"
           terraform init -backend=false
           terraform plan -no-color -input=false -lock=false -out=tfplan
+
+
+  notify:
+    name: Notify Telegram
+    if: always()
+    needs: [validate-terraform, plan-terraform-dev]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 Workflow: ${{ github.workflow }}
+            👤 Actor: ${{ github.actor }}
+            📝 Commit: ${{ github.sha }}
+            📊 Status: ${{ job.status }}
+            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
