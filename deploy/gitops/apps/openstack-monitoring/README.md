@@ -39,25 +39,24 @@ Then open `http://127.0.0.1:3000`.
 
 ## Prerequisites on K3s Nodes
 
-Trước khi deploy kube-prometheus-stack, đảm bảo không có host-level
-node-exporter đang chạy trên các K3s nodes (port 9100 conflict):
+Before deploying kube-prometheus-stack, make sure no host-level node-exporter is running on the K3s nodes (port 9100 conflict):
 
 ```bash
-# Chạy trên TẤT CẢ K3s nodes
+# Run on ALL K3s nodes
 sudo systemctl stop prometheus-node-exporter 2>/dev/null || true
 sudo systemctl disable prometheus-node-exporter 2>/dev/null || true
 ```
 
 ## Helm Values (kube-prometheus-stack)
 
-Helm values **không được quản lý bởi ArgoCD** — apply thủ công:
+Helm values are **not managed by ArgoCD** — apply manually:
 
 ```bash
-# Copy template, điền secrets thật
+# Copy template, fill in real secrets
 cp deploy/gitops/apps/openstack-monitoring/helm-values.yaml.example \
    ~/o11y-helm-values.yaml
 
-# Điền BOT_TOKEN và CHAT_ID thật vào file
+# Fill in BOT_TOKEN and CHAT_ID in the file
 nano ~/o11y-helm-values.yaml
 
 # Apply
@@ -66,8 +65,9 @@ helm upgrade o11y prometheus-community/kube-prometheus-stack \
   -f ~/o11y-helm-values.yaml
 ```
 
-**Lưu ý quan trọng:**
-- `grafana.persistence.enabled: false` — giữ nguyên, tránh conflict datasource
-- `additionalScrapeConfigs: []` — scrape config AWS được patch riêng vào secret,
-  không đặt trong helm values để tránh bị overwrite khi upgrade
-- File `~/o11y-helm-values.yaml` trên server có secrets thật, **không commit vào Git**
+**Important notes:**
+
+- `grafana.persistence.enabled: false` - keep it false to avoid datasource conflicts
+- `additionalScrapeConfigs: []` - AWS scrape configs are patched separately into the secret,
+  do not put them in helm values to avoid being overwritten during upgrades
+- The `~/o11y-helm-values.yaml` file on the server contains real secrets, **do not commit it to Git**
