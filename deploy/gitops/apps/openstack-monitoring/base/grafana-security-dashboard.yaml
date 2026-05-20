@@ -21,7 +21,7 @@ data:
           "title": "SSH Auth Failures",
           "type": "logs",
           "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
-          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "datasource": {"type": "loki", "uid": "P8E80F9AEF21F6940"},
           "targets": [{
             "expr": "{job=~\".*\"} |~ \"(?i)authentication failure|failed password|invalid user\"",
             "refId": "A"
@@ -38,7 +38,7 @@ data:
           "title": "K3s System Logs",
           "type": "logs",
           "gridPos": {"h": 10, "w": 24, "x": 0, "y": 10},
-          "datasource": {"type": "loki", "uid": "efmis3az8o4cgf"},
+          "datasource": {"type": "loki", "uid": "P8E80F9AEF21F6940"},
           "targets": [{
             "expr": "{namespace=\"kube-system\"}",
             "refId": "A"
