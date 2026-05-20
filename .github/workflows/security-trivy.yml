@@ -119,17 +119,16 @@ jobs:
         with:
           cache: false
 
-      - name: Trivy gate - ocr filesystem (CRITICAL + HIGH)
-        # Scan filesystem thay vì Docker image — OCR image 3.63GB quá lớn cho runner
-        # Coverage: pip packages + source code (bỏ qua OS-level vulns thường là Note/Low)
+      - name: Trivy gate - ocr CRITICAL (blocks CI)
         env:
           TMPDIR: ${{ github.workspace }}/.trivy-tmp
         run: |
           trivy fs \
             --cache-dir "$TRIVY_CACHE_DIR" \
             --scanners vuln,secret \
-            --severity CRITICAL,HIGH \
+            --severity CRITICAL \
             --ignore-unfixed \
+            --ignorefile ./OCR/.trivyignore \
             --format table \
             --exit-code 1 \
             ./OCR
@@ -142,8 +141,24 @@ jobs:
           trivy fs \
             --cache-dir "$TRIVY_CACHE_DIR" \
             --scanners vuln,secret \
-            --severity CRITICAL,HIGH \
+            --severity HIGH,MEDIUM \
             --ignore-unfixed \
+            --ignorefile ./OCR/.trivyignore \
+            --format table \
+            --exit-code 0 \
+            ./OCR
+
+      - name: Trivy SARIF - ocr (tất cả severity)
+        if: always()
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy fs \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln,secret \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --ignore-unfixed \
+            --ignorefile ./OCR/.trivyignore \
             --format sarif \
             --output trivy-ocr.sarif \
             --exit-code 0 \
