@@ -65,6 +65,15 @@ grafana:
     kubernetes.io/hostname: data-core-node
   persistence:
     enabled: false  # Giữ false — tránh conflict datasource default khi upgrade
+  grafana.ini:
+    metrics:
+      enabled: true
+    metrics.basicauth:
+      enabled: false
+    server:
+      metrics_endpoint_enabled: true
+  serviceMonitor:
+    enabled: false  # Grafana v12 không expose /metrics trên port 3000
 
 kube-state-metrics:
   nodeSelector:
@@ -72,7 +81,13 @@ kube-state-metrics:
 
 prometheus:
   prometheusSpec:
+    nodeSelector:
+      kubernetes.io/hostname: k3s-master-vpn  # Phải trên master — chỉ node này có WireGuard để scrape AWS nodes
     # additionalScrapeConfigs được patch riêng vào secret
     # o11y-kube-prometheus-stack-prometheus-scrape-confg
     # KHÔNG đặt ở đây để tránh bị overwrite khi helm upgrade
     additionalScrapeConfigs: []
+    additionalScrapeConfigsSecret:
+      enabled: true
+      name: o11y-kube-prometheus-stack-prometheus-scrape-confg
+      key: additional-scrape-configs.yaml
