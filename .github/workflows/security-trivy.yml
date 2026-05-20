@@ -6,9 +6,9 @@ env:
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_call:
   workflow_dispatch:
 
@@ -20,6 +20,7 @@ jobs:
   trivy-backend:
     name: Trivy Backend
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write
@@ -114,9 +115,15 @@ jobs:
         with:
           context: ./OCR
           tags: local/healthcare-ocr:scan
-          load: true
+          load: false
+          outputs: type=docker,dest=/tmp/ocr-image.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Load OCR image from tar
+        run: |
+          docker load < /tmp/ocr-image.tar
+          rm /tmp/ocr-image.tar
 
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@v0.2.6
