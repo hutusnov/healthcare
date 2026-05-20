@@ -1,12 +1,14 @@
 # Wazuh Setup Runbook
 
 ## Manager (data-core-node Docker)
+
 ```bash
 cd ~/wazuh-docker/single-node
 docker compose up -d
 ```
 
 ## Agents (chạy trên từng node)
+
 ```bash
 curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | \
   sudo gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import
@@ -20,10 +22,30 @@ sudo sed -i 's/MANAGER_IP/192.168.100.83/' /var/ossec/etc/ossec.conf
 sudo systemctl enable wazuh-agent && sudo systemctl start wazuh-agent
 ```
 
+## Telegram Alert Integration
+
+Script: `~/wazuh-docker/single-node/config/custom-telegram.py`
+
+Bind mount trong docker-compose.yml:
+./config/custom-telegram.py:/var/ossec/integrations/custom-telegram
+
+Config trong wazuh_manager.conf:
+```xml
+<integration>
+  <name>custom-telegram</name>
+  <level>10</level>
+  <alert_format>json</alert_format>
+</integration>
+```
+
+> Bot token và chat ID lưu trong script trên server, không commit vào Git.
+
 ## CloudTrail Integration
+
 AWS credentials stored in /root/.aws/credentials inside wazuh.manager container.
 Config in ~/wazuh-docker/single-node/config/wazuh_cluster/wazuh_manager.conf
 
 ## Cloudflare Tunnel
-wazuh-healthcare.htsnov.com → https://192.168.100.83:443 (noTLSVerify: true)
+
+wazuh-healthcare.htsnov.com → <https://192.168.100.83:443> (noTLSVerify: true)
 in /etc/cloudflared/config.yml on k3s-master-vpn

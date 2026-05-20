@@ -1,0 +1,78 @@
+# Helm values cho kube-prometheus-stack (o11y)
+# Apply bằng: helm upgrade o11y prometheus-community/kube-prometheus-stack -n monitoring -f helm-values.yaml
+# KHÔNG commit file thật vào Git (có secrets)
+# File này là template tham khảo
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      kubernetes.io/hostname: data-core-node
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace', 'severity']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: telegram
+      routes:
+      - matchers:
+        - alertname = "Watchdog"
+        receiver: "null"
+      - matchers:
+        - severity = "critical"
+        receiver: telegram
+        repeat_interval: 1h
+      - matchers:
+        - severity = "warning"
+        receiver: telegram
+        repeat_interval: 4h
+    receivers:
+    - name: "null"
+    - name: telegram
+      telegram_configs:
+      - bot_token: 'CHANGE_ME_BOT_TOKEN'
+        chat_id: CHANGE_ME_CHAT_ID
+        parse_mode: HTML
+        message: |
+          {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} <b>{{ .CommonLabels.alertname }}</b>
+          <b>Status:</b> {{ .Status | toUpper }}
+          <b>Severity:</b> {{ .CommonLabels.severity }}
+          {{ range .Alerts }}<b>Summary:</b> {{ .Annotations.summary }}
+          <b>Detail:</b> {{ .Annotations.description }}{{ end }}
+    inhibit_rules:
+    - source_matchers:
+      - severity = critical
+      target_matchers:
+      - severity =~ warning|info
+      equal:
+      - namespace
+      - alertname
+    templates:
+    - /etc/alertmanager/config/*.tmpl
+
+grafana:
+  nodeSelector:
+    kubernetes.io/hostname: data-core-node
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClassName: local-path
+
+kube-state-metrics:
+  nodeSelector:
+    kubernetes.io/hostname: data-core-node
+
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+    - job_name: aws-hybrid-nodes
+      static_configs:
+      - targets:
+        - 10.8.0.1:9100
+        - 10.0.138.155:9100   # ← đã fix: 137 → 138
+    - job_name: lab-database-node
+      static_configs:
+      - targets:
+        - 192.168.100.83:9100
