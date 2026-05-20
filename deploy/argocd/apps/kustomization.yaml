@@ -5,3 +5,4 @@ resources:
   - aws-backend-application.yaml
   - private-ocr-application.yaml
   - openstack-monitoring-application.yaml
+  - loki-application.yaml
