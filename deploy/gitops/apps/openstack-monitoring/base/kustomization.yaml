@@ -8,4 +8,3 @@ resources:
   - grafana-loki-dashboard.yaml
   - grafana-security-dashboard.yaml
   - healthcare-alerts.yaml
-  - loki-nodeport.yaml
