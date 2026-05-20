@@ -48,7 +48,7 @@ jobs:
         with:
           cache: false
 
-      - name: Trivy gate - backend (CRITICAL)
+      - name: Trivy gate - backend CRITICAL (blocks CI)
         env:
           TMPDIR: ${{ github.workspace }}/.trivy-tmp
         run: |
@@ -61,7 +61,7 @@ jobs:
             --exit-code 1 \
             local/healthcare-backend:scan
 
-      - name: Trivy SARIF - backend
+      - name: Trivy report - backend HIGH/MEDIUM (không block)
         if: always()
         env:
           TMPDIR: ${{ github.workspace }}/.trivy-tmp
@@ -69,7 +69,21 @@ jobs:
           trivy image \
             --cache-dir "$TRIVY_CACHE_DIR" \
             --scanners vuln \
-            --severity CRITICAL \
+            --severity HIGH,MEDIUM \
+            --ignore-unfixed \
+            --format table \
+            --exit-code 0 \
+            local/healthcare-backend:scan
+
+      - name: Trivy SARIF - backend (tất cả severity)
+        if: always()
+        env:
+          TMPDIR: ${{ github.workspace }}/.trivy-tmp
+        run: |
+          trivy image \
+            --cache-dir "$TRIVY_CACHE_DIR" \
+            --scanners vuln \
+            --severity CRITICAL,HIGH,MEDIUM \
             --ignore-unfixed \
             --format sarif \
             --output trivy-backend.sarif \
@@ -120,7 +134,7 @@ jobs:
             --exit-code 1 \
             ./OCR
 
-      - name: Trivy SARIF - ocr
+      - name: Trivy report - ocr HIGH/MEDIUM (không block)
         if: always()
         env:
           TMPDIR: ${{ github.workspace }}/.trivy-tmp
