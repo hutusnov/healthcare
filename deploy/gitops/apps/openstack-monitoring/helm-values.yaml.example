@@ -1,7 +1,12 @@
-# Helm values cho kube-prometheus-stack (o11y)
-# Apply bằng: helm upgrade o11y prometheus-community/kube-prometheus-stack -n monitoring -f helm-values.yaml
-# KHÔNG commit file thật vào Git (có secrets)
-# File này là template tham khảo
+# Helm values cho kube-prometheus-stack (release: o11y)
+# Copy file này thành helm-values.yaml, điền CHANGE_ME, rồi apply:
+#
+#   helm upgrade o11y prometheus-community/kube-prometheus-stack \
+#     -n monitoring \
+#     -f helm-values.yaml
+#
+# KHÔNG commit helm-values.yaml vào Git (có secrets).
+# File này (helm-values.yaml.example) là template tham khảo.
 
 alertmanager:
   alertmanagerSpec:
@@ -10,24 +15,14 @@ alertmanager:
   config:
     global:
       resolve_timeout: 5m
-    route:
-      group_by: ['alertname', 'namespace', 'severity']
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 4h
-      receiver: telegram
-      routes:
-      - matchers:
-        - alertname = "Watchdog"
-        receiver: "null"
-      - matchers:
-        - severity = "critical"
-        receiver: telegram
-        repeat_interval: 1h
-      - matchers:
-        - severity = "warning"
-        receiver: telegram
-        repeat_interval: 4h
+    inhibit_rules:
+    - equal:
+      - namespace
+      - alertname
+      source_matchers:
+      - severity = critical
+      target_matchers:
+      - severity =~ warning|info
     receivers:
     - name: "null"
     - name: telegram
@@ -41,14 +36,27 @@ alertmanager:
           <b>Severity:</b> {{ .CommonLabels.severity }}
           {{ range .Alerts }}<b>Summary:</b> {{ .Annotations.summary }}
           <b>Detail:</b> {{ .Annotations.description }}{{ end }}
-    inhibit_rules:
-    - source_matchers:
-      - severity = critical
-      target_matchers:
-      - severity =~ warning|info
-      equal:
-      - namespace
+    route:
+      group_by:
       - alertname
+      - namespace
+      - severity
+      group_interval: 5m
+      group_wait: 30s
+      receiver: telegram
+      repeat_interval: 4h
+      routes:
+      - matchers:
+        - alertname = "Watchdog"
+        receiver: "null"
+      - matchers:
+        - severity = "critical"
+        receiver: telegram
+        repeat_interval: 1h
+      - matchers:
+        - severity = "warning"
+        receiver: telegram
+        repeat_interval: 4h
     templates:
     - /etc/alertmanager/config/*.tmpl
 
@@ -56,9 +64,7 @@ grafana:
   nodeSelector:
     kubernetes.io/hostname: data-core-node
   persistence:
-    enabled: true
-    size: 2Gi
-    storageClassName: local-path
+    enabled: false  # Giữ false — tránh conflict datasource default khi upgrade
 
 kube-state-metrics:
   nodeSelector:
@@ -66,13 +72,7 @@ kube-state-metrics:
 
 prometheus:
   prometheusSpec:
-    additionalScrapeConfigs:
-    - job_name: aws-hybrid-nodes
-      static_configs:
-      - targets:
-        - 10.8.0.1:9100
-        - 10.0.138.155:9100   # ← đã fix: 137 → 138
-    - job_name: lab-database-node
-      static_configs:
-      - targets:
-        - 192.168.100.83:9100
+    # additionalScrapeConfigs được patch riêng vào secret
+    # o11y-kube-prometheus-stack-prometheus-scrape-confg
+    # KHÔNG đặt ở đây để tránh bị overwrite khi helm upgrade
+    additionalScrapeConfigs: []
