@@ -120,11 +120,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Load OCR image from tar
-        run: |
-          docker load < /tmp/ocr-image.tar
-          rm /tmp/ocr-image.tar
-
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@v0.2.6
         with:
@@ -141,7 +136,7 @@ jobs:
             --ignore-unfixed \
             --format table \
             --exit-code 1 \
-            local/healthcare-ocr:scan
+            --input /tmp/ocr-image.tar
 
       - name: Trivy SARIF - ocr
         if: always()
@@ -156,7 +151,13 @@ jobs:
             --format sarif \
             --output trivy-ocr.sarif \
             --exit-code 0 \
-            local/healthcare-ocr:scan
+            --input /tmp/ocr-image.tar
+
+      - name: Cleanup Trivy OCR temp files
+        if: always()
+        run: |
+          rm -f /tmp/ocr-image.tar
+          rm -rf "$GITHUB_WORKSPACE/.trivy-tmp" "$TRIVY_CACHE_DIR"
 
       - name: Upload ocr SARIF
         if: always() && hashFiles('trivy-ocr.sarif') != ''
@@ -164,10 +165,6 @@ jobs:
         with:
           sarif_file: trivy-ocr.sarif
           category: trivy-ocr
-
-      - name: Cleanup Trivy OCR temp files
-        if: always()
-        run: rm -rf "$GITHUB_WORKSPACE/.trivy-tmp" "$TRIVY_CACHE_DIR"
 
   notify:
     name: Notify Telegram
