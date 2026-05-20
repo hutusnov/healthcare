@@ -1,0 +1,93 @@
+# Helm values cho kube-prometheus-stack (release: o11y)
+# Copy file này thành helm-values.yaml, điền CHANGE_ME, rồi apply:
+#
+#   helm upgrade o11y prometheus-community/kube-prometheus-stack \
+#     -n monitoring \
+#     -f helm-values.yaml
+#
+# KHÔNG commit helm-values.yaml vào Git (có secrets).
+# File này (helm-values.yaml.example) là template tham khảo.
+
+alertmanager:
+  alertmanagerSpec:
+    nodeSelector:
+      kubernetes.io/hostname: data-core-node
+  config:
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+    - equal:
+      - namespace
+      - alertname
+      source_matchers:
+      - severity = critical
+      target_matchers:
+      - severity =~ warning|info
+    receivers:
+    - name: "null"
+    - name: telegram
+      telegram_configs:
+      - bot_token: 'CHANGE_ME_BOT_TOKEN'
+        chat_id: CHANGE_ME_GROUP_CHAT_ID   # Group chat ID (negative number)
+        parse_mode: HTML
+        message: |
+          {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} <b>{{ .CommonLabels.alertname }}</b>
+          <b>Status:</b> {{ .Status | toUpper }}
+          <b>Severity:</b> {{ .CommonLabels.severity }}
+          {{ range .Alerts }}<b>Summary:</b> {{ .Annotations.summary }}
+          <b>Detail:</b> {{ .Annotations.description }}{{ end }}
+    route:
+      group_by:
+      - alertname
+      - namespace
+      - severity
+      group_interval: 5m
+      group_wait: 30s
+      receiver: telegram
+      repeat_interval: 4h
+      routes:
+      - matchers:
+        - alertname = "Watchdog"
+        receiver: "null"
+      - matchers:
+        - severity = "critical"
+        receiver: telegram
+        repeat_interval: 1h
+      - matchers:
+        - severity = "warning"
+        receiver: telegram
+        repeat_interval: 4h
+    templates:
+    - /etc/alertmanager/config/*.tmpl
+
+grafana:
+  nodeSelector:
+    kubernetes.io/hostname: data-core-node
+  persistence:
+    enabled: false  # Giữ false — tránh conflict datasource default khi upgrade
+  grafana.ini:
+    metrics:
+      enabled: true
+    metrics.basicauth:
+      enabled: false
+    server:
+      metrics_endpoint_enabled: true
+  serviceMonitor:
+    enabled: false  # Grafana v12 không expose /metrics trên port 3000
+
+kube-state-metrics:
+  nodeSelector:
+    kubernetes.io/hostname: data-core-node
+
+prometheus:
+  prometheusSpec:
+    nodeSelector:
+      kubernetes.io/hostname: k3s-master-vpn  # Phải trên master — chỉ node này có WireGuard để scrape AWS nodes
+    # additionalScrapeConfigs được patch riêng vào secret
+    # o11y-kube-prometheus-stack-prometheus-scrape-confg
+    # KHÔNG đặt ở đây để tránh bị overwrite khi helm upgrade
+    additionalScrapeConfigs: []
+    additionalScrapeConfigsSecret:
+      enabled: true
+      name: o11y-kube-prometheus-stack-prometheus-scrape-confg
+      key: additional-scrape-configs.yaml

@@ -164,6 +164,8 @@ jobs:
 
       - name: Terraform plan (dev) when tfvars exists
         if: steps.gate.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
         run: |
           TF_DIR="$GITHUB_WORKSPACE/infra/terraform/envs/dev"
