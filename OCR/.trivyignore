@@ -1,0 +1,5 @@
+# pillow HIGH CVEs - cannot upgrade beyond 10.3.0 due to vietocr==0.3.13 dependency conflict
+# Track: https://github.com/pbcquoc/vietocr/issues
+CVE-2026-25990
+CVE-2026-40192
+CVE-2026-42311
