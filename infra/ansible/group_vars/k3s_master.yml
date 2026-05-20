@@ -1,0 +1,6 @@
+# Vars chỉ áp dụng cho group k3s_master
+wireguard_listen_port: 51820
+wireguard_interface: wg0
+
+# K3s server flags
+k3s_server_args: "--disable traefik --disable servicelb"

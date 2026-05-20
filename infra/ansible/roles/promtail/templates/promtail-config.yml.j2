@@ -1,0 +1,30 @@
+# Managed by Ansible — DO NOT EDIT MANUALLY
+# Template: roles/promtail/templates/promtail-config.yml.j2
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: {{ promtail_positions_file }}
+
+clients:
+  - url: {{ loki_url }}/loki/api/v1/push
+
+scrape_configs:
+{% for sc in promtail_scrape_configs %}
+  - job_name: {{ sc.job_name }}
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: {{ sc.job_name }}
+          __path__: {{ sc.path }}
+{% for key, val in promtail_labels.items() %}
+          {{ key }}: {{ val }}
+{% endfor %}
+{% for key, val in (sc.labels | default({})).items() %}
+          {{ key }}: {{ val }}
+{% endfor %}
+
+{% endfor %}

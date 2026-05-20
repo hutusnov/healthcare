@@ -1,0 +1,17 @@
+# Managed by Ansible — DO NOT EDIT MANUALLY
+# Template: roles/wireguard/templates/wg0-server.conf.j2
+[Interface]
+Address    = {{ wireguard_ip }}/{{ wireguard_network | ansible.utils.ipaddr('prefix') }}
+ListenPort = {{ wireguard_listen_port }}
+PrivateKey = {{ wg_privkey_raw['content'] | b64decode | trim }}
+
+# Enable NAT để workers có thể ping nhau qua VPN
+PostUp   = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+{% for peer in wireguard_peers %}
+[Peer]
+# {{ peer.name }}
+PublicKey  = {{ peer.pubkey }}
+AllowedIPs = {{ peer.allowed_ips }}
+{% endfor %}

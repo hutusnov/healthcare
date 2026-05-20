@@ -1,0 +1,35 @@
+---
+promtail_version: "2.9.8"
+promtail_arch: amd64
+promtail_download_url: >-
+  https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-{{ promtail_arch }}.zip
+
+promtail_binary: /usr/local/bin/promtail
+promtail_config_dir: /etc/promtail
+promtail_config_file: "{{ promtail_config_dir }}/config.yml"
+promtail_data_dir: /var/lib/promtail
+promtail_positions_file: "{{ promtail_data_dir }}/positions.yaml"
+
+loki_url: http://localhost:3100
+
+promtail_labels:
+  project: "{{ project_name | default('unknown') }}"
+  env: "{{ env | default('dev') }}"
+  node: "{{ inventory_hostname }}"
+
+# Log paths cần scrape
+promtail_scrape_configs:
+  - job_name: system
+    path: /var/log/syslog
+    labels:
+      log_type: syslog
+
+  - job_name: k3s
+    path: /var/log/k3s.log
+    labels:
+      log_type: k3s
+
+  - job_name: containers
+    path: /var/log/containers/*.log
+    labels:
+      log_type: container
