@@ -28,7 +28,7 @@ alertmanager:
     - name: telegram
       telegram_configs:
       - bot_token: 'CHANGE_ME_BOT_TOKEN'
-        chat_id: CHANGE_ME_CHAT_ID
+        chat_id: CHANGE_ME_GROUP_CHAT_ID   # Group chat ID (negative number)
         parse_mode: HTML
         message: |
           {{ if eq .Status "firing" }}🔴{{ else }}✅{{ end }} <b>{{ .CommonLabels.alertname }}</b>
