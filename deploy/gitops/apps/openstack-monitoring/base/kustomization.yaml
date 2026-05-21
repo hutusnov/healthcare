@@ -8,3 +8,6 @@ resources:
   - grafana-loki-dashboard.yaml
   - grafana-security-dashboard.yaml
   - healthcare-alerts.yaml
+  - postgres-exporter.yaml
+  - pgadmin.yaml
+  - grafana-postgres-dashboard.yaml

@@ -85,6 +85,53 @@ spec:
         summary: "Backend AWS is DOWN"
         description: "Backend instance {{ $labels.instance }} is not responding"
 
+  - name: healthcare.postgres
+    rules:
+    - alert: PostgresDown
+      expr: up{job="postgres-exporter"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PostgreSQL is DOWN"
+        description: "postgres-exporter không thể kết nối PostgreSQL trên data-core-node"
+
+    - alert: TooManyConnections
+      expr: sum(pg_stat_activity_count) > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PostgreSQL quá nhiều connections"
+        description: "Connection count hiện tại: {{ $value }} (ngưỡng: 80)"
+
+    - alert: TooManyConnectionsCritical
+      expr: sum(pg_stat_activity_count) > 95
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "PostgreSQL connections gần đầy"
+        description: "Connection count: {{ $value }} — sắp đạt max_connections"
+
+    - alert: DBDiskUsageHigh
+      expr: pg_database_size_bytes{datname="project_test"} > 5368709120
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PostgreSQL database size cao"
+        description: "Database project_test đạt {{ $value | humanize1024 }} (ngưỡng: 5 GiB)"
+
+    - alert: PostgresDeadlockDetected
+      expr: rate(pg_stat_database_deadlocks_total{datname="project_test"}[5m]) > 0
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "PostgreSQL có deadlock"
+        description: "Phát hiện deadlock trên database project_test"
+
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

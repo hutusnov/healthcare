@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-postgres-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  postgres.json: |-
+    {
+      "title": "UIT Healthcare - PostgreSQL",
+      "uid": "postgres-db",
+      "tags": ["postgresql", "database"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "time": {"from": "now-1h", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "label": "Datasource",
+            "current": {}
+          },
+          {
+            "name": "datname",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "${datasource}"},
+            "query": "label_values(pg_database_size_bytes, datname)",
+            "label": "Database",
+            "current": {},
+            "includeAll": false
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "PostgreSQL Up",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 3, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "up{job=\"postgres-exporter\"}", "refId": "A"}],
+          "options": {
+            "reduceOptions": {"calcs": ["lastNotNull"]},
+            "colorMode": "background",
+            "graphMode": "none"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}
+              ],
+              "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": 0}, {"color": "green", "value": 1}]}
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Total Connections",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 3, "x": 3, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "sum(pg_stat_activity_count)", "refId": "A"}],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 50}, {"color": "red", "value": 80}]}
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Active Queries",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 3, "x": 6, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "sum(pg_stat_activity_count{state=\"active\"})", "refId": "A"}],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 10}, {"color": "red", "value": 30}]}
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "Database Size",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 4, "x": 9, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "pg_database_size_bytes{datname=\"$datname\"}", "refId": "A"}],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "none"},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 2147483648}, {"color": "red", "value": 5368709120}]}
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Cache Hit Rate",
+          "type": "gauge",
+          "gridPos": {"h": 4, "w": 4, "x": 13, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{
+            "expr": "sum(rate(pg_stat_database_blks_hit_total{datname=\"$datname\"}[5m])) / (sum(rate(pg_stat_database_blks_hit_total{datname=\"$datname\"}[5m])) + sum(rate(pg_stat_database_blks_read_total{datname=\"$datname\"}[5m])))",
+            "refId": "A"
+          }],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "minVizWidth": 75},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "min": 0, "max": 1,
+              "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 0.9}, {"color": "green", "value": 0.99}]}
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Total Locks",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 3, "x": 17, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "sum(pg_locks_count)", "refId": "A"}],
+          "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 20}, {"color": "red", "value": 50}]}
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "Transactions / sec",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [
+            {"expr": "rate(pg_stat_database_xact_commit_total{datname=\"$datname\"}[5m])", "legendFormat": "Committed", "refId": "A"},
+            {"expr": "rate(pg_stat_database_xact_rollback_total{datname=\"$datname\"}[5m])", "legendFormat": "Rolled back", "refId": "B"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "reqps"}},
+          "options": {"tooltip": {"mode": "multi"}}
+        },
+        {
+          "id": 8,
+          "title": "Connections by State",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [
+            {"expr": "pg_stat_activity_count{state=\"active\"}", "legendFormat": "active", "refId": "A"},
+            {"expr": "pg_stat_activity_count{state=\"idle\"}", "legendFormat": "idle", "refId": "B"},
+            {"expr": "pg_stat_activity_count{state=\"idle in transaction\"}", "legendFormat": "idle in tx", "refId": "C"}
+          ],
+          "options": {"tooltip": {"mode": "multi"}}
+        },
+        {
+          "id": 9,
+          "title": "Deadlocks / sec",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "rate(pg_stat_database_deadlocks_total{datname=\"$datname\"}[5m])", "legendFormat": "deadlocks/s", "refId": "A"}],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": 0}, {"color": "red", "value": 0.1}]},
+              "custom": {"thresholdsStyle": {"mode": "line+area"}}
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Locks by Type",
+          "type": "timeseries",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+          "datasource": {"type": "prometheus", "uid": "${datasource}"},
+          "targets": [{"expr": "pg_locks_count", "legendFormat": "{{mode}}", "refId": "A"}],
+          "options": {"tooltip": {"mode": "multi"}}
+        }
+      ]
+    }
