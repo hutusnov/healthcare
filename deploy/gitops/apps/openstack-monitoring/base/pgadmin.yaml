@@ -34,6 +34,9 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: data-core-node
+      securityContext:
+        fsGroup: 5050
+        runAsUser: 5050
       containers:
         - name: pgadmin
           image: dpage/pgadmin4:8.14
