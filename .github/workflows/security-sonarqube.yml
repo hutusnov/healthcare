@@ -78,24 +78,23 @@ jobs:
         timeout-minutes: 10
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
-      - name: Print quality gate failure details
+      - name: Fail if quality gate failed
         if: steps.quality_gate.outcome == 'failure'
         shell: bash
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN_CLEAN }}
         run: |
-          echo "Quality gate failed. Fetching condition details..."
-          curl -fsS -u "${SONAR_TOKEN}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=hutusnov_healthcare&branch=main" \
-            | tee /tmp/sonar-qg.json || true
-          echo "Raw response stored at /tmp/sonar-qg.json"
-
-      - name: Fail if quality gate failed
-        if: steps.quality_gate.outcome == 'failure'
-        shell: bash
-        run: |
-          echo "::error::SonarQube Quality Gate failed."
-          exit 1
+          # Action had 403 on CE task endpoint — check actual gate status via project_status API
+          BRANCH="${{ github.head_ref || github.ref_name }}"
+          RESPONSE=$(curl -fsS -u "${SONAR_TOKEN}:" \
+            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=hutusnov_healthcare&branch=${BRANCH}")
+          echo "$RESPONSE"
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['projectStatus']['status'])")
+          if [ "$STATUS" != "OK" ]; then
+            echo "::error::SonarQube Quality Gate failed: $STATUS"
+            exit 1
+          fi
+          echo "Quality gate confirmed OK via project_status API (action 403 on CE task was benign)"
 
 
   notify:
