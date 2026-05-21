@@ -58,7 +58,7 @@ spec:
             - name: PGADMIN_CONFIG_WTF_CSRF_SSL_STRICT
               value: "False"
             - name: PGADMIN_CONFIG_PREFERRED_URL_SCHEME
-              value: "https"
+              value: '"https"'
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin
