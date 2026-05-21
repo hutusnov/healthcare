@@ -153,7 +153,7 @@ spec:
         description: "Số client hiện tại: {{ $value }} (ngưỡng: 100)"
 
     - alert: RedisMemoryHigh
-      expr: redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 80
+      expr: (redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 80) and redis_memory_max_bytes{job="redis-exporter"} > 0
       for: 5m
       labels:
         severity: warning
@@ -162,7 +162,7 @@ spec:
         description: "Redis đang dùng {{ $value | humanize }}% max memory"
 
     - alert: RedisMemoryCritical
-      expr: redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 95
+      expr: (redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 95) and redis_memory_max_bytes{job="redis-exporter"} > 0
       for: 2m
       labels:
         severity: critical
@@ -182,7 +182,7 @@ spec:
   - name: healthcare.rabbitmq
     rules:
     - alert: RabbitMQDown
-      expr: up{job="rabbitmq-exporter"} == 0
+      expr: up{job="rabbitmq-prometheus"} == 0
       for: 2m
       labels:
         severity: critical
@@ -191,7 +191,7 @@ spec:
         description: "rabbitmq-exporter không thể kết nối RabbitMQ trên data-core-node"
 
     - alert: RabbitMQQueueBacklog
-      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 1000
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-prometheus"} > 1000
       for: 5m
       labels:
         severity: warning
@@ -200,7 +200,7 @@ spec:
         description: "Queue {{ $labels.queue }} có {{ $value | humanize }} messages chờ xử lý"
 
     - alert: RabbitMQQueueBacklogCritical
-      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 5000
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-prometheus"} > 5000
       for: 2m
       labels:
         severity: critical
@@ -209,7 +209,7 @@ spec:
         description: "Queue {{ $labels.queue }} có {{ $value | humanize }} messages — consumer có thể bị stuck"
 
     - alert: RabbitMQNoConsumers
-      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 10 and rabbitmq_consumers{job="rabbitmq-exporter"} == 0
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-prometheus"} > 10 and rabbitmq_consumers{job="rabbitmq-prometheus"} == 0
       for: 5m
       labels:
         severity: warning
@@ -218,7 +218,7 @@ spec:
         description: "Có messages trong queue nhưng không có consumer đang chạy"
 
     - alert: RabbitMQMemoryHigh
-      expr: rabbitmq_node_mem_used{job="rabbitmq-exporter"} / rabbitmq_node_mem_limit{job="rabbitmq-exporter"} * 100 > 80
+      expr: (rabbitmq_node_mem_used{job="rabbitmq-prometheus"} / rabbitmq_node_mem_limit{job="rabbitmq-prometheus"} * 100 > 80) and rabbitmq_node_mem_limit{job="rabbitmq-prometheus"} > 0
       for: 5m
       labels:
         severity: warning
