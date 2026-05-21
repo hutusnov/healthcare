@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.lock
 
+      - name: Install pip-audit
+        run: pip install pip-audit
+
       - name: Security audit
         run: pip install pip-audit && pip-audit -r requirements.lock
 
