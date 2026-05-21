@@ -30,7 +30,15 @@ jobs:
         run: pip install -r requirements.lock pip-audit
 
       - name: Security audit
-        run: pip-audit --skip-editable --progress-spinner=off
+        run: |
+          IGNORE=$(python3 -c "
+          import tomllib
+          with open('pyproject.toml', 'rb') as f:
+              c = tomllib.load(f)
+          ids = c.get('tool', {}).get('pip-audit', {}).get('ignore-vuln', [])
+          print(' '.join(f'--ignore-vuln {i}' for i in ids))
+          ")
+          pip-audit --skip-editable --progress-spinner=off $IGNORE
 
       - name: Syntax check
         run: python -m py_compile main.py ocr_services.py util.py

@@ -2,6 +2,7 @@
 const prisma = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { randomInt } = require('crypto');
 const config = require('../../config/env');
 const mailer = require('../../utils/mailer');
 
@@ -96,9 +97,9 @@ async function register({ email, password, fullName, role = 'PATIENT', specialty
 
 /* ===================== RESET PASSWORD (Email code) ===================== */
 
-/** Sinh mã 6 số */
+/** Sinh mã 6 số — dùng crypto.randomInt để đảm bảo tính ngẫu nhiên bảo mật */
 function gen6() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return randomInt(100000, 1000000).toString();
 }
 
 /**
