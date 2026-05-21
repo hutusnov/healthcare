@@ -42,8 +42,12 @@ spec:
       kind: Role
     - group: rbac.authorization.k8s.io
       kind: RoleBinding
+    - group: ""
+      kind: Endpoints
     - group: monitoring.coreos.com
       kind: PrometheusRule
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
   orphanedResources:
     warn: true
   syncWindows:
