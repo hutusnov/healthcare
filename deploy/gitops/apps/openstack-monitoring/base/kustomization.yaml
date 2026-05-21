@@ -11,3 +11,7 @@ resources:
   - postgres-exporter.yaml
   - pgadmin.yaml
   - grafana-postgres-dashboard.yaml
+  - redis-exporter.yaml
+  - grafana-redis-dashboard.yaml
+  - rabbitmq-exporter.yaml
+  - grafana-rabbitmq-dashboard.yaml
