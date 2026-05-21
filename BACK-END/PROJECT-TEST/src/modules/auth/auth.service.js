@@ -2,7 +2,7 @@
 const prisma = require('../../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { randomInt } = require('crypto');
+const { randomInt } = require('node:crypto');
 const config = require('../../config/env');
 const mailer = require('../../utils/mailer');
 

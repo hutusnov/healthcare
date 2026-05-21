@@ -1,5 +1,5 @@
 const axios = require('axios');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const prisma = require('../../config/db');
 const config = require('../../config/env');
 const { notifyBooked } = require('../notifications/notifications.service');

@@ -32,11 +32,10 @@ jobs:
       - name: Security audit
         run: |
           IGNORE=$(python3 -c "
-          import tomllib
-          with open('pyproject.toml', 'rb') as f:
-              c = tomllib.load(f)
-          ids = c.get('tool', {}).get('pip-audit', {}).get('ignore-vuln', [])
-          print(' '.join(f'--ignore-vuln {i}' for i in ids))
+          import re
+          text = open('pyproject.toml').read()
+          ids = re.findall(r'\"((?:PYSEC|CVE)-[\w-]+)\"', text)
+          print(' '.join('--ignore-vuln ' + i for i in ids))
           ")
           pip-audit --skip-editable --progress-spinner=off $IGNORE
 
