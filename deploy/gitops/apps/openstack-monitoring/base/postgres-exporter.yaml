@@ -1,14 +1,6 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgres-exporter-secret
-  namespace: monitoring
-type: Opaque
-stringData:
-  # Format: postgresql://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=disable
-  # Điền password thực của PostgreSQL trước khi apply
-  DATA_SOURCE_NAME: "postgresql://postgres:CHANGE_ME@192.168.100.83:5432/project_test?sslmode=disable"
----
+# Secret phải tạo thủ công trên cluster — KHÔNG commit lên git:
+# kubectl -n monitoring create secret generic postgres-exporter-secret \
+#   --from-literal='DATA_SOURCE_NAME=postgresql://project:PASSWORD@192.168.100.83:5432/project_test?sslmode=disable'
 apiVersion: apps/v1
 kind: Deployment
 metadata:

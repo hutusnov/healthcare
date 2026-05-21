@@ -30,7 +30,7 @@ jobs:
         run: pip install -r requirements.lock
 
       - name: Security audit
-        run: pip audit
+        run: pip install pip-audit && pip-audit -r requirements.lock
 
       - name: Syntax check
         run: python -m py_compile main.py ocr_services.py util.py
