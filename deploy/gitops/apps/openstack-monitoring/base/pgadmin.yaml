@@ -1,7 +1,20 @@
 # Secret phải tạo thủ công trên cluster — KHÔNG commit lên git:
 # kubectl -n monitoring create secret generic pgadmin-secret \
-#   --from-literal=PGADMIN_DEFAULT_EMAIL=admin@healthcare.local \
+#   --from-literal=PGADMIN_DEFAULT_EMAIL=pgadmin@healthcare.htsnov.com \
 #   --from-literal='PGADMIN_DEFAULT_PASSWORD=PASSWORD'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-data
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -40,6 +53,9 @@ spec:
                   key: PGADMIN_DEFAULT_PASSWORD
             - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
               value: "True"
+          volumeMounts:
+            - name: pgadmin-data
+              mountPath: /var/lib/pgadmin
           resources:
             requests:
               cpu: 100m
@@ -47,6 +63,10 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+      volumes:
+        - name: pgadmin-data
+          persistentVolumeClaim:
+            claimName: pgadmin-data
 ---
 apiVersion: v1
 kind: Service
