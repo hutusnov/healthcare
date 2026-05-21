@@ -33,8 +33,7 @@ jobs:
         run: pip install pip-audit
 
       - name: Security audit
-        run: pip-audit -r requirements.lock --ignore-vuln PYSEC-2024-77 # pillow - blocked by vietocr constraint
-        continue-on-error: true  # report only, không block CI
+        run: pip install pip-audit && pip-audit -r requirements.lock
 
       - name: Syntax check
         run: python -m py_compile main.py ocr_services.py util.py

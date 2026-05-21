@@ -1,0 +1,37 @@
+[tool.pip-audit]
+# torch 2.6.0 — cannot upgrade: vietocr==0.3.13 + other OCR deps pin this version
+# Track: https://github.com/pbcquoc/vietocr/issues
+ignore-vuln = [
+    "PYSEC-2025-189",
+    "PYSEC-2025-190",
+    "PYSEC-2025-191",
+    "PYSEC-2025-192",
+    "PYSEC-2025-193",
+    "PYSEC-2025-194",
+    "PYSEC-2025-195",
+    "PYSEC-2025-196",
+    "PYSEC-2025-197",
+    "PYSEC-2025-198",
+    "PYSEC-2025-199",
+    "PYSEC-2025-200",
+    "PYSEC-2025-201",
+    "PYSEC-2025-202",
+    "PYSEC-2025-203",
+    "PYSEC-2025-204",
+    "PYSEC-2025-205",
+    "PYSEC-2025-206",
+    "PYSEC-2025-207",
+    "PYSEC-2025-208",
+    "PYSEC-2025-209",
+    "PYSEC-2025-210",
+    "PYSEC-2026-139",
+    "CVE-2025-3730",
+    # pillow 10.2.0 — constrained by vietocr==0.3.13
+    "CVE-2024-28219",
+    "CVE-2026-42308",
+    "CVE-2026-42310",
+    # gdown 4.4.0 — constrained by vietocr model download dependency
+    "CVE-2026-40491",
+    # joblib 1.5.3 — constrained by scikit-learn/vietocr dependency tree
+    "PYSEC-2024-277",
+]

@@ -1,0 +1,93 @@
+# Secret phải tạo thủ công trên cluster — KHÔNG commit lên git:
+# kubectl -n monitoring create secret generic pgadmin-secret \
+#   --from-literal=PGADMIN_DEFAULT_EMAIL=admin@healthcare.local \
+#   --from-literal='PGADMIN_DEFAULT_PASSWORD=PASSWORD'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: monitoring
+  labels:
+    app: pgadmin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: data-core-node
+      containers:
+        - name: pgadmin
+          image: dpage/pgadmin4:8.14
+          ports:
+            - name: http
+              containerPort: 80
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: pgadmin-secret
+                  key: PGADMIN_DEFAULT_EMAIL
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pgadmin-secret
+                  key: PGADMIN_DEFAULT_PASSWORD
+            - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
+              value: "True"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: monitoring
+  labels:
+    app: pgadmin
+spec:
+  selector:
+    app: pgadmin
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pgadmin-ingress
+  namespace: monitoring
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+    cert-manager.io/issuer-kind: ClusterOriginIssuer
+    cert-manager.io/issuer-group: cert-manager.k8s.cloudflare.com
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - pgadmin-healthcare.htsnov.com
+      secretName: tls-secret-pgadmin
+  rules:
+    - host: pgadmin-healthcare.htsnov.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pgadmin
+                port:
+                  number: 80
