@@ -27,13 +27,10 @@ jobs:
           cache-dependency-path: OCR/requirements.lock
 
       - name: Install dependencies
-        run: pip install -r requirements.lock
-
-      - name: Install pip-audit
-        run: pip install pip-audit
+        run: pip install -r requirements.lock pip-audit
 
       - name: Security audit
-        run: pip install pip-audit && pip-audit -r requirements.lock
+        run: pip-audit --skip-editable --progress-spinner=off
 
       - name: Syntax check
         run: python -m py_compile main.py ocr_services.py util.py
