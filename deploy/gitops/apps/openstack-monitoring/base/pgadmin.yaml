@@ -55,6 +55,10 @@ spec:
                   key: PGADMIN_DEFAULT_PASSWORD
             - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
               value: "False"
+            - name: PGADMIN_CONFIG_WTF_CSRF_SSL_STRICT
+              value: "False"
+            - name: PGADMIN_CONFIG_PREFERRED_URL_SCHEME
+              value: "https"
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin

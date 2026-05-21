@@ -91,3 +91,12 @@ prometheus:
       enabled: true
       name: o11y-kube-prometheus-stack-prometheus-scrape-confg
       key: additional-scrape-configs.yaml
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
