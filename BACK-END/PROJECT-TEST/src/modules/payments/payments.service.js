@@ -70,7 +70,7 @@ async function createMoMoForAppointment({ appointmentId, byUserId }) {
   const currency = 'VND';
   const orderIdBase = `APPT_${appointmentId}`;
   const orderId = `${orderIdBase}_${Date.now()}`;
-  const requestId = `${orderId}_${Math.floor(Math.random() * 1000)}`;
+  const requestId = `${orderId}_${crypto.randomInt(0, 1000)}`;
 
   await prisma.payment.upsert({
     where: { appointmentId },
