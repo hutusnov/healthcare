@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-redis-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  redis-dashboard.json: |
+    {
+      "title": "Redis - UIT Healthcare",
+      "uid": "redis-healthcare",
+      "timezone": "browser",
+      "refresh": "30s",
+      "schemaVersion": 36,
+      "panels": [
+        {
+          "id": 1,
+          "title": "Redis Up",
+          "type": "stat",
+          "gridPos": { "x": 0, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "up{job=\"redis-exporter\"}",
+            "legendFormat": "Status"
+          }],
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "colorMode": "background"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ]
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Connected Clients",
+          "type": "stat",
+          "gridPos": { "x": 3, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "redis_connected_clients{job=\"redis-exporter\"}",
+            "legendFormat": "Clients"
+          }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+        },
+        {
+          "id": 3,
+          "title": "Memory Used",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}",
+            "legendFormat": "Memory"
+          }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 4,
+          "title": "Cache Hit Rate",
+          "type": "stat",
+          "gridPos": { "x": 9, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "rate(redis_keyspace_hits_total{job=\"redis-exporter\"}[5m]) / (rate(redis_keyspace_hits_total{job=\"redis-exporter\"}[5m]) + rate(redis_keyspace_misses_total{job=\"redis-exporter\"}[5m])) * 100",
+            "legendFormat": "Hit Rate"
+          }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } }
+        },
+        {
+          "id": 5,
+          "title": "Total Keys",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "sum(redis_db_keys{job=\"redis-exporter\"})",
+            "legendFormat": "Keys"
+          }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+        },
+        {
+          "id": 6,
+          "title": "Blocked Clients",
+          "type": "stat",
+          "gridPos": { "x": 15, "y": 0, "w": 3, "h": 4 },
+          "targets": [{
+            "expr": "redis_blocked_clients{job=\"redis-exporter\"}",
+            "legendFormat": "Blocked"
+          }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": { "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 1 }] },
+              "colorMode": "background"
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "Commands per Second",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "targets": [{
+            "expr": "rate(redis_commands_processed_total{job=\"redis-exporter\"}[1m])",
+            "legendFormat": "Commands/s"
+          }],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 8,
+          "title": "Memory Used vs Max",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "redis_memory_used_bytes{job=\"redis-exporter\"}", "legendFormat": "Used" },
+            { "expr": "redis_memory_max_bytes{job=\"redis-exporter\"}", "legendFormat": "Max" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 9,
+          "title": "Network I/O",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "rate(redis_net_input_bytes_total{job=\"redis-exporter\"}[1m])", "legendFormat": "Input" },
+            { "expr": "rate(redis_net_output_bytes_total{job=\"redis-exporter\"}[1m])", "legendFormat": "Output" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } }
+        },
+        {
+          "id": 10,
+          "title": "Keys Expired / Evicted per Second",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "rate(redis_expired_keys_total{job=\"redis-exporter\"}[1m])", "legendFormat": "Expired/s" },
+            { "expr": "rate(redis_evicted_keys_total{job=\"redis-exporter\"}[1m])", "legendFormat": "Evicted/s" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        }
+      ]
+    }

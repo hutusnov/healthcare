@@ -132,6 +132,100 @@ spec:
         summary: "PostgreSQL có deadlock"
         description: "Phát hiện deadlock trên database project_test"
 
+  - name: healthcare.redis
+    rules:
+    - alert: RedisDown
+      expr: up{job="redis-exporter"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis is DOWN"
+        description: "redis-exporter không thể kết nối Redis trên data-core-node"
+
+    - alert: RedisTooManyClients
+      expr: redis_connected_clients{job="redis-exporter"} > 100
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis quá nhiều connected clients"
+        description: "Số client hiện tại: {{ $value }} (ngưỡng: 100)"
+
+    - alert: RedisMemoryHigh
+      expr: redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis memory sử dụng cao"
+        description: "Redis đang dùng {{ $value | humanize }}% max memory"
+
+    - alert: RedisMemoryCritical
+      expr: redis_memory_used_bytes{job="redis-exporter"} / redis_memory_max_bytes{job="redis-exporter"} * 100 > 95
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis sắp hết memory"
+        description: "Redis đang dùng {{ $value | humanize }}% max memory — có thể bắt đầu evict keys"
+
+    - alert: RedisHighKeyEviction
+      expr: rate(redis_evicted_keys_total{job="redis-exporter"}[5m]) > 10
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis evicting keys nhiều"
+        description: "Redis đang evict {{ $value | humanize }} keys/s — memory pressure cao"
+
+  - name: healthcare.rabbitmq
+    rules:
+    - alert: RabbitMQDown
+      expr: up{job="rabbitmq-exporter"} == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "RabbitMQ is DOWN"
+        description: "rabbitmq-exporter không thể kết nối RabbitMQ trên data-core-node"
+
+    - alert: RabbitMQQueueBacklog
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "RabbitMQ queue backlog lớn: {{ $labels.queue }}"
+        description: "Queue {{ $labels.queue }} có {{ $value | humanize }} messages chờ xử lý"
+
+    - alert: RabbitMQQueueBacklogCritical
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 5000
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "RabbitMQ queue backlog nghiêm trọng: {{ $labels.queue }}"
+        description: "Queue {{ $labels.queue }} có {{ $value | humanize }} messages — consumer có thể bị stuck"
+
+    - alert: RabbitMQNoConsumers
+      expr: rabbitmq_queue_messages_ready{job="rabbitmq-exporter"} > 10 and rabbitmq_consumers{job="rabbitmq-exporter"} == 0
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "RabbitMQ không có consumer"
+        description: "Có messages trong queue nhưng không có consumer đang chạy"
+
+    - alert: RabbitMQMemoryHigh
+      expr: rabbitmq_node_mem_used{job="rabbitmq-exporter"} / rabbitmq_node_mem_limit{job="rabbitmq-exporter"} * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "RabbitMQ memory cao"
+        description: "RabbitMQ đang dùng {{ $value | humanize }}% memory limit"
+
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
