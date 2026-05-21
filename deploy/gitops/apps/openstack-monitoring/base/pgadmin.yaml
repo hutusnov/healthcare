@@ -52,7 +52,7 @@ spec:
                   name: pgadmin-secret
                   key: PGADMIN_DEFAULT_PASSWORD
             - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
-              value: "True"
+              value: "False"
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin
