@@ -4,20 +4,9 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "infra/terraform/**"
-      - "infra/terraform-openstack/**"
-      - ".github/workflows/ci-terraform.yml"
-      - ".github/workflows/pipeline-unified.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "infra/terraform/**"
-      - "infra/terraform-openstack/**"
-      - ".github/workflows/ci-terraform.yml"
-      - ".github/workflows/pipeline-unified.yml"
+  # Triggered only by pipeline-unified (which applies paths-filter)
+  # or manually. Removing push/pull_request prevents duplicate runs
+  # alongside pipeline-unified on every commit.
   workflow_call:
   workflow_dispatch:
 

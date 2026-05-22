@@ -11,9 +11,64 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ─────────────────────────────────────────────────────────────
+  # STAGE 0 — Detect which parts of the repo actually changed
+  # ─────────────────────────────────────────────────────────────
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend:   ${{ steps.filter.outputs.backend   }}
+      patient:   ${{ steps.filter.outputs.patient   }}
+      admin:     ${{ steps.filter.outputs.admin     }}
+      ocr:       ${{ steps.filter.outputs.ocr       }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+      openstack: ${{ steps.filter.outputs.openstack }}
+      gitops:    ${{ steps.filter.outputs.gitops    }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'BACK-END/**'
+              - '.github/workflows/ci-backend.yml'
+            patient:
+              - 'BACK-END/PROJECT-TEST/patient-portal/**'
+              - '.github/workflows/ci-patient-portal.yml'
+            admin:
+              - 'BACK-END/PROJECT-TEST/admin-panel/**'
+              - '.github/workflows/ci-admin-panel.yml'
+            ocr:
+              - 'OCR/**'
+              - '.github/workflows/ci-ocr.yml'
+            terraform:
+              - 'infra/terraform/**'
+              - '.github/workflows/ci-terraform.yml'
+            openstack:
+              - 'infra/terraform-openstack/**'
+              - '.github/workflows/ci-terraform-openstack.yml'
+            gitops:
+              - 'deploy/argocd/**'
+              - 'deploy/gitops/**'
+              - '.github/workflows/ci-gitops-argocd.yml'
+            workflows:
+              - '.github/workflows/pipeline-unified.yml'
+
+  # ─────────────────────────────────────────────────────────────
+  # STAGE 1 — CI (runs only when the relevant source path changed)
+  # ─────────────────────────────────────────────────────────────
   ci-terraform:
     name: CI Terraform
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: changes
+    if: |
+      needs.changes.outputs.terraform == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
       id-token: write
@@ -23,39 +78,77 @@ jobs:
 
   ci-terraform-openstack:
     name: CI Terraform OpenStack
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: changes
+    if: |
+      needs.changes.outputs.openstack == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-terraform-openstack.yml
     secrets: inherit
 
   ci-gitops-argocd:
     name: CI GitOps Argo CD
-    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    needs: changes
+    if: |
+      needs.changes.outputs.gitops == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-gitops-argocd.yml
     secrets: inherit
 
   ci-backend:
     name: CI Backend
+    needs: changes
+    if: |
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-backend.yml
     secrets: inherit
 
   ci-patient-portal:
     name: CI Patient Portal
+    needs: changes
+    if: |
+      needs.changes.outputs.patient == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-patient-portal.yml
     secrets: inherit
 
   ci-admin-panel:
     name: CI Admin Panel
+    needs: changes
+    if: |
+      needs.changes.outputs.admin == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-admin-panel.yml
     secrets: inherit
 
   ci-ocr:
     name: CI OCR
+    needs: changes
+    if: |
+      needs.changes.outputs.ocr == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-ocr.yml
     secrets: inherit
 
+  # ─────────────────────────────────────────────────────────────
+  # STAGE 2 — Security (runs when at least one upstream CI job
+  # passed; always() prevents being blocked by skipped upstreams)
+  # ─────────────────────────────────────────────────────────────
   security-trivy:
     name: Security Trivy
     needs: [ci-backend, ci-ocr]
+    if: |
+      always() &&
+      (
+        needs.ci-backend.result == 'success' ||
+        needs.ci-ocr.result == 'success'
+      )
     permissions:
       contents: read
       security-events: write
@@ -65,20 +158,48 @@ jobs:
   security-sonarqube:
     name: Security SonarQube
     needs: [ci-backend, ci-patient-portal, ci-admin-panel, ci-ocr]
+    if: |
+      always() &&
+      (
+        needs.ci-backend.result == 'success' ||
+        needs.ci-patient-portal.result == 'success' ||
+        needs.ci-admin-panel.result == 'success' ||
+        needs.ci-ocr.result == 'success'
+      )
     uses: ./.github/workflows/security-sonarqube.yml
     secrets: inherit
 
+  # ─────────────────────────────────────────────────────────────
+  # STAGE 3 — CD (main branch push only; skipped upstreams are
+  # allowed, but any upstream failure blocks deployment)
+  # ─────────────────────────────────────────────────────────────
   cd-frontend:
     name: CD Frontend
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.ci-terraform.result != 'failure' &&
+      needs.ci-terraform-openstack.result != 'failure' &&
+      needs.ci-gitops-argocd.result != 'failure' &&
+      needs.security-trivy.result != 'failure' &&
+      needs.security-sonarqube.result != 'failure'
     uses: ./.github/workflows/cd-frontend.yml
     secrets: inherit
 
   cd-backend:
     name: CD Backend
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.ci-terraform.result != 'failure' &&
+      needs.ci-terraform-openstack.result != 'failure' &&
+      needs.ci-gitops-argocd.result != 'failure' &&
+      needs.security-trivy.result != 'failure' &&
+      needs.security-sonarqube.result != 'failure'
     permissions:
       contents: read
       packages: write
@@ -88,26 +209,85 @@ jobs:
 
   cd-monitoring:
     name: CD Monitoring
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [cd-backend]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      needs.cd-backend.result == 'success'
     uses: ./.github/workflows/cd-monitoring.yml
     secrets: inherit
 
+  # ─────────────────────────────────────────────────────────────
+  # STAGE 4 — Notify (always runs; aggregates the full pipeline
+  # result and sends a Telegram summary message)
+  # ─────────────────────────────────────────────────────────────
   notify:
     name: Notify Telegram
     if: always()
-    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube, cd-frontend, cd-monitoring]
+    needs:
+      - changes
+      - ci-terraform
+      - ci-terraform-openstack
+      - ci-gitops-argocd
+      - ci-backend
+      - ci-patient-portal
+      - ci-admin-panel
+      - ci-ocr
+      - security-trivy
+      - security-sonarqube
+      - cd-frontend
+      - cd-backend
+      - cd-monitoring
     runs-on: ubuntu-latest
     steps:
+      - name: Build status summary
+        id: summary
+        shell: bash
+        run: |
+          declare -A JOBS
+          JOBS["ci-terraform"]="${{ needs.ci-terraform.result }}"
+          JOBS["ci-openstack"]="${{ needs.ci-terraform-openstack.result }}"
+          JOBS["ci-gitops"]="${{ needs.ci-gitops-argocd.result }}"
+          JOBS["ci-backend"]="${{ needs.ci-backend.result }}"
+          JOBS["ci-patient"]="${{ needs.ci-patient-portal.result }}"
+          JOBS["ci-admin"]="${{ needs.ci-admin-panel.result }}"
+          JOBS["ci-ocr"]="${{ needs.ci-ocr.result }}"
+          JOBS["trivy"]="${{ needs.security-trivy.result }}"
+          JOBS["sonarqube"]="${{ needs.security-sonarqube.result }}"
+          JOBS["cd-frontend"]="${{ needs.cd-frontend.result }}"
+          JOBS["cd-backend"]="${{ needs.cd-backend.result }}"
+          JOBS["cd-monitoring"]="${{ needs.cd-monitoring.result }}"
+
+          FAILED=0; SKIPPED=0; SUMMARY=""
+          for name in "${!JOBS[@]}"; do
+            case "${JOBS[$name]}" in
+              failure) SUMMARY+="❌ $name\n"; FAILED=$((FAILED+1)) ;;
+              success) SUMMARY+="✅ $name\n" ;;
+              skipped) SUMMARY+="⏭️  $name\n"; SKIPPED=$((SKIPPED+1)) ;;
+              *)       SUMMARY+="⚪ $name (${JOBS[$name]})\n" ;;
+            esac
+          done
+
+          if [ $FAILED -gt 0 ]; then
+            echo "icon=🔴" >> "$GITHUB_OUTPUT"
+            echo "overall=FAILED ($FAILED job(s) failed)" >> "$GITHUB_OUTPUT"
+          elif [ $SKIPPED -gt 0 ]; then
+            echo "icon=🟡" >> "$GITHUB_OUTPUT"
+            echo "overall=PASSED (with $SKIPPED skipped)" >> "$GITHUB_OUTPUT"
+          else
+            echo "icon=🟢" >> "$GITHUB_OUTPUT"
+            echo "overall=ALL PASSED" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Send Telegram Notification
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
-            🚀 Workflow: ${{ github.workflow }}
+            ${{ steps.summary.outputs.icon }} Pipeline: ${{ steps.summary.outputs.overall }}
             👤 Actor: ${{ github.actor }}
+            🌿 Branch: ${{ github.ref_name }}
             📝 Commit: ${{ github.sha }}
-            📊 Status: ${{ job.status }}
-            🔗 Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
+            🔗 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
