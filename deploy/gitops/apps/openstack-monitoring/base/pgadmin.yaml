@@ -1,7 +1,7 @@
 # Secrets phải tạo thủ công trên cluster — KHÔNG commit lên git:
 # kubectl -n monitoring create secret generic pgadmin-secret \
 #   --from-literal=PGADMIN_DEFAULT_EMAIL=pgadmin@healthcare.htsnov.com \
-#   --from-literal='PGADMIN_DEFAULT_PASSWORD=PASSWORD'
+#   --from-literal='PGADMIN_DEFAULT_PASSWORD=Admin@pgadmin2024!'
 #
 # kubectl -n monitoring create secret generic pgadmin-pgpass \
 #   --from-literal=pgpass='192.168.100.83:5432:*:project:StrongPass123!'
@@ -59,6 +59,10 @@ spec:
     spec:
       nodeSelector:
         kubernetes.io/hostname: data-core-node
+      securityContext:
+        runAsUser: 5050
+        runAsGroup: 5050
+        fsGroup: 5050
       containers:
         - name: pgadmin
           image: dpage/pgadmin4:8.6
@@ -76,6 +80,12 @@ spec:
                 secretKeyRef:
                   name: pgadmin-secret
                   key: PGADMIN_DEFAULT_PASSWORD
+            # SECRET_KEY cố định — tránh CSRF token mismatch khi pod restart
+            - name: PGADMIN_CONFIG_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pgadmin-secret
+                  key: SECRET_KEY
             # Werkzeug ProxyFix: strips Cloudflare PoP IP from X-Forwarded-For so
             # Flask-Login sees a consistent user IP for session _id computation.
             # Without this, different Cloudflare PoPs produce different IPs → _id
@@ -89,6 +99,8 @@ spec:
             - name: PGADMIN_CONFIG_PROXY_X_PREFIX_COUNT
               value: "1"
             - name: PGADMIN_CONFIG_WTF_CSRF_SSL_STRICT
+              value: "False"
+            - name: PGADMIN_CONFIG_WTF_CSRF_CHECK_DEFAULT
               value: "False"
             - name: PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION
               value: "False"
@@ -151,6 +163,7 @@ metadata:
     cert-manager.io/issuer-group: cert-manager.k8s.cloudflare.com
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-cookie-path: "/ \"/; SameSite=None; Secure\""
 spec:
   ingressClassName: nginx
   tls:
