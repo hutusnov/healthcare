@@ -5,10 +5,9 @@ env:
   TRIVY_CACHE_DIR: ${{ github.workspace }}/.trivy-cache
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+  # Triggered only by pipeline-unified (after CI gates pass)
+  # or manually. Removing push/pull_request prevents duplicate runs
+  # alongside pipeline-unified on every commit.
   workflow_call:
   workflow_dispatch:
 
