@@ -11,6 +11,7 @@ Run these first. They should not install packages, restart services, or edit rem
 
 ```bash
 cd infra/ansible
+python -m pip install -r requirements.txt
 ansible-galaxy collection install -r requirements.yml
 ansible -i inventory/hosts.yml all -m ping
 ansible-playbook -i inventory/hosts.yml playbooks/preflight.yml
