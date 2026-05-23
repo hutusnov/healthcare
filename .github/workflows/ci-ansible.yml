@@ -40,7 +40,7 @@ jobs:
         run: ansible-inventory -i inventory/hosts.yml --list >/tmp/ansible-static-inventory.json
 
       - name: Validate dynamic inventory fallback
-        run: ansible-inventory -i inventory/openstack_dynamic.py --list >/tmp/ansible-dynamic-inventory.json
+        run: python inventory/openstack_dynamic.py --list >/tmp/ansible-dynamic-inventory.json
 
       - name: Syntax check playbooks
         run: |
