@@ -317,7 +317,8 @@
 
     # ── 14. User Accounts (non-system) ──
     - name: List non-system users
-      shell: awk -F: '$3 >= 1000 && $1 != "nobody" {print $1, "uid="$3, "home="$6, "shell="$7}' /etc/passwd
+      shell: |
+        awk -F: '$3 >= 1000 && $1 != "nobody" {print $1, "uid="$3, "home="$6, "shell="$7}' /etc/passwd
       register: user_accounts
       changed_when: false
 

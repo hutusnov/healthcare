@@ -24,6 +24,7 @@ jobs:
       ocr:       ${{ steps.filter.outputs.ocr       }}
       terraform: ${{ steps.filter.outputs.terraform }}
       openstack: ${{ steps.filter.outputs.openstack }}
+      ansible:   ${{ steps.filter.outputs.ansible   }}
       gitops:    ${{ steps.filter.outputs.gitops    }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
@@ -52,6 +53,9 @@ jobs:
             openstack:
               - 'infra/terraform-openstack/**'
               - '.github/workflows/ci-terraform-openstack.yml'
+            ansible:
+              - 'infra/ansible/**'
+              - '.github/workflows/ci-ansible.yml'
             gitops:
               - 'deploy/argocd/**'
               - 'deploy/gitops/**'
@@ -94,6 +98,16 @@ jobs:
       needs.changes.outputs.workflows == 'true' ||
       github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ci-gitops-argocd.yml
+    secrets: inherit
+
+  ci-ansible:
+    name: CI Ansible
+    needs: changes
+    if: |
+      needs.changes.outputs.ansible == 'true' ||
+      needs.changes.outputs.workflows == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/ci-ansible.yml
     secrets: inherit
 
   ci-backend:
@@ -175,13 +189,14 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   cd-frontend:
     name: CD Frontend
-    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    needs: [ci-terraform, ci-terraform-openstack, ci-ansible, ci-gitops-argocd, security-trivy, security-sonarqube]
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       needs.ci-terraform.result != 'failure' &&
       needs.ci-terraform-openstack.result != 'failure' &&
+      needs.ci-ansible.result != 'failure' &&
       needs.ci-gitops-argocd.result != 'failure' &&
       needs.security-trivy.result != 'failure' &&
       needs.security-sonarqube.result != 'failure'
@@ -190,13 +205,14 @@ jobs:
 
   cd-backend:
     name: CD Backend
-    needs: [ci-terraform, ci-terraform-openstack, ci-gitops-argocd, security-trivy, security-sonarqube]
+    needs: [ci-terraform, ci-terraform-openstack, ci-ansible, ci-gitops-argocd, security-trivy, security-sonarqube]
     if: |
       always() &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       needs.ci-terraform.result != 'failure' &&
       needs.ci-terraform-openstack.result != 'failure' &&
+      needs.ci-ansible.result != 'failure' &&
       needs.ci-gitops-argocd.result != 'failure' &&
       needs.security-trivy.result != 'failure' &&
       needs.security-sonarqube.result != 'failure'
@@ -229,6 +245,7 @@ jobs:
       - changes
       - ci-terraform
       - ci-terraform-openstack
+      - ci-ansible
       - ci-gitops-argocd
       - ci-backend
       - ci-patient-portal
@@ -248,6 +265,7 @@ jobs:
           declare -A JOBS
           JOBS["ci-terraform"]="${{ needs.ci-terraform.result }}"
           JOBS["ci-openstack"]="${{ needs.ci-terraform-openstack.result }}"
+          JOBS["ci-ansible"]="${{ needs.ci-ansible.result }}"
           JOBS["ci-gitops"]="${{ needs.ci-gitops-argocd.result }}"
           JOBS["ci-backend"]="${{ needs.ci-backend.result }}"
           JOBS["ci-patient"]="${{ needs.ci-patient-portal.result }}"

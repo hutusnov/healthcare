@@ -25,16 +25,16 @@ import os
 
 # ── Config ──────────────────────────────────────────────────
 TERRAFORM_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "infra", "terraform", "envs", "dev"
+    os.path.dirname(__file__), "..", "..", "terraform-openstack", "envs", "dev"
 )
 
 SSH_KEY_OPENSTACK = "~/.ssh/openstack-key.pem"   # CHANGE_ME
 SSH_KEY_AWS       = "~/.ssh/aws-key.pem"          # CHANGE_ME
-BASTION_HOST      = "192.168.100.97"              # k3s-master-vpn
+BASTION_HOST      = "192.168.120.73"              # k3s-master-vpn floating IP
 
 # Static fallback IPs (OpenStack nodes)
 STATIC_IPS = {
-    "k3s-master-vpn": "192.168.100.97",
+    "k3s-master-vpn": "192.168.120.73",
     "data-core-node":  "192.168.100.83",
     "ai-ocr-worker":   "192.168.100.169",
 }
@@ -123,6 +123,9 @@ def get_from_openstack_cli():
 
 
 def build_hostvars(name, ip, is_aws=False):
+    if not is_aws and name == "k3s-master-vpn":
+        ip = BASTION_HOST
+
     proxy = (
         f"-o StrictHostKeyChecking=no -o ConnectTimeout=10 "
         f"-o ProxyJump=ubuntu@{BASTION_HOST}"
@@ -130,12 +133,19 @@ def build_hostvars(name, ip, is_aws=False):
     base = (
         f"-o StrictHostKeyChecking=no -o ConnectTimeout=10"
     )
+    openstack_proxy = base
+    if not is_aws and name != "k3s-master-vpn":
+        openstack_proxy = (
+            f"-o StrictHostKeyChecking=no -o ConnectTimeout=10 "
+            f"-o ProxyJump=ubuntu@{BASTION_HOST}"
+        )
+
     return {
         "ansible_host": ip,
         "ansible_user": "ubuntu",
         "ansible_python_interpreter": "/usr/bin/python3",
         "ansible_ssh_private_key_file": SSH_KEY_AWS if is_aws else SSH_KEY_OPENSTACK,
-        "ansible_ssh_common_args": proxy if is_aws else base,
+        "ansible_ssh_common_args": proxy if is_aws else openstack_proxy,
         "wireguard_ip": WIREGUARD_IPS.get(name, ""),
         "k3s_role": K3S_ROLES.get(name, "none"),
         "node_labels": NODE_LABELS.get(name, []),

@@ -1,0 +1,116 @@
+---
+# Read-only preflight checks for UIT Healthcare hybrid nodes.
+# This playbook does not install packages, change services, or edit files.
+
+- name: Preflight check all managed nodes
+  hosts: all
+  gather_facts: false
+  become: false
+
+  pre_tasks:
+    - name: Ensure local preflight report directory exists
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.file:
+        path: /tmp/ansible-preflight
+        state: directory
+        mode: "0755"
+
+  tasks:
+    - name: Check SSH connectivity
+      ansible.builtin.wait_for_connection:
+        timeout: 15
+
+    - name: Check Python 3 availability
+      ansible.builtin.raw: test -x /usr/bin/python3 && /usr/bin/python3 --version
+      register: python_check
+      changed_when: false
+
+    - name: Check passwordless sudo availability
+      ansible.builtin.command: sudo -n true
+      register: sudo_check
+      changed_when: false
+      failed_when: false
+
+    - name: Collect kernel and OS summary
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo "hostname=$(hostname)"
+        echo "kernel=$(uname -r)"
+        if [ -r /etc/os-release ]; then
+          . /etc/os-release
+          echo "os=${PRETTY_NAME:-unknown}"
+        fi
+      args:
+        executable: /bin/bash
+      register: os_summary
+      changed_when: false
+
+    - name: Collect network route summary
+      ansible.builtin.command: ip route
+      register: route_summary
+      changed_when: false
+      failed_when: false
+
+    - name: Collect key command availability
+      ansible.builtin.shell: |
+        for bin in docker k3s kubectl helm wg cloudflared promtail systemctl ss curl; do
+          if command -v "$bin" >/dev/null 2>&1; then
+            echo "$bin=present:$(command -v "$bin")"
+          else
+            echo "$bin=missing"
+          fi
+        done
+      register: command_summary
+      changed_when: false
+
+    - name: Collect listening ports snapshot
+      ansible.builtin.shell: ss -ltn 2>/dev/null | tail -n +2 || true
+      register: port_summary
+      changed_when: false
+
+    - name: Build preflight report
+      ansible.builtin.set_fact:
+        preflight_report: |
+          NODE={{ inventory_hostname }}
+          SSH=ok
+          PYTHON={{ python_check.stdout | default('missing') }}
+          SUDO={{ 'ok' if sudo_check.rc == 0 else 'not-passwordless-or-unavailable' }}
+
+          -- OS --
+          {{ os_summary.stdout | default('N/A') }}
+
+          -- ROUTES --
+          {{ route_summary.stdout | default('N/A') }}
+
+          -- COMMANDS --
+          {{ command_summary.stdout | default('N/A') }}
+
+          -- LISTENING TCP PORTS --
+          {{ port_summary.stdout | default('N/A') }}
+
+    - name: Save preflight report locally
+      delegate_to: localhost
+      ansible.builtin.copy:
+        content: "{{ preflight_report }}"
+        dest: "/tmp/ansible-preflight/{{ inventory_hostname }}.txt"
+        mode: "0644"
+
+  post_tasks:
+    - name: Create local preflight index
+      delegate_to: localhost
+      run_once: true
+      ansible.builtin.shell: |
+        {
+          echo "=== UIT Healthcare Ansible Preflight ==="
+          date
+          echo ""
+          for f in /tmp/ansible-preflight/*.txt; do
+            [ -f "$f" ] || continue
+            echo "--- $(basename "$f" .txt) ---"
+            grep -E '^(NODE|SSH|PYTHON|SUDO)=' "$f" || true
+            echo ""
+          done
+          echo "Full reports: /tmp/ansible-preflight/*.txt"
+        } > /tmp/ansible-preflight/INDEX.txt
+      changed_when: false
