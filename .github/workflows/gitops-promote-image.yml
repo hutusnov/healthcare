@@ -74,10 +74,11 @@ jobs:
 
           def set_new_tag(path, tag):
               text = path.read_text(encoding="utf-8")
-              updated = re.sub(r"(?m)^(\s*newTag:\s*).+$", rf"\g<1>{tag}", text, count=1)
-              if updated == text:
+              if not re.search(r"(?m)^\s*newTag:\s*.+$", text):
                   raise SystemExit(f"Could not find newTag in {path}")
-              path.write_text(updated, encoding="utf-8")
+              updated = re.sub(r"(?m)^(\s*newTag:\s*).+$", rf"\g<1>{tag}", text, count=1)
+              if updated != text:
+                  path.write_text(updated, encoding="utf-8")
 
           if component in {"backend", "both"}:
               require_tag("backend", backend_tag)
