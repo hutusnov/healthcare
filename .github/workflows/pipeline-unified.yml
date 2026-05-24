@@ -2,6 +2,7 @@ name: Unified DevSecOps Pipeline
 
 # Touch this file when a full end-to-end pipeline verification is required.
 # Full push verification trigger: 2026-05-24.
+# Full push verification trigger with monitoring enabled: 2026-05-24.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
