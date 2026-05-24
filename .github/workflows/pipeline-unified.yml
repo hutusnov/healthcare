@@ -1,5 +1,6 @@
 name: Unified DevSecOps Pipeline
 
+# Touch this file when a full end-to-end pipeline verification is required.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
