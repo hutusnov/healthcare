@@ -296,6 +296,7 @@
         done
       register: sysctl_overrides
       changed_when: false
+      failed_when: false
 
     # ── 13. SSH Config ──
     - name: Check SSH server config
