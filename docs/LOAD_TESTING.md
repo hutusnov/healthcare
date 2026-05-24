@@ -34,3 +34,16 @@ Run `Load Test Staging` manually from the Actions tab. The workflow checks:
 
 Keep this workflow manual until staging capacity and budget are explicitly
 approved.
+
+## OWASP ZAP Staging
+
+Run `Security ZAP Staging` manually from the Actions tab after staging is up.
+Default target:
+
+```text
+http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com
+```
+
+Default mode uploads HTML/JSON reports and does not fail the workflow on WARN
+findings. Set `fail_on_warn=true` when you want the scan to behave as a strict
+post-deploy security gate.

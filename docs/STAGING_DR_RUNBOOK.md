@@ -10,13 +10,14 @@ Covered:
 - Recreate AWS staging infrastructure with Terraform.
 - Reconfigure fresh backend nodes with Ansible.
 - Redeploy backend and local PostgreSQL.
+- Redeploy Redis, RabbitMQ, Prometheus, Grafana, Loki, and Alertmanager.
 - Backup and restore PostgreSQL dumps.
 - Reuse backend runtime secrets from AWS Secrets Manager.
+- Run k6 load test and OWASP ZAP baseline manually after deploy.
 
 Not covered yet:
 
 - OpenStack K3s full rebuild.
-- Wazuh/Grafana/Loki full rebuild.
 - Cross-region production failover.
 - Fully automated secret rotation.
 
@@ -36,8 +37,7 @@ Update `infra/ansible/inventory/staging.yml` if public IPs changed, then:
 ```bash
 cd infra/ansible
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/preflight.yml
-ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/site.yml
-ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/backend_app.yml
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/reproduce_staging.yml -f 1
 ```
 
 The staging inventory uses `secret_source: aws_secrets_manager`.
@@ -79,6 +79,11 @@ curl.exe -s http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amaz
 $env:AWS_PROFILE='healthcare-staging'
 aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:ap-southeast-2:009144422462:targetgroup/uit-healthcare-staging-tg/a0d4a0e96640454e
 ```
+
+Manual post-deploy checks:
+
+- GitHub Actions: `Load Test Staging`
+- GitHub Actions: `Security ZAP Staging`
 
 ## Cleanup
 

@@ -1,0 +1,52 @@
+name: Security ZAP Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Base URL to scan"
+        required: true
+        default: "http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com"
+      fail_on_warn:
+        description: "Fail workflow on ZAP WARN findings"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  zap-baseline:
+    name: OWASP ZAP baseline
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run ZAP baseline scan
+        env:
+          TARGET_URL: ${{ inputs.target_url }}
+          FAIL_ON_WARN: ${{ inputs.fail_on_warn }}
+        run: |
+          set -euo pipefail
+          mkdir -p zap-results
+
+          zap_args="-t \"$TARGET_URL\" -r zap-report.html -J zap-report.json"
+          if [ "$FAIL_ON_WARN" != "true" ]; then
+            zap_args="$zap_args -I"
+          fi
+
+          docker run --rm \
+            -v "$PWD/zap-results:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -lc "zap-baseline.py $zap_args"
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: zap-staging-report
+          path: zap-results/
+          if-no-files-found: warn

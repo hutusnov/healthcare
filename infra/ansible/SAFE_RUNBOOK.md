@@ -143,16 +143,18 @@ Implemented:
 - Docker Engine and Compose plugin setup for backend nodes.
 - Backend application + local PostgreSQL deployment for AWS staging-zero.
 - PostgreSQL backup/restore playbook for AWS staging-zero.
+- Redis/RabbitMQ deployment for AWS staging-zero.
+- Prometheus/Grafana/Loki/Alertmanager deployment for AWS staging-zero.
+- Guarded K3s bootstrap playbook for intentionally rebuilt lab clusters.
+- Guarded Wazuh manager bootstrap playbook for intentionally rebuilt SIEM nodes.
 - WireGuard role.
 - Promtail role.
 
 Not implemented as full provisioning yet:
 
-- K3s cluster bootstrap from zero.
-- Wazuh manager/agent full installation.
-- Grafana/Loki/Alertmanager full installation.
-- Redis/RabbitMQ installation and restore.
+- Wazuh indexer/dashboard full multi-container production installation.
+- Redis/RabbitMQ restore automation.
 - OCR application deployment through Ansible.
-- Disaster recovery automation.
+- Cross-region/production disaster recovery automation.
 
 For the current project scope, Terraform covers infrastructure state/adoption, GitHub Actions covers CI/CD, ArgoCD/GitOps covers Kubernetes manifests, and Ansible covers server audit plus selected configuration management.
