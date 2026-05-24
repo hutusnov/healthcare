@@ -21,6 +21,12 @@ base_packages:
   - fail2ban
   - prometheus-node-exporter
 
+fail2ban_ignore_ips:
+  - 127.0.0.1/8
+  - ::1
+  - 10.30.0.0/16
+  - 14.160.0.0/11
+
 backend_root: /opt/healthcare-backend
 
 db_container_name: healthcare-postgres

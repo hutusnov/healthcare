@@ -1,0 +1,225 @@
+---
+# Reproduce the lab monitoring stack with Docker Compose.
+
+- name: Deploy monitoring stack
+  hosts: monitoring_nodes
+  become: true
+  gather_facts: true
+  vars:
+    monitoring_scrape_targets:
+      - "127.0.0.1:9100"
+  pre_tasks:
+    - name: Load global Ansible variables
+      ansible.builtin.include_vars:
+        file: ../group_vars/all.yml
+
+    - name: Load environment Ansible variables
+      ansible.builtin.include_vars:
+        file: "../group_vars/{{ env_name | default(env | default('dev')) }}.yml"
+
+  tasks:
+    - name: Create monitoring directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ monitoring_root }}"
+        - "{{ monitoring_root }}/grafana/provisioning/datasources"
+        - "{{ monitoring_root }}/loki"
+        - "{{ monitoring_root }}/prometheus"
+        - "{{ monitoring_root }}/alertmanager"
+
+    - name: Render monitoring compose file
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          services:
+            prometheus:
+              image: prom/prometheus:v2.53.0
+              container_name: healthcare-prometheus
+              restart: unless-stopped
+              ports:
+                - "{{ prometheus_port }}:9090"
+              volumes:
+                - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+                - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+                - prometheus_data:/prometheus
+              command:
+                - "--config.file=/etc/prometheus/prometheus.yml"
+                - "--storage.tsdb.retention.time=7d"
+
+            loki:
+              image: grafana/loki:2.9.8
+              container_name: healthcare-loki
+              restart: unless-stopped
+              ports:
+                - "{{ loki_port }}:3100"
+              volumes:
+                - ./loki.yml:/etc/loki/local-config.yaml:ro
+                - loki_data:/loki
+              command: ["-config.file=/etc/loki/local-config.yaml"]
+
+            grafana:
+              image: grafana/grafana:11.1.0
+              container_name: healthcare-grafana
+              restart: unless-stopped
+              ports:
+                - "{{ grafana_port }}:3000"
+              environment:
+                GF_USERS_ALLOW_SIGN_UP: "false"
+              volumes:
+                - grafana_data:/var/lib/grafana
+                - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+            alertmanager:
+              image: prom/alertmanager:v0.27.0
+              container_name: healthcare-alertmanager
+              restart: unless-stopped
+              ports:
+                - "{{ alertmanager_port }}:9093"
+              volumes:
+                - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+          volumes:
+            prometheus_data:
+            loki_data:
+            grafana_data:
+
+    - name: Render Prometheus config
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/prometheus.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          global:
+            scrape_interval: 30s
+            evaluation_interval: 30s
+
+          rule_files:
+            - /etc/prometheus/alert-rules.yml
+
+          alerting:
+            alertmanagers:
+              - static_configs:
+                  - targets: ["alertmanager:9093"]
+
+          scrape_configs:
+            - job_name: node-exporter
+              static_configs:
+                - targets:
+          {% for target in monitoring_scrape_targets %}
+                    - "{{ target }}"
+          {% endfor %}
+            - job_name: prometheus
+              static_configs:
+                - targets: ["localhost:9090"]
+
+    - name: Render alert rules
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/alert-rules.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          groups:
+            - name: healthcare-runtime
+              rules:
+                - alert: NodeExporterDown
+                  expr: up{job="node-exporter"} == 0
+                  for: 5m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "Node exporter target is down"
+
+    - name: Render Alertmanager config
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/alertmanager.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          route:
+            receiver: "null"
+          receivers:
+            - name: "null"
+
+    - name: Render Loki config
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/loki.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          auth_enabled: false
+          server:
+            http_listen_port: 3100
+          common:
+            path_prefix: /loki
+            storage:
+              filesystem:
+                chunks_directory: /loki/chunks
+                rules_directory: /loki/rules
+            replication_factor: 1
+            ring:
+              instance_addr: 127.0.0.1
+              kvstore:
+                store: inmemory
+          schema_config:
+            configs:
+              - from: 2024-01-01
+                store: boltdb-shipper
+                object_store: filesystem
+                schema: v12
+                index:
+                  prefix: index_
+                  period: 24h
+          limits_config:
+            retention_period: 168h
+
+    - name: Render Grafana datasource config
+      ansible.builtin.copy:
+        dest: "{{ monitoring_root }}/grafana/provisioning/datasources/datasources.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          apiVersion: 1
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              access: proxy
+              url: http://prometheus:9090
+              isDefault: true
+            - name: Loki
+              type: loki
+              access: proxy
+              url: http://loki:3100
+
+    - name: Start monitoring stack
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: "{{ monitoring_root }}"
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Verify monitoring endpoints
+      ansible.builtin.uri:
+        url: "{{ item }}"
+        status_code: 200
+      register: monitoring_endpoint_check
+      retries: 24
+      delay: 10
+      until: monitoring_endpoint_check.status == 200
+      loop:
+        - "http://127.0.0.1:{{ prometheus_port }}/-/ready"
+        - "http://127.0.0.1:{{ grafana_port }}/api/health"
+        - "http://127.0.0.1:{{ loki_port }}/ready"
+      when: not ansible_check_mode

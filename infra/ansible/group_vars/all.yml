@@ -26,3 +26,22 @@ base_packages:
   - jq
   - unzip
   - fail2ban
+
+# Reproduce roots for service playbooks.
+healthcare_base_dir: /opt/uit-healthcare
+data_services_root: "{{ healthcare_base_dir }}/data-services"
+monitoring_root: "{{ healthcare_base_dir }}/monitoring"
+wazuh_root: "{{ healthcare_base_dir }}/wazuh"
+
+# Safety gates. Set these to true explicitly for from-zero bootstrap.
+k3s_bootstrap_enabled: false
+wazuh_bootstrap_enabled: false
+
+# Local service defaults used by reproducible Docker compose playbooks.
+redis_port: 6379
+rabbitmq_amqp_port: 5672
+rabbitmq_management_port: 15672
+grafana_port: 3000
+prometheus_port: 9090
+loki_port: 3100
+alertmanager_port: 9093

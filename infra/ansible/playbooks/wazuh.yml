@@ -1,0 +1,81 @@
+---
+# Guarded Wazuh manager bootstrap for a lab/demo node.
+#
+# Wazuh is intentionally disabled by default because a real manager/indexer
+# stack is stateful and should not be redeployed over a live SIEM without an
+# explicit maintenance decision.
+
+- name: Deploy Wazuh manager
+  hosts: wazuh_manager
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Load global Ansible variables
+      ansible.builtin.include_vars:
+        file: ../group_vars/all.yml
+
+    - name: Load environment Ansible variables
+      ansible.builtin.include_vars:
+        file: "../group_vars/{{ env_name | default(env | default('dev')) }}.yml"
+
+  tasks:
+    - name: Require explicit Wazuh bootstrap confirmation
+      ansible.builtin.assert:
+        that:
+          - wazuh_bootstrap_enabled | bool
+        fail_msg: >-
+          Wazuh bootstrap is disabled by default. Re-run with
+          -e wazuh_bootstrap_enabled=true only on a fresh or intentionally
+          rebuilt SIEM node.
+
+    - name: Create Wazuh directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ wazuh_root }}"
+        - "{{ wazuh_root }}/manager"
+
+    - name: Render Wazuh manager compose file
+      ansible.builtin.copy:
+        dest: "{{ wazuh_root }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          services:
+            wazuh-manager:
+              image: wazuh/wazuh-manager:4.9.2
+              container_name: healthcare-wazuh-manager
+              hostname: wazuh-manager
+              restart: unless-stopped
+              ports:
+                - "1514:1514"
+                - "1515:1515"
+                - "55000:55000"
+              volumes:
+                - ./manager:/var/ossec/data
+              ulimits:
+                memlock:
+                  soft: -1
+                  hard: -1
+                nofile:
+                  soft: 655360
+                  hard: 655360
+
+    - name: Start Wazuh manager
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: "{{ wazuh_root }}"
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Verify Wazuh manager container
+      ansible.builtin.command: docker inspect -f '{{ "{{.State.Running}}" }}' healthcare-wazuh-manager
+      register: wazuh_running
+      changed_when: false
+      failed_when: wazuh_running.stdout.strip() != "true"
+      when: not ansible_check_mode

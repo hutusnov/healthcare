@@ -1,0 +1,97 @@
+---
+# Reproduce K3s from zero with explicit safety confirmation.
+#
+# Default behavior is safe: no cluster bootstrap is performed unless
+# k3s_bootstrap_enabled=true is passed explicitly.
+
+- name: Guard K3s bootstrap
+  hosts: k3s_cluster
+  gather_facts: false
+  tasks:
+    - name: Require explicit K3s bootstrap confirmation
+      ansible.builtin.assert:
+        that:
+          - k3s_bootstrap_enabled | bool
+        fail_msg: >-
+          K3s bootstrap is disabled by default. Re-run with
+          -e k3s_bootstrap_enabled=true only on a fresh or intentionally
+          rebuilt cluster.
+      run_once: true
+
+- name: Bootstrap K3s server
+  hosts: k3s_master
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Load global Ansible variables
+      ansible.builtin.include_vars:
+        file: ../group_vars/all.yml
+
+    - name: Load environment Ansible variables
+      ansible.builtin.include_vars:
+        file: "../group_vars/{{ env_name | default(env | default('dev')) }}.yml"
+
+  tasks:
+    - name: Install K3s server
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_VERSION="{{ k3s_version }}" \
+          sh -s - server {{ k3s_server_args | default('') }}
+      args:
+        executable: /bin/bash
+        creates: /usr/local/bin/k3s
+
+    - name: Wait for K3s node token
+      ansible.builtin.wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        timeout: 180
+
+    - name: Read K3s node token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
+      register: k3s_node_token_raw
+      no_log: true
+
+    - name: Expose K3s node token to worker play
+      ansible.builtin.set_fact:
+        k3s_node_token: "{{ k3s_node_token_raw.content | b64decode | trim }}"
+      no_log: true
+
+- name: Bootstrap K3s workers
+  hosts: k3s_workers
+  become: true
+  gather_facts: true
+  vars:
+    k3s_master_host: "{{ groups['k3s_master'][0] }}"
+    k3s_server_url: "https://{{ hostvars[k3s_master_host].ansible_host }}:6443"
+  tasks:
+    - name: Install K3s agent
+      ansible.builtin.shell: |
+        set -euo pipefail
+        curl -sfL https://get.k3s.io | \
+          INSTALL_K3S_VERSION="{{ k3s_version }}" \
+          K3S_URL="{{ k3s_server_url }}" \
+          K3S_TOKEN="{{ hostvars[k3s_master_host].k3s_node_token }}" \
+          sh -s - agent
+      args:
+        executable: /bin/bash
+        creates: /usr/local/bin/k3s
+      no_log: true
+
+- name: Verify K3s cluster
+  hosts: k3s_master
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait until all K3s nodes are visible
+      ansible.builtin.command: k3s kubectl get nodes -o wide
+      register: k3s_nodes
+      changed_when: false
+      retries: 30
+      delay: 10
+      until: k3s_nodes.rc == 0 and (k3s_nodes.stdout_lines | length) >= ((groups['k3s_cluster'] | length) + 1)
+
+    - name: Show K3s nodes
+      ansible.builtin.debug:
+        var: k3s_nodes.stdout_lines

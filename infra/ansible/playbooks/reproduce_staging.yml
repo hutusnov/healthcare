@@ -1,0 +1,27 @@
+---
+# End-to-end AWS staging reproduction.
+#
+# This is the safe staging path for the separate AWS account:
+# base OS -> Docker -> backend/PostgreSQL -> Redis/RabbitMQ -> monitoring
+# -> scheduled DB backup -> immediate backup validation.
+
+- name: Base setup
+  import_playbook: packages.yml
+
+- name: Docker runtime
+  import_playbook: docker.yml
+
+- name: Backend application and local PostgreSQL
+  import_playbook: backend_app.yml
+
+- name: Redis and RabbitMQ
+  import_playbook: data_services.yml
+
+- name: Monitoring stack
+  import_playbook: monitoring_stack.yml
+
+- name: Scheduled database backups
+  import_playbook: db_backup_schedule.yml
+
+- name: Backup validation
+  import_playbook: db_backup.yml

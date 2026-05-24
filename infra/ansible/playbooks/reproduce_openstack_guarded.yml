@@ -1,0 +1,29 @@
+---
+# Guarded OpenStack/lab reproduction.
+#
+# This playbook is for a fresh lab rebuild only. K3s and Wazuh have explicit
+# guards and will fail unless their enable flags are set to true.
+
+- name: Base setup
+  import_playbook: packages.yml
+
+- name: Docker runtime
+  import_playbook: docker.yml
+
+- name: K3s cluster bootstrap
+  import_playbook: k3s.yml
+
+- name: Redis and RabbitMQ
+  import_playbook: data_services.yml
+
+- name: Monitoring stack
+  import_playbook: monitoring_stack.yml
+
+- name: Wazuh manager
+  import_playbook: wazuh.yml
+
+- name: WireGuard VPN
+  import_playbook: wireguard.yml
+
+- name: Promtail log shipper
+  import_playbook: promtail.yml

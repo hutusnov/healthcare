@@ -2,7 +2,7 @@
 # Install Docker Engine and Compose plugin on backend nodes.
 
 - name: Install Docker runtime
-  hosts: backend_nodes
+  hosts: backend_nodes:data_services_nodes:monitoring_nodes:wazuh_manager
   become: true
   gather_facts: true
 

@@ -159,6 +159,32 @@ ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/s
 ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/backend_app.yml
 ```
 
+Full staging reproduce path:
+
+```bash
+cd infra/terraform/envs/staging-zero
+terraform validate
+terraform plan -lock=false
+terraform apply
+
+cd ../../../ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/reproduce_staging.yml -f 1
+```
+
+`reproduce_staging.yml` provisions the AWS staging runtime in a safe order:
+
+- Base packages, node-exporter, fail2ban with automation/admin CIDR ignored.
+- Docker runtime.
+- Backend API and PostgreSQL with runtime secrets from AWS Secrets Manager.
+- Redis and RabbitMQ on the data-services node.
+- Prometheus, Grafana, Loki, and Alertmanager on the monitoring node.
+- Daily PostgreSQL backup cron plus one validation backup.
+- PostgreSQL dump fetch to the local controller.
+
+For the current staging-zero footprint, `t3.small` is the practical minimum.
+`t3.micro` can run backend-only, but it is too small for backend + PostgreSQL +
+Redis/RabbitMQ + Prometheus/Grafana/Loki on the same node.
+
 Staging secrets are loaded from AWS Secrets Manager by default:
 `uit-healthcare-staging/backend`. Terraform creates the secret metadata only;
 secret values are stored outside Terraform state and injected by Ansible at
@@ -180,6 +206,23 @@ ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/d
   -e db_backup_mode=restore \
   -e confirm_restore=true \
   -e restore_file=/absolute/path/to/backup.dump
+```
+
+Guarded OpenStack/lab reproduce:
+
+```bash
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/hosts.yml playbooks/reproduce_openstack_guarded.yml --check --diff
+```
+
+K3s and Wazuh bootstrap are disabled by default. Enable them only on a fresh or
+intentionally rebuilt lab target:
+
+```bash
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/hosts.yml playbooks/k3s.yml \
+  -e k3s_bootstrap_enabled=true
+
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/hosts.yml playbooks/wazuh.yml \
+  -e wazuh_bootstrap_enabled=true
 ```
 
 ## Audit Playbook — Danh sách quét

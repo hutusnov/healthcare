@@ -22,6 +22,17 @@
         name: "{{ base_packages | default(['curl', 'git', 'jq', 'unzip', 'ca-certificates', 'gnupg', 'fail2ban', 'prometheus-node-exporter']) }}"
         state: present
 
+    - name: Configure fail2ban ignore list for automation sources
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/healthcare-automation.local
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [DEFAULT]
+          ignoreip = {{ fail2ban_ignore_ips | default(['127.0.0.1/8', '::1']) | join(' ') }}
+      notify: Restart fail2ban
+
     - name: Enable and start fail2ban
       ansible.builtin.systemd:
         name: fail2ban
@@ -45,3 +56,10 @@
         - { key: net.ipv4.ip_forward, value: "1" }
         - { key: net.bridge.bridge-nf-call-iptables, value: "1" }
         - { key: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+
+  handlers:
+    - name: Restart fail2ban
+      ansible.builtin.systemd:
+        name: fail2ban
+        state: restarted
+      when: not ansible_check_mode

@@ -1,0 +1,51 @@
+---
+# Install a safe PostgreSQL backup schedule.
+
+- name: Schedule PostgreSQL backups
+  hosts: backend_nodes
+  become: true
+  gather_facts: true
+  vars:
+    db_backup_retention_days: 7
+    db_backup_hour: "2"
+    db_backup_minute: "15"
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ db_backup_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Install backup script
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/healthcare-postgres-backup
+        owner: root
+        group: root
+        mode: "0750"
+        content: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          backup_root="{{ db_backup_root }}"
+          container="{{ db_container_name }}"
+          db_name="{{ db_name }}"
+          db_user="{{ db_user }}"
+          ts="$(date -u +%Y%m%dT%H%M%SZ)"
+          mkdir -p "$backup_root"
+          docker inspect -f '{{ "{{.State.Running}}" }}' "$container" | grep -qx true
+          docker exec "$container" pg_dump -U "$db_user" -d "$db_name" -Fc > "$backup_root/${HOSTNAME}-${db_name}-${ts}.dump"
+          find "$backup_root" -type f -name "*.dump" -mtime +{{ db_backup_retention_days }} -delete
+
+    - name: Schedule daily PostgreSQL backup
+      ansible.builtin.cron:
+        name: healthcare postgres backup
+        user: root
+        minute: "{{ db_backup_minute }}"
+        hour: "{{ db_backup_hour }}"
+        job: /usr/local/sbin/healthcare-postgres-backup >/var/log/healthcare-postgres-backup.log 2>&1
+
+    - name: Run backup script once for validation
+      ansible.builtin.command: /usr/local/sbin/healthcare-postgres-backup
+      changed_when: true
+      when: not ansible_check_mode

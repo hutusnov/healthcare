@@ -157,6 +157,14 @@ resource "aws_security_group" "backend" {
   }
 
   ingress {
+    description = "SSH between staging backend nodes for Ansible ProxyJump"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    self        = true
+  }
+
+  ingress {
     description = "Backend from ALB or admin"
     from_port   = 4000
     to_port     = 4000

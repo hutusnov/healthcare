@@ -111,3 +111,25 @@ Use `infra/terraform/envs/staging-zero` for the new AWS account. This path creat
 After Terraform apply, copy the output `backend_public_ips` into `infra/ansible/inventory/staging.yml`, then run Ansible preflight and site playbook.
 
 This is the correct path for reproducing the AWS side from zero.
+
+## Verified Staging-Zero Baseline
+
+The current AWS staging-zero baseline was applied in the separate staging
+account (`ap-southeast-2`) and verified with Terraform, Ansible, SSM, and ALB
+health checks.
+
+Verified components:
+
+- Terraform creates and manages VPC, public subnets, IGW, route table, EC2 x2,
+  ALB, target group, SSM IAM role/profile, security groups, and Secrets Manager
+  metadata.
+- Terraform plan is clean after apply (`No changes`).
+- Ansible deploys backend API and PostgreSQL on both backend nodes.
+- Ansible deploys Redis, RabbitMQ, Prometheus, Grafana, Loki, and Alertmanager
+  on the staging service node.
+- Ansible schedules PostgreSQL backups and validates backup creation.
+- Runtime secrets are read from AWS Secrets Manager and are not stored in
+  Terraform state or committed files.
+
+Sizing note: use at least `t3.small` for full reproduce. `t3.micro` is not
+enough for backend + database + data services + monitoring on one node.

@@ -14,7 +14,9 @@ key_name        = "healthcare-staging-key"
 ssh_public_key  = "ssh-ed25519 REPLACE_WITH_PUBLIC_KEY_ONLY"
 
 backend_count         = 2
-backend_instance_type = "t3.micro"
+# t3.small is the minimum practical size for backend + PostgreSQL + Redis/RabbitMQ
+# + lightweight monitoring during full Ansible reproduction.
+backend_instance_type = "t3.small"
 
 # ALB has hourly cost. Keep true for full staging; set false for cheapest SSH-only reproduce.
 create_alb = true

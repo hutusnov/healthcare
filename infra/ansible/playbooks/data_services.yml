@@ -1,0 +1,86 @@
+---
+# Reproduce Redis and RabbitMQ on the data services node.
+
+- name: Deploy data services
+  hosts: data_services_nodes
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Load global Ansible variables
+      ansible.builtin.include_vars:
+        file: ../group_vars/all.yml
+
+    - name: Load environment Ansible variables
+      ansible.builtin.include_vars:
+        file: "../group_vars/{{ env_name | default(env | default('dev')) }}.yml"
+
+  tasks:
+    - name: Create data services directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ data_services_root }}"
+        - "{{ data_services_root }}/redis"
+        - "{{ data_services_root }}/rabbitmq"
+
+    - name: Render data services compose file
+      ansible.builtin.copy:
+        dest: "{{ data_services_root }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          services:
+            redis:
+              image: redis:7.4-alpine
+              container_name: healthcare-redis
+              restart: unless-stopped
+              command: ["redis-server", "--appendonly", "yes"]
+              ports:
+                - "{{ redis_port }}:6379"
+              volumes:
+                - ./redis:/data
+              healthcheck:
+                test: ["CMD", "redis-cli", "ping"]
+                interval: 15s
+                timeout: 5s
+                retries: 5
+
+            rabbitmq:
+              image: rabbitmq:4.0-management-alpine
+              container_name: healthcare-rabbitmq
+              restart: unless-stopped
+              ports:
+                - "{{ rabbitmq_amqp_port }}:5672"
+                - "{{ rabbitmq_management_port }}:15672"
+              volumes:
+                - ./rabbitmq:/var/lib/rabbitmq
+              healthcheck:
+                test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+                interval: 15s
+                timeout: 5s
+                retries: 10
+
+    - name: Start data services
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: "{{ data_services_root }}"
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Verify data services containers
+      ansible.builtin.command: docker compose ps
+      args:
+        chdir: "{{ data_services_root }}"
+      register: data_services_ps
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Report data services status
+      ansible.builtin.debug:
+        var: data_services_ps.stdout_lines
+      when: not ansible_check_mode
