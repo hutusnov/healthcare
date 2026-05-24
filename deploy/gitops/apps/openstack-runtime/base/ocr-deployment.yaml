@@ -4,7 +4,10 @@ metadata:
   name: ocr-service
   namespace: uit-healthcare
 spec:
-  replicas: 1
+  # OCR runtime is managed by the dedicated private-ocr GitOps app.
+  # Keep this legacy deployment scaled down to avoid duplicate heavy OCR images
+  # on the ai-ocr-worker node while preserving rollback metadata.
+  replicas: 0
   selector:
     matchLabels:
       app: ocr-service
