@@ -3,14 +3,14 @@
 # ansible-playbook -i inventory/hosts.yml playbooks/packages.yml
 
 - name: Install base packages
-  hosts: k3s_cluster
+  hosts: linux_nodes
   become: true
   gather_facts: true
 
   tasks:
     - name: Set timezone
       community.general.timezone:
-        name: "{{ system_timezone }}"
+        name: "{{ system_timezone | default('Asia/Ho_Chi_Minh') }}"
 
     - name: Update apt cache
       ansible.builtin.apt:
@@ -19,7 +19,7 @@
 
     - name: Install base packages
       ansible.builtin.apt:
-        name: "{{ base_packages }}"
+        name: "{{ base_packages | default(['curl', 'git', 'jq', 'unzip', 'ca-certificates', 'gnupg', 'fail2ban', 'prometheus-node-exporter']) }}"
         state: present
 
     - name: Enable and start fail2ban
@@ -27,6 +27,13 @@
         name: fail2ban
         enabled: true
         state: started
+      when: not ansible_check_mode
+
+    - name: Load bridge netfilter module
+      ansible.builtin.command: modprobe br_netfilter
+      changed_when: false
+      failed_when: false
+      when: not ansible_check_mode
 
     - name: Configure sysctl for k3s networking
       ansible.posix.sysctl:

@@ -1,0 +1,172 @@
+---
+# Backup and restore the staging PostgreSQL database running in Docker.
+#
+# Safe defaults:
+# - backup mode only reads from PostgreSQL and fetches a dump to the controller
+# - restore mode requires confirm_restore=true and never drops existing objects
+
+- name: PostgreSQL backup and restore
+  hosts: backend_nodes
+  become: true
+  gather_facts: true
+  vars:
+    db_backup_mode: backup
+    db_container_name: healthcare-postgres
+    db_name: project_test
+    db_user: postgres
+    db_backup_root: /opt/healthcare-backend/backups
+    db_backup_fetch_dir: "{{ playbook_dir }}/../backups/{{ env | default('unknown') }}"
+    db_secret_file: "{{ playbook_dir }}/../secrets/{{ env | default('staging') }}.yml"
+    restore_file: ""
+    confirm_restore: false
+
+  pre_tasks:
+    - name: Load database secrets from AWS Secrets Manager
+      ansible.builtin.command:
+        argv:
+          - "{{ hostvars[inventory_hostname].aws_cli_path | default('aws') }}"
+          - "--profile"
+          - "{{ hostvars[inventory_hostname].aws_profile | default('') }}"
+          - "--region"
+          - "{{ hostvars[inventory_hostname].aws_region | default('') }}"
+          - "secretsmanager"
+          - "get-secret-value"
+          - "--secret-id"
+          - "{{ hostvars[inventory_hostname].backend_secret_id | default('') }}"
+          - "--query"
+          - "SecretString"
+          - "--output"
+          - "text"
+      register: db_aws_secret
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      no_log: true
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'aws_secrets_manager'
+
+    - name: Parse database secrets from AWS Secrets Manager
+      ansible.builtin.set_fact:
+        db_password: "{{ (db_aws_secret.stdout | from_json).db_password }}"
+      no_log: true
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'aws_secrets_manager'
+
+    - name: Check database secret file on controller
+      ansible.builtin.stat:
+        path: "{{ db_secret_file }}"
+      register: db_secret_file_stat
+      delegate_to: localhost
+      become: false
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'local_file'
+
+    - name: Load database secrets from controller
+      ansible.builtin.include_vars:
+        file: "{{ db_secret_file }}"
+      no_log: true
+      when:
+        - (hostvars[inventory_hostname].secret_source | default('local_file')) == 'local_file'
+        - db_secret_file_stat.stat.exists
+
+    - name: Validate backup mode
+      ansible.builtin.assert:
+        that:
+          - db_backup_mode in ['backup', 'restore']
+        fail_msg: "db_backup_mode must be either 'backup' or 'restore'."
+
+    - name: Require explicit restore confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_restore | bool
+          - restore_file | length > 0
+        fail_msg: "Restore requires -e db_backup_mode=restore -e confirm_restore=true -e restore_file=/path/to/file.dump"
+      when: db_backup_mode == 'restore'
+
+    - name: Ensure remote backup directory exists
+      ansible.builtin.file:
+        path: "{{ db_backup_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Ensure local backup directory exists
+      ansible.builtin.file:
+        path: "{{ db_backup_fetch_dir }}"
+        state: directory
+        mode: "0750"
+      delegate_to: localhost
+      become: false
+
+    - name: Verify PostgreSQL container is running
+      ansible.builtin.command: "docker inspect -f {% raw %}'{{.State.Running}}'{% endraw %} {{ db_container_name }}"
+      register: db_container_running
+      changed_when: false
+      failed_when: db_container_running.stdout.strip() != 'true'
+      when: not ansible_check_mode
+
+  tasks:
+    - name: Create timestamped PostgreSQL dump on remote host
+      ansible.builtin.shell: >
+        set -euo pipefail;
+        docker exec {{ db_container_name }}
+        pg_dump -U {{ db_user }} -d {{ db_name }} -Fc
+        > {{ db_backup_root }}/{{ inventory_hostname }}-{{ db_name }}-{{ ansible_facts.date_time.iso8601_basic_short }}.dump
+      args:
+        executable: /bin/bash
+      register: db_backup_result
+      changed_when: true
+      when:
+        - db_backup_mode == 'backup'
+        - not ansible_check_mode
+
+    - name: Remember backup file path
+      ansible.builtin.set_fact:
+        db_backup_file: "{{ db_backup_root }}/{{ inventory_hostname }}-{{ db_name }}-{{ ansible_facts.date_time.iso8601_basic_short }}.dump"
+      when: db_backup_mode == 'backup'
+
+    - name: Fetch PostgreSQL dump to controller
+      ansible.builtin.fetch:
+        src: "{{ db_backup_file }}"
+        dest: "{{ db_backup_fetch_dir }}/"
+        flat: true
+      when:
+        - db_backup_mode == 'backup'
+        - not ansible_check_mode
+
+    - name: Upload restore dump to remote host
+      ansible.builtin.copy:
+        src: "{{ restore_file }}"
+        dest: "{{ db_backup_root }}/restore.dump"
+        owner: root
+        group: root
+        mode: "0600"
+      when:
+        - db_backup_mode == 'restore'
+        - not ansible_check_mode
+
+    - name: Terminate active database sessions before restore
+      ansible.builtin.command: >
+        docker exec {{ db_container_name }}
+        psql -U {{ db_user }} -d postgres
+        -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='{{ db_name }}' AND pid <> pg_backend_pid();"
+      changed_when: true
+      when:
+        - db_backup_mode == 'restore'
+        - not ansible_check_mode
+
+    - name: Restore PostgreSQL dump
+      ansible.builtin.shell: >
+        set -euo pipefail;
+        cat {{ db_backup_root }}/restore.dump |
+        docker exec -i {{ db_container_name }}
+        pg_restore --no-owner --no-acl -U {{ db_user }} -d {{ db_name }}
+      args:
+        executable: /bin/bash
+      changed_when: true
+      when:
+        - db_backup_mode == 'restore'
+        - not ansible_check_mode
+
+    - name: Report backup location
+      ansible.builtin.debug:
+        msg: "Fetched backup to {{ db_backup_fetch_dir }}/{{ db_backup_file | basename }}"
+      when: db_backup_mode == 'backup'

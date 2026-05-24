@@ -1,0 +1,29 @@
+env: staging
+project_name: uit-healthcare
+system_timezone: Asia/Ho_Chi_Minh
+
+# Replace after the staging monitoring stack exists.
+loki_url: http://10.20.128.10:3100
+
+secret_source: aws_secrets_manager
+aws_profile: healthcare-staging
+aws_region: ap-southeast-2
+aws_cli_path: /mnt/c/Program Files/Amazon/AWSCLIV2/aws.exe
+backend_secret_id: uit-healthcare-staging/backend
+
+base_packages:
+  - curl
+  - git
+  - jq
+  - unzip
+  - ca-certificates
+  - gnupg
+  - fail2ban
+  - prometheus-node-exporter
+
+backend_root: /opt/healthcare-backend
+
+db_container_name: healthcare-postgres
+db_name: project_test
+db_user: postgres
+db_backup_root: /opt/healthcare-backend/backups

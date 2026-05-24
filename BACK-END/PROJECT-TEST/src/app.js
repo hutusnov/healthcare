@@ -48,6 +48,9 @@ const apiLimiter = rateLimit(
 {
     windowMs: 1 * 60 * 1000,
     max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.path === '/health',
     message: { success: false, message: 'Quá nhiều yêu cầu, vui lòng thử lại sau' },
 });
 
@@ -70,7 +73,10 @@ app.use(cors(
     },
     credentials: true
 }));
-app.use(morgan('dev'));
+if (process.env.NODE_ENV !== 'test')
+{
+    app.use(morgan('dev'));
+}
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 

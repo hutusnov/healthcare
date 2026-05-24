@@ -148,6 +148,40 @@ ansible-playbook -i inventory/hosts.yml playbooks/promtail.yml \
 ansible-playbook -i inventory/hosts.yml playbooks/site.yml --check --diff
 ```
 
+## AWS Staging-Zero Reproduce
+
+Sau khi Terraform dựng `infra/terraform/envs/staging-zero`, dùng inventory staging:
+
+```bash
+cd infra/ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/preflight.yml
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/site.yml
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/backend_app.yml
+```
+
+Staging secrets are loaded from AWS Secrets Manager by default:
+`uit-healthcare-staging/backend`. Terraform creates the secret metadata only;
+secret values are stored outside Terraform state and injected by Ansible at
+runtime. `infra/ansible/secrets/staging.yml` is a git-ignored local fallback,
+not the default staging path.
+
+Backup PostgreSQL staging:
+
+```bash
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/db_backup.yml
+```
+
+Restore PostgreSQL staging phải xác nhận rõ. Restore không dùng `DROP`,
+`--clean`, hoặc `--if-exists`; nếu cần thay table cũ thì tạo table mới và
+migrate/cut over an toàn.
+
+```bash
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/db_backup.yml \
+  -e db_backup_mode=restore \
+  -e confirm_restore=true \
+  -e restore_file=/absolute/path/to/backup.dump
+```
+
 ## Audit Playbook — Danh sách quét
 
 `playbooks/audit.yml` quét **27 hạng mục** trên mỗi node:

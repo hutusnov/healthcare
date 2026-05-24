@@ -39,6 +39,9 @@ jobs:
       - name: Validate static inventory
         run: ansible-inventory -i inventory/hosts.yml --list >/tmp/ansible-static-inventory.json
 
+      - name: Validate staging inventory template
+        run: ansible-inventory -i inventory/staging.yml --list >/tmp/ansible-staging-inventory.json
+
       - name: Validate dynamic inventory fallback
         run: python inventory/openstack_dynamic.py --list >/tmp/ansible-dynamic-inventory.json
 
@@ -53,6 +56,9 @@ jobs:
       matrix:
         playbook:
           - audit.yml
+          - backend_app.yml
+          - db_backup.yml
+          - docker.yml
           - packages.yml
           - preflight.yml
           - promtail.yml

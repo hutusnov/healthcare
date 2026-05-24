@@ -18,7 +18,9 @@
          promtail_version not in (promtail_version_output.stdout | default('')) }}
 
 - name: Install/upgrade Promtail
-  when: promtail_needs_install
+  when:
+    - promtail_needs_install
+    - not ansible_check_mode
   block:
     - name: Install unzip (dependency)
       ansible.builtin.apt:
@@ -89,3 +91,4 @@
     enabled: true
     state: started
     daemon_reload: true
+  when: not ansible_check_mode

@@ -1,0 +1,177 @@
+---
+# Reproduce the backend application on fresh staging backend nodes.
+
+- name: Package backend source on controller
+  hosts: localhost
+  gather_facts: false
+  vars:
+    backend_source_dir: "{{ playbook_dir }}/../../../BACK-END/PROJECT-TEST"
+    backend_archive: /tmp/healthcare-backend-src.tgz
+
+  tasks:
+    - name: Create backend source archive
+      ansible.builtin.command: >-
+        tar
+        --exclude=node_modules
+        --exclude=admin-panel/node_modules
+        --exclude=patient-portal/node_modules
+        --exclude=.env
+        --exclude=.git
+        -czf {{ backend_archive }} .
+      args:
+        chdir: "{{ backend_source_dir }}"
+      changed_when: true
+
+- name: Deploy backend application
+  hosts: backend_nodes
+  become: true
+  gather_facts: true
+  vars:
+    backend_root: /opt/healthcare-backend
+    backend_archive: /tmp/healthcare-backend-src.tgz
+    db_container_name: healthcare-postgres
+    db_name: project_test
+    db_user: postgres
+    backend_secret_file: "{{ playbook_dir }}/../secrets/{{ env | default('staging') }}.yml"
+
+  pre_tasks:
+    - name: Load backend secrets from AWS Secrets Manager
+      ansible.builtin.command:
+        argv:
+          - "{{ hostvars[inventory_hostname].aws_cli_path | default('aws') }}"
+          - "--profile"
+          - "{{ hostvars[inventory_hostname].aws_profile | default('') }}"
+          - "--region"
+          - "{{ hostvars[inventory_hostname].aws_region | default('') }}"
+          - "secretsmanager"
+          - "get-secret-value"
+          - "--secret-id"
+          - "{{ hostvars[inventory_hostname].backend_secret_id | default('') }}"
+          - "--query"
+          - "SecretString"
+          - "--output"
+          - "text"
+      register: backend_aws_secret
+      changed_when: false
+      delegate_to: localhost
+      become: false
+      no_log: true
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'aws_secrets_manager'
+
+    - name: Parse backend secrets from AWS Secrets Manager
+      ansible.builtin.set_fact:
+        backend_jwt_secret: "{{ (backend_aws_secret.stdout | from_json).backend_jwt_secret }}"
+        db_password: "{{ (backend_aws_secret.stdout | from_json).db_password }}"
+      no_log: true
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'aws_secrets_manager'
+
+    - name: Check backend secret file on controller
+      ansible.builtin.stat:
+        path: "{{ backend_secret_file }}"
+      register: backend_secret_file_stat
+      delegate_to: localhost
+      become: false
+      when: (hostvars[inventory_hostname].secret_source | default('local_file')) == 'local_file'
+
+    - name: Load backend secrets from controller
+      ansible.builtin.include_vars:
+        file: "{{ backend_secret_file }}"
+      no_log: true
+      when:
+        - (hostvars[inventory_hostname].secret_source | default('local_file')) == 'local_file'
+        - backend_secret_file_stat.stat.exists
+
+    - name: Require backend secrets for real deploy
+      ansible.builtin.assert:
+        that:
+          - backend_jwt_secret is defined
+          - backend_jwt_secret | length >= 32
+          - db_password is defined
+          - db_password | length >= 16
+        fail_msg: >-
+          Missing staging secrets. Copy infra/ansible/secrets/staging.example.yml
+          to infra/ansible/secrets/staging.yml and set real values.
+      when: not ansible_check_mode
+
+  tasks:
+    - name: Create backend directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop:
+        - "{{ backend_root }}"
+        - "{{ backend_root }}/source"
+
+    - name: Upload backend source archive
+      ansible.builtin.copy:
+        src: "{{ backend_archive }}"
+        dest: "{{ backend_root }}/source.tgz"
+        owner: root
+        group: root
+        mode: "0644"
+      when: not ansible_check_mode
+
+    - name: Extract backend source
+      ansible.builtin.unarchive:
+        src: "{{ backend_root }}/source.tgz"
+        dest: "{{ backend_root }}/source"
+        remote_src: true
+        extra_opts:
+          - --strip-components=0
+      when: not ansible_check_mode
+
+    - name: Check whether PostgreSQL container already exists
+      ansible.builtin.command: "docker inspect {{ db_container_name }}"
+      register: postgres_container_inspect
+      changed_when: false
+      failed_when: false
+      when: not ansible_check_mode
+
+    - name: Rotate existing PostgreSQL user password to configured secret
+      ansible.builtin.command: >
+        docker exec {{ db_container_name }}
+        psql -U {{ db_user }} -d postgres
+        -c "ALTER USER {{ db_user }} WITH PASSWORD '{{ db_password }}';"
+      changed_when: true
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - postgres_container_inspect.rc == 0
+
+    - name: Render backend environment
+      ansible.builtin.template:
+        src: backend.env.j2
+        dest: "{{ backend_root }}/.env"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Render backend compose file
+      ansible.builtin.template:
+        src: backend-compose.yml.j2
+        dest: "{{ backend_root }}/docker-compose.yml"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Build and start backend stack
+      ansible.builtin.command: docker compose up -d --build
+      args:
+        chdir: "{{ backend_root }}"
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Wait for backend health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:4000/api/health
+        method: GET
+        status_code: 200
+        return_content: true
+      register: backend_health
+      retries: 30
+      delay: 5
+      until: backend_health.status == 200
+      when: not ansible_check_mode

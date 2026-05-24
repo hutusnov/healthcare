@@ -1,5 +1,5 @@
-bucket         = "uit-healthcare-tfstate"
-key            = "envs/staging/terraform.tfstate"
-region         = "ap-southeast-1"
-dynamodb_table = "uit-healthcare-tf-lock"
+bucket         = "uit-healthcare-staging-tfstate-REPLACE_ACCOUNT_ID"
+key            = "aws/staging/terraform.tfstate"
+region         = "ap-southeast-2"
+dynamodb_table = "uit-healthcare-staging-tf-lock"
 encrypt        = true

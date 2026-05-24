@@ -1,0 +1,6 @@
+backups/
+secrets/*.yml
+!secrets/*.example.yml
+*.dump
+*.sql
+*.tar.gz

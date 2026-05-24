@@ -5,6 +5,12 @@
 - name: Base setup (tất cả nodes)
   import_playbook: packages.yml
 
+- name: Docker runtime for backend nodes
+  import_playbook: docker.yml
+
+- name: Backend application
+  import_playbook: backend_app.yml
+
 - name: WireGuard VPN
   import_playbook: wireguard.yml
 
