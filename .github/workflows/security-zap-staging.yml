@@ -41,7 +41,7 @@ jobs:
           docker run --rm \
             -v "$PWD/zap-results:/zap/wrk:rw" \
             ghcr.io/zaproxy/zaproxy:stable \
-            bash -lc "zap-baseline.py $zap_args"
+            bash -lc "/zap/zap-baseline.py $zap_args"
 
       - name: Upload ZAP report
         uses: actions/upload-artifact@v5
