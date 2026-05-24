@@ -14,6 +14,8 @@ Covered:
 - Backup and restore PostgreSQL dumps.
 - Reuse backend runtime secrets from AWS Secrets Manager.
 - Run k6 load test and OWASP ZAP baseline manually after deploy.
+- Run read-only smoke validation for ALB, target group, backend, DB backup,
+  data services, and monitoring endpoints.
 
 Not covered yet:
 
@@ -84,6 +86,14 @@ Manual post-deploy checks:
 
 - GitHub Actions: `Load Test Staging`
 - GitHub Actions: `Security ZAP Staging`
+- GitHub Actions: `Staging End-to-End Validation`
+
+Read-only Ansible smoke validation:
+
+```bash
+cd infra/ansible
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook -i inventory/staging.yml playbooks/staging_smoke.yml
+```
 
 ## Cleanup
 

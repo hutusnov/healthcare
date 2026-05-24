@@ -12,7 +12,7 @@ Use the new AWS account as `staging` in `ap-southeast-2`. Do not modify current 
 | CI Build & Test | GitHub Actions, SonarQube | Build, test, code quality gate |
 | CI Container & IaC | Trivy, Terraform validate/plan | Scan Docker images and Terraform files |
 | CD Staging | Argo CD / GitOps | Deploy Kubernetes manifests after staging is reachable |
-| Post-Deploy Runtime | OWASP ZAP | Not implemented yet |
+| Post-Deploy Runtime | k6, OWASP ZAP, Ansible smoke validation | Manual staging validation |
 | Production / Monitor | Wazuh, Prometheus, Loki, Telegram | Runtime audit, alerting, metrics, logs |
 
 ## Runtime Secret Management
@@ -130,6 +130,11 @@ Verified components:
 - Ansible schedules PostgreSQL backups and validates backup creation.
 - Runtime secrets are read from AWS Secrets Manager and are not stored in
   Terraform state or committed files.
+- Read-only smoke validation checks ALB health, AWS target health, local
+  backend health, PostgreSQL container status, recent backup dumps,
+  Redis/RabbitMQ health, and Prometheus/Grafana/Loki readiness.
+- Manual `Staging End-to-End Validation` runs backend health, AWS target health
+  when AWS staging secrets are configured, k6 load testing, and OWASP ZAP.
 
 Sizing note: use at least `t3.small` for full reproduce. `t3.micro` is not
 enough for backend + database + data services + monitoring on one node.

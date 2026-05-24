@@ -1,0 +1,143 @@
+---
+# Read-only staging validation after Terraform + Ansible reproduce.
+#
+# This playbook does not deploy, restart, or mutate services. It proves that
+# the staged environment is actually serving traffic and has runtime controls.
+
+- name: Validate AWS edge for staging
+  hosts: localhost
+  gather_facts: false
+  vars:
+    aws_profile: "{{ hostvars[groups['staging_backend_nodes'][0]].aws_profile | default('healthcare-staging') }}"
+    aws_region: "{{ hostvars[groups['staging_backend_nodes'][0]].aws_region | default('ap-southeast-2') }}"
+    aws_cli_path: "{{ hostvars[groups['staging_backend_nodes'][0]].aws_cli_path | default('aws') }}"
+    staging_alb_dns_name: "{{ hostvars[groups['staging_backend_nodes'][0]].staging_alb_dns_name | default('') }}"
+    staging_target_group_arn: "{{ hostvars[groups['staging_backend_nodes'][0]].staging_target_group_arn | default('') }}"
+  tasks:
+    - name: Validate ALB health endpoint
+      ansible.builtin.uri:
+        url: "http://{{ staging_alb_dns_name }}/api/health"
+        method: GET
+        status_code: 200
+        return_content: true
+      register: alb_health
+      retries: 12
+      delay: 10
+      until: alb_health.status == 200
+      when: staging_alb_dns_name | length > 0
+
+    - name: Assert ALB health payload
+      ansible.builtin.assert:
+        that:
+          - "'Server is running' in alb_health.content"
+        fail_msg: "ALB responded but backend health payload was unexpected."
+      when: staging_alb_dns_name | length > 0
+
+    - name: Read ALB target health from AWS
+      ansible.builtin.command:
+        argv:
+          - "{{ aws_cli_path }}"
+          - "--profile"
+          - "{{ aws_profile }}"
+          - "--region"
+          - "{{ aws_region }}"
+          - "elbv2"
+          - "describe-target-health"
+          - "--target-group-arn"
+          - "{{ staging_target_group_arn }}"
+          - "--query"
+          - "TargetHealthDescriptions[].TargetHealth.State"
+          - "--output"
+          - "json"
+      register: target_health
+      changed_when: false
+      when: staging_target_group_arn | length > 0
+
+    - name: Assert all ALB targets are healthy
+      ansible.builtin.assert:
+        that:
+          - (target_health.stdout | from_json | length) > 0
+          - (target_health.stdout | from_json | difference(['healthy']) | length) == 0
+        fail_msg: "One or more ALB targets are not healthy: {{ target_health.stdout }}"
+      when: staging_target_group_arn | length > 0
+
+- name: Validate backend nodes
+  hosts: backend_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Validate backend local health endpoint
+      ansible.builtin.uri:
+        url: http://127.0.0.1:4000/api/health
+        method: GET
+        status_code: 200
+        return_content: true
+      register: backend_health
+      retries: 12
+      delay: 5
+      until: backend_health.status == 200
+
+    - name: Assert backend local health payload
+      ansible.builtin.assert:
+        that:
+          - "'Server is running' in backend_health.content"
+
+    - name: Validate PostgreSQL container is running
+      ansible.builtin.command: "docker inspect -f {% raw %}'{{.State.Running}}'{% endraw %} {{ db_container_name }}"
+      register: postgres_running
+      changed_when: false
+      failed_when: postgres_running.stdout.strip() != "true"
+
+    - name: Check recent PostgreSQL backups
+      ansible.builtin.find:
+        paths: "{{ db_backup_root }}"
+        patterns: "*.dump"
+        age: -2d
+        recurse: false
+      register: backup_files
+
+    - name: Assert at least one recent PostgreSQL backup exists
+      ansible.builtin.assert:
+        that:
+          - backup_files.matched | int > 0
+        fail_msg: "No recent PostgreSQL backup dump found under {{ db_backup_root }}."
+
+- name: Validate staging data services
+  hosts: data_services_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Validate Redis responds to ping
+      ansible.builtin.command: docker exec healthcare-redis redis-cli ping
+      register: redis_ping
+      changed_when: false
+      failed_when: redis_ping.stdout.strip() != "PONG"
+
+    - name: Validate RabbitMQ health
+      ansible.builtin.command: docker exec healthcare-rabbitmq rabbitmq-diagnostics -q ping
+      register: rabbitmq_ping
+      changed_when: false
+      failed_when: rabbitmq_ping.rc != 0
+
+- name: Validate staging monitoring
+  hosts: monitoring_nodes
+  become: false
+  gather_facts: false
+  vars:
+    prometheus_port: "{{ hostvars[inventory_hostname].prometheus_port | default(9090) }}"
+    grafana_port: "{{ hostvars[inventory_hostname].grafana_port | default(3000) }}"
+    loki_port: "{{ hostvars[inventory_hostname].loki_port | default(3100) }}"
+  tasks:
+    - name: Validate monitoring endpoints
+      ansible.builtin.uri:
+        url: "{{ item }}"
+        method: GET
+        status_code: 200
+      loop:
+        - "http://127.0.0.1:{{ prometheus_port }}/-/ready"
+        - "http://127.0.0.1:{{ grafana_port }}/api/health"
+        - "http://127.0.0.1:{{ loki_port }}/ready"
+      register: monitoring_checks
+      retries: 12
+      delay: 5
+      until: monitoring_checks.status == 200

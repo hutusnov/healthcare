@@ -16,6 +16,8 @@ all:
     aws_region: ap-southeast-2
     aws_cli_path: /mnt/c/Program Files/Amazon/AWSCLIV2/aws.exe
     backend_secret_id: uit-healthcare-staging/backend
+    staging_alb_dns_name: uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com
+    staging_target_group_arn: arn:aws:elasticloadbalancing:ap-southeast-2:009144422462:targetgroup/uit-healthcare-staging-tg/a0d4a0e96640454e
     backend_root: /opt/healthcare-backend
     db_container_name: healthcare-postgres
     db_name: project_test
@@ -33,13 +35,8 @@ all:
                   ansible_private_ip: 10.30.0.68
                   role: backend
                 staging-backend-az2:
-                  ansible_host: 10.30.1.128
+                  ansible_host: 3.25.134.246
                   ansible_private_ip: 10.30.1.128
-                  ansible_ssh_common_args: >-
-                    -o StrictHostKeyChecking=no
-                    -o ConnectTimeout=30
-                    -o ServerAliveInterval=30
-                    -o ProxyCommand="ssh -i ~/.ssh/healthcare-staging -o StrictHostKeyChecking=no -W %h:%p ubuntu@13.55.38.97"
                   role: backend
         linux_nodes:
           children:

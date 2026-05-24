@@ -25,3 +25,6 @@
 
 - name: Backup validation
   import_playbook: db_backup.yml
+
+- name: Staging smoke validation
+  import_playbook: staging_smoke.yml

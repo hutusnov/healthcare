@@ -1,0 +1,95 @@
+name: Staging End-to-End Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "Backend health URL"
+        required: true
+        default: "http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com/api/health"
+      target_group_arn:
+        description: "AWS ALB target group ARN"
+        required: true
+        default: "arn:aws:elasticloadbalancing:ap-southeast-2:009144422462:targetgroup/uit-healthcare-staging-tg/a0d4a0e96640454e"
+      aws_region:
+        description: "AWS region"
+        required: true
+        default: "ap-southeast-2"
+      vus:
+        description: "k6 virtual users"
+        required: true
+        default: "10"
+      duration:
+        description: "k6 duration"
+        required: true
+        default: "1m"
+
+jobs:
+  validate-staging:
+    name: Validate staging runtime
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TARGET_URL: ${{ inputs.target_url }}
+      TARGET_GROUP_ARN: ${{ inputs.target_group_arn }}
+      AWS_REGION: ${{ inputs.aws_region }}
+      VUS: ${{ inputs.vus }}
+      DURATION: ${{ inputs.duration }}
+      MAX_P95_MS: "1000"
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_STAGING_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_STAGING_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate backend health endpoint
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent "$TARGET_URL" | tee /tmp/backend-health.json
+          grep -q "Server is running" /tmp/backend-health.json
+
+      - name: Validate ALB target health
+        run: |
+          set -euo pipefail
+          if [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+            echo "::warning::Skipping AWS target health because AWS_STAGING_* secrets are not configured."
+            exit 0
+          fi
+          states="$(aws elbv2 describe-target-health \
+            --region "$AWS_REGION" \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --query 'TargetHealthDescriptions[].TargetHealth.State' \
+            --output text)"
+          echo "$states"
+          test -n "$states"
+          for state in $states; do
+            test "$state" = "healthy"
+          done
+
+      - name: Run k6 load test
+        run: |
+          docker run --rm \
+            -e TARGET_URL \
+            -e VUS \
+            -e DURATION \
+            -e MAX_P95_MS \
+            -v "$PWD/tests/load:/scripts:ro" \
+            grafana/k6:0.56.0 run /scripts/backend-health.k6.js
+
+      - name: Run OWASP ZAP baseline
+        run: |
+          set -euo pipefail
+          mkdir -p zap-results
+          base_url="${TARGET_URL%/api/health}"
+          docker run --rm \
+            -v "$PWD/zap-results:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            bash -lc "/zap/zap-baseline.py -t '$base_url' -r zap-report.html -J zap-report.json -I"
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: staging-zap-report
+          path: zap-results/
+          if-no-files-found: warn
