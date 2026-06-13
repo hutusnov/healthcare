@@ -13,19 +13,30 @@ jobs:
   deploy-monitoring:
     runs-on: ubuntu-latest
     if: vars.ENABLE_AWS_MONITORING_DEPLOY == 'true' && vars.AWS_MONITORING_INSTANCE_ID != ''
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v6
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Show AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+          echo "AWS region: ${{ vars.AWS_REGION }}"
 
       - name: Resolve online monitoring SSM target
         id: monitoring-target
         shell: bash
         env:
           CONFIGURED_INSTANCE_ID: ${{ vars.AWS_MONITORING_INSTANCE_ID }}
+          BACKEND_INSTANCE_IDS: ${{ vars.AWS_BACKEND_INSTANCE_IDS }}
+          BACKEND_INSTANCE_ID: ${{ vars.AWS_BACKEND_INSTANCE_ID }}
         run: |
           set -euo pipefail
 
@@ -58,6 +69,16 @@ jobs:
                 "Name=tag:Name,Values=WireGuard-VPN-Node,*Monitoring*" \
               --query 'Reservations[].Instances[].InstanceId' \
               --output text | tr '\t' '\n' | awk 'NF { print $1; exit }')"
+          fi
+
+          if ! is_online_ssm_target "$selected"; then
+            echo "::warning::No dedicated monitoring node is online through SSM. Falling back to backend SSM targets."
+            for candidate in $(echo "${BACKEND_INSTANCE_IDS:-} ${BACKEND_INSTANCE_ID:-}" | tr ',;' ' '); do
+              if is_online_ssm_target "$candidate"; then
+                selected="$candidate"
+                break
+              fi
+            done
           fi
 
           if ! is_online_ssm_target "$selected"; then

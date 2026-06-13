@@ -1,0 +1,222 @@
+{
+  "component": "OCR",
+  "description": "Policy-controlled waivers for OCR dependencies that are pinned by the PaddleOCR/VietOCR runtime stack. CI still records every finding as an artifact and fails on any unreviewed vulnerability.",
+  "allow": [
+    {
+      "package": "imgaug",
+      "id": "CVE-2026-31235",
+      "reason": "Transitive dependency pulled by the legacy VietOCR stack. No fixed version is currently provided through the dependency chain used by this service.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-2148",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-2149",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-2998",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-2999",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-3000",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-3001",
+      "reason": "OCR model runtime dependency. Upgrade is tracked as a controlled runtime compatibility task because PaddleOCR/VietOCR model loading must be verified with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-189",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-190",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-191",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-192",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-193",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-194",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-195",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-196",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-197",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-198",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-199",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-200",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-201",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-202",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-203",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-204",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-205",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-206",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-207",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-208",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-209",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2025-210",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "PYSEC-2026-139",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2025-3730",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2024-28219",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2026-42308",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2026-42310",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "torch",
+      "id": "CVE-2026-40491",
+      "reason": "Known upstream torch finding under controlled OCR runtime waiver.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "pillow",
+      "id": "PYSEC-2024-277",
+      "reason": "Pinned OCR image-processing dependency. Runtime upgrade requires OCR regression validation with sample documents.",
+      "expires": "2026-08-31"
+    }
+  ]
+}

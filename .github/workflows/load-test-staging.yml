@@ -6,7 +6,7 @@ on:
       target_url:
         description: "Backend health URL to test"
         required: true
-        default: "http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com/api/health"
+        default: "http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api/health"
       vus:
         description: "Virtual users"
         required: true

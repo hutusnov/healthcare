@@ -6,15 +6,15 @@ on:
       target_url:
         description: "Backend health URL"
         required: true
-        default: "http://uit-healthcare-staging-alb-1465788081.ap-southeast-2.elb.amazonaws.com/api/health"
+        default: "http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api/health"
       target_group_arn:
         description: "AWS ALB target group ARN"
         required: true
-        default: "arn:aws:elasticloadbalancing:ap-southeast-2:009144422462:targetgroup/uit-healthcare-staging-tg/a0d4a0e96640454e"
+        default: "arn:aws:elasticloadbalancing:ap-southeast-1:105299590903:targetgroup/healthcare-backend-tg/bec9556fac3e682e"
       aws_region:
         description: "AWS region"
         required: true
-        default: "ap-southeast-2"
+        default: "ap-southeast-1"
       vus:
         description: "k6 virtual users"
         required: true
@@ -45,8 +45,15 @@ jobs:
       - name: Validate backend health endpoint
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent "$TARGET_URL" | tee /tmp/backend-health.json
-          grep -q "Server is running" /tmp/backend-health.json
+          for i in $(seq 1 30); do
+            if curl --fail --show-error --silent "$TARGET_URL" | tee /tmp/backend-health.json && grep -q "Server is running" /tmp/backend-health.json; then
+              exit 0
+            fi
+            echo "Backend health is not ready yet. Retry $i/30..."
+            sleep 10
+          done
+          echo "::error::Backend health endpoint did not become healthy."
+          exit 1
 
       - name: Validate ALB target health
         run: |

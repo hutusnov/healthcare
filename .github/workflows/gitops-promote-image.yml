@@ -9,9 +9,10 @@ on:
       component:
         description: "Component to promote"
         required: true
-        default: "both"
+        default: "validate-only"
         type: choice
         options:
+          - validate-only
           - backend
           - ocr
           - both
@@ -63,6 +64,10 @@ jobs:
           backend_tag = os.environ.get("BACKEND_TAG", "").strip()
           ocr_tag = os.environ.get("OCR_TAG", "").strip()
           tag_pattern = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{6,127}$")
+
+          if component == "validate-only":
+              print("Validate-only mode: no GitOps image tags will be modified.")
+              raise SystemExit(0)
 
           def require_tag(name, tag):
               if not tag:
