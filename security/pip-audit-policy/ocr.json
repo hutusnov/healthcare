@@ -223,6 +223,24 @@
       "id": "PYSEC-2024-277",
       "reason": "Pinned OCR image-processing dependency. Runtime upgrade requires OCR regression validation with sample documents.",
       "expires": "2026-08-31"
+    },
+    {
+      "package": "pillow",
+      "id": "PYSEC-2026-165",
+      "reason": "Pillow is constrained by the current PaddleOCR/VietOCR runtime stack. Upgrade requires OCR regression validation with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "pillow",
+      "id": "CVE-2024-28219",
+      "reason": "Pillow is constrained by the current PaddleOCR/VietOCR runtime stack. Upgrade requires OCR regression validation with model artifacts.",
+      "expires": "2026-08-31"
+    },
+    {
+      "package": "pillow",
+      "id": "CVE-2026-42310",
+      "reason": "Pillow is constrained by the current PaddleOCR/VietOCR runtime stack. Upgrade requires OCR regression validation with model artifacts.",
+      "expires": "2026-08-31"
     }
   ]
 }
