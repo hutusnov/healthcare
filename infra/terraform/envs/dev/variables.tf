@@ -323,8 +323,16 @@ variable "allowed_workflow_refs" {
   type        = list(string)
   description = "Allowed workflow refs for GitHub OIDC role assumption"
   default = [
-    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/*"
+    "hutusnov/healthcare/.github/workflows/cd-backend.yml@refs/heads/*",
+    "hutusnov/healthcare/.github/workflows/cd-monitoring.yml@refs/heads/*",
+    "hutusnov/healthcare/.github/workflows/pipeline-unified.yml@refs/heads/*"
   ]
+}
+
+variable "extra_ssm_instance_ids" {
+  type        = list(string)
+  description = "Additional EC2 instance IDs allowed for SSM workflow operations"
+  default     = []
 }
 
 variable "allow_nondev_plan_with_shared_ids" {

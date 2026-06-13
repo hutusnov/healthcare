@@ -60,7 +60,7 @@ resource "aws_iam_role" "github_actions_deploy" {
 
 data "aws_iam_policy_document" "deploy_permissions" {
   statement {
-    sid    = "SSMSendCommandToBackendOnly"
+    sid    = "SSMSendCommandToHealthcareTargets"
     effect = "Allow"
     actions = [
       "ssm:SendCommand"
@@ -71,19 +71,41 @@ data "aws_iam_policy_document" "deploy_permissions" {
         "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:document/*"
       ],
       [
-        for id in var.backend_instance_ids :
+        for id in distinct(concat(var.backend_instance_ids, var.extra_ssm_instance_ids)) :
         "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instance/${id}"
       ]
     )
   }
 
   statement {
-    sid    = "SSMReadCommandStatus"
+    sid    = "SSMReadCommandAndManagedInstanceStatus"
     effect = "Allow"
     actions = [
       "ssm:GetCommandInvocation",
+      "ssm:DescribeInstanceInformation",
       "ssm:ListCommandInvocations",
       "ssm:ListCommands"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "EC2DiscoverTaggedBackendInstances"
+    effect = "Allow"
+    actions = [
+      "ec2:DescribeInstances"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "ALBManageHealthcareBackendTargets"
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:DeregisterTargets",
+      "elasticloadbalancing:DescribeTargetGroups",
+      "elasticloadbalancing:DescribeTargetHealth",
+      "elasticloadbalancing:RegisterTargets"
     ]
     resources = ["*"]
   }

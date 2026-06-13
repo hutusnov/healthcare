@@ -99,12 +99,13 @@ module "observability_stack" {
 module "iam_github_actions" {
   source = "../../modules/iam_github_actions"
 
-  github_owner          = var.github_owner
-  github_repo           = var.github_repo
-  role_name             = var.github_actions_role_name
-  aws_region            = var.aws_region
-  allowed_workflow_refs = var.allowed_workflow_refs
-  backend_instance_ids  = var.target_instance_ids
+  github_owner           = var.github_owner
+  github_repo            = var.github_repo
+  role_name              = var.github_actions_role_name
+  aws_region             = var.aws_region
+  allowed_workflow_refs  = var.allowed_workflow_refs
+  backend_instance_ids   = var.target_instance_ids
+  extra_ssm_instance_ids = var.extra_ssm_instance_ids
 }
 
 module "frontend_stack" {

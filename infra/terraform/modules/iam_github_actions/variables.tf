@@ -30,3 +30,9 @@ variable "backend_instance_ids" {
   description = "Allowed backend EC2 instance IDs for SSM deploy"
   default     = []
 }
+
+variable "extra_ssm_instance_ids" {
+  type        = list(string)
+  description = "Additional EC2 instance IDs allowed for SSM deploy workflows, such as monitoring or VPN nodes"
+  default     = []
+}
