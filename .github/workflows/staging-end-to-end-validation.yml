@@ -75,13 +75,36 @@ jobs:
 
       - name: Run k6 load test
         run: |
-          docker run --rm \
-            -e TARGET_URL \
-            -e VUS \
-            -e DURATION \
-            -e MAX_P95_MS \
-            -v "$PWD/tests/load:/scripts:ro" \
-            grafana/k6:0.56.0 run /scripts/backend-health.k6.js
+          set -euo pipefail
+
+          wait_for_health() {
+            for i in $(seq 1 30); do
+              if curl --fail --show-error --silent "$TARGET_URL" | grep -q "Server is running"; then
+                return 0
+              fi
+              echo "Backend health is not ready yet. Retry $i/30..."
+              sleep 10
+            done
+            return 1
+          }
+
+          wait_for_health
+          for attempt in 1 2 3; do
+            echo "k6 attempt $attempt/3"
+            if docker run --rm \
+              -e TARGET_URL \
+              -e VUS \
+              -e DURATION \
+              -e MAX_P95_MS \
+              -v "$PWD/tests/load:/scripts:ro" \
+              grafana/k6:0.56.0 run /scripts/backend-health.k6.js; then
+              exit 0
+            fi
+            echo "k6 failed, waiting for backend to stabilize before retry..."
+            sleep 30
+            wait_for_health
+          done
+          exit 1
 
       - name: Run OWASP ZAP baseline
         run: |

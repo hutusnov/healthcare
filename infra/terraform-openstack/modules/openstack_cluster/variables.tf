@@ -20,3 +20,9 @@ variable "existing_worker_id" { type = string }
 
 variable "adopt_existing_only" { type = bool }
 variable "manage_compute_instances" { type = bool }
+
+variable "ssh_allowed_cidr" {
+  type        = string
+  description = "CIDR allowed to SSH to newly created OpenStack nodes"
+  default     = "172.31.65.128/25"
+}

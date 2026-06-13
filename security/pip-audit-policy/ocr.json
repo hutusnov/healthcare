@@ -213,6 +213,12 @@
       "expires": "2026-08-31"
     },
     {
+      "package": "gdown",
+      "id": "CVE-2026-40491",
+      "reason": "Transitive dependency pinned by VietOCR 0.3.13. Direct upgrade conflicts with VietOCR dependency constraints; migration away from legacy VietOCR is tracked separately.",
+      "expires": "2026-08-31"
+    },
+    {
       "package": "pillow",
       "id": "PYSEC-2024-277",
       "reason": "Pinned OCR image-processing dependency. Runtime upgrade requires OCR regression validation with sample documents.",

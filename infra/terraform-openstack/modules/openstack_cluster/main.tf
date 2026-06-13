@@ -121,7 +121,7 @@ resource "openstack_networking_secgroup_rule_v2" "ssh" {
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
-  remote_ip_prefix  = "0.0.0.0/0"
+  remote_ip_prefix  = var.ssh_allowed_cidr
   security_group_id = openstack_networking_secgroup_v2.cluster[0].id
 }
 
