@@ -196,8 +196,10 @@ jobs:
     needs: [ci-terraform, ci-terraform-openstack, ci-ansible, ci-gitops-argocd, security-trivy, security-sonarqube]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
       needs.ci-terraform.result != 'failure' &&
       needs.ci-terraform-openstack.result != 'failure' &&
       needs.ci-ansible.result != 'failure' &&
@@ -212,8 +214,10 @@ jobs:
     needs: [ci-terraform, ci-terraform-openstack, ci-ansible, ci-gitops-argocd, security-trivy, security-sonarqube]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
       needs.ci-terraform.result != 'failure' &&
       needs.ci-terraform-openstack.result != 'failure' &&
       needs.ci-ansible.result != 'failure' &&
@@ -232,8 +236,10 @@ jobs:
     needs: [cd-backend]
     if: |
       always() &&
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push' &&
+      (
+        (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
       needs.cd-backend.result == 'success'
     permissions:
       contents: read
