@@ -12,8 +12,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: trivy-${{ github.ref }}
-  cancel-in-progress: true
+  group: trivy-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   trivy-backend:
