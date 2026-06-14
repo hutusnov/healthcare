@@ -1,11 +1,16 @@
 const axios = require('axios');
 
 const MAX_UPLOAD_BYTES = Number(process.env.OCR_MAX_FILE_SIZE_MB || 10) * 1024 * 1024;
-const DEFAULT_OCR_URLS = [
-  'http://192.168.100.169:30081',
-  'http://192.168.100.169:30082',
-  'http://192.168.100.169:8001',
-];
+const DEFAULT_OCR_HOST = process.env.OCR_INTERNAL_HOST || '192.168.100.169';
+const DEFAULT_OCR_SCHEME = process.env.OCR_INTERNAL_SCHEME || 'http';
+const DEFAULT_OCR_PORTS = (process.env.OCR_INTERNAL_PORTS || '30081,30082,8001')
+  .split(',')
+  .map((port) => port.trim())
+  .filter(Boolean);
+
+function getDefaultOcrUrls() {
+  return DEFAULT_OCR_PORTS.map((port) => `${DEFAULT_OCR_SCHEME}://${DEFAULT_OCR_HOST}:${port}`);
+}
 
 function getOcrUrls() {
   const raw = process.env.OCR_SERVICE_URLS || process.env.OCR_SERVICE_URL || '';
@@ -13,7 +18,7 @@ function getOcrUrls() {
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-  return configured.length > 0 ? configured : DEFAULT_OCR_URLS;
+  return configured.length > 0 ? configured : getDefaultOcrUrls();
 }
 
 function readRequestBody(req) {
