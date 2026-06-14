@@ -22,6 +22,8 @@ import com.uithealthcare.domain.appointment.AppointmentInfo;
 import com.uithealthcare.domain.appointment.AppointmentRequest;
 import com.uithealthcare.domain.specialty.Specialty;
 import com.uithealthcare.domain.specialty.SpecialtyRespone;
+import com.uithealthcare.network.ApiServices;
+import com.uithealthcare.network.SessionInterceptor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,7 @@ public class SpecialtyActivity extends AppCompatActivity {
 
     private EditText edtSearch;
     private SpecialtyAdapter adapter;
+    private SpecialtyService specialtyService;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -75,12 +78,18 @@ public class SpecialtyActivity extends AppCompatActivity {
         });
 
         specialtyList = new ArrayList<>();
+        specialtyService = ApiServices.create(SpecialtyService.class, new SessionInterceptor.TokenProvider() {
+            @Override
+            public String getToken() {
+                return null;
+            }
+        });
 
         showOnSpecialtyCard();
     }
 
     private void showOnSpecialtyCard(){
-        SpecialtyService.specialtyService.getListSpecialty().enqueue(new Callback<SpecialtyRespone>() {
+        specialtyService.getListSpecialty().enqueue(new Callback<SpecialtyRespone>() {
             @Override
             public void onResponse(Call<SpecialtyRespone> call, Response<SpecialtyRespone> response) {
                 SpecialtyRespone data = response.body();

@@ -4,9 +4,10 @@ metadata:
   name: ocr-service
   namespace: uit-healthcare
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
     - port: 8001
       targetPort: 8001
+      nodePort: 30082
   selector:
     app: ocr-service

@@ -17,6 +17,8 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.uithealthcare.domain.result.ResultData;
 import com.uithealthcare.domain.result.ResultResponse;
+import com.uithealthcare.network.ApiServices;
+import com.uithealthcare.network.SessionInterceptor;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -48,8 +50,7 @@ public class ChooseResultActivity extends AppCompatActivity {
     private final List<ResultData> allResults = new ArrayList<>();
     private final List<ResultData> filteredResults = new ArrayList<>();
 
-    // Retrofit service
-    private final ResultService resultService = ResultService.RESULT_SERVICE;
+    private ResultService resultService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +60,12 @@ public class ChooseResultActivity extends AppCompatActivity {
         //  token từ getSharedPreferences tag
         sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
         TOKEN = sp.getString("access_token", null);
+        resultService = ApiServices.create(ResultService.class, new SessionInterceptor.TokenProvider() {
+            @Override
+            public String getToken() {
+                return TOKEN;
+            }
+        });
 
         // Lấy careProfileId & careProfileName nếu mở từ RecordsActivity
         Intent i = getIntent();
@@ -148,7 +155,7 @@ public class ChooseResultActivity extends AppCompatActivity {
             return;
         }
 
-        resultService.getResults(this.TOKEN).enqueue(new Callback<ResultResponse>() {
+        resultService.getResults().enqueue(new Callback<ResultResponse>() {
             @Override
             public void onResponse(Call<ResultResponse> call, Response<ResultResponse> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().isSuccess()) {

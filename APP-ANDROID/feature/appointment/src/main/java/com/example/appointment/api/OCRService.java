@@ -11,7 +11,7 @@ import retrofit2.http.Part;
 
 public interface OCRService {
     @Multipart
-    @POST("ocr-cccd")
+    @POST("api/ocr/cccd")
     Call<OcrResponse> uploadCccd(
             @Part MultipartBody.Part file
     );

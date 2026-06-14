@@ -4,6 +4,8 @@ import static com.uithealthcare.network.ApiConfig.BASE_URL;
 
 import android.content.Context;
 
+import com.uithealthcare.network.BuildConfig;
+
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
@@ -26,6 +28,15 @@ public class AuthRepository {
         logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
         OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(chain -> {
+                    okhttp3.Request request = chain.request();
+                    if (BuildConfig.X_SECRET_VERIFY_HEADER != null && !BuildConfig.X_SECRET_VERIFY_HEADER.isEmpty()) {
+                        request = request.newBuilder()
+                                .addHeader("X-Secret-Verify-Header", BuildConfig.X_SECRET_VERIFY_HEADER)
+                                .build();
+                    }
+                    return chain.proceed(request);
+                })
                 .addInterceptor(logging)
                 .build();
 
@@ -149,5 +160,4 @@ public class AuthRepository {
 
 
 }
-
 

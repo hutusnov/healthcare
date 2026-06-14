@@ -16,126 +16,110 @@ import com.example.records.R;
 import com.example.records.adapter.RecordAdapter;
 import com.example.records.api.CareProfileService;
 import com.example.records.model.ItemRecord;
-import com.example.records.model.Record;
 import com.example.results.ui.ChooseResultActivity;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.uithealthcare.domain.careProfile.CareProfile;
+import com.uithealthcare.domain.careProfile.CareProfilesResponse;
+import com.uithealthcare.network.ApiServices;
+import com.uithealthcare.network.SessionInterceptor;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
-import com.uithealthcare.domain.careProfile.CareProfile;
-import com.uithealthcare.domain.careProfile.CareProfilesResponse;
-import com.example.appointment.ui.CreateProfileActivity;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class RecordsActivity extends AppCompatActivity {
-    RecyclerView rcv;
-    private SharedPreferences sp;
-    private String TOKEN = null;
-    MaterialButton btnBack;
+    private RecyclerView rcv;
+    private String token;
+    private CareProfileService careProfileService;
+    private final List<ItemRecord> itemRecords = new ArrayList<>();
 
-    MaterialButton btnCreateRecord;
-    private List<ItemRecord> itemRecords = new ArrayList<>();
-    String name;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.records_activity);
 
-        sp = getSharedPreferences("app_prefs", MODE_PRIVATE); // OK, context đã có
-        TOKEN = sp.getString("access_token", null);
+        SharedPreferences sp = getSharedPreferences("app_prefs", MODE_PRIVATE);
+        token = sp.getString("access_token", null);
+        careProfileService = ApiServices.create(CareProfileService.class, new SessionInterceptor.TokenProvider() {
+            @Override
+            public String getToken() {
+                return token;
+            }
+        });
 
-        btnBack = findViewById(R.id.btnBack);
+        MaterialButton btnBack = findViewById(R.id.btnBack);
         btnBack.setOnClickListener(v -> finish());
 
-        btnCreateRecord = findViewById(R.id.btnCreateRecord);
-        btnCreateRecord.setOnClickListener(v -> {
-            Intent intent = new Intent(
-                    RecordsActivity.this,
-                    com.example.appointment.ui.CreateProfileActivity.class
-            );
-            startActivity(intent);
-        });
+        MaterialButton btnCreateRecord = findViewById(R.id.btnCreateRecord);
+        btnCreateRecord.setOnClickListener(v -> startActivity(
+                new Intent(RecordsActivity.this, com.example.appointment.ui.CreateProfileActivity.class)
+        ));
 
         rcv = findViewById(R.id.recyclerView);
         rcv.setLayoutManager(new LinearLayoutManager(this));
-
-        // Gọi API   + appdater
-        //showOnCardRecord();
-
     }
+
     @Override
     protected void onResume() {
         super.onResume();
         showOnCardRecord();
     }
 
-
     private void showOnCardRecord() {
-//        if (TOKEN == null) {
-//            Toast.makeText(this, "Không tìm thấy token, vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
+        if (token == null || token.trim().isEmpty()) {
+            Toast.makeText(this, "Khong tim thay token, vui long dang nhap lai", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        CareProfileService.CARE_PROFILE_API
-                .showOnCardCareProfile(this.TOKEN)   // nếu backend yêu cầu "Bearer " thì sửa thành "Bearer " + TOKEN
-                .enqueue(new Callback<CareProfilesResponse>() {
-                    @Override
-                    public void onResponse(Call<CareProfilesResponse> call, Response<CareProfilesResponse> response) {
-                        if (!response.isSuccessful() || response.body() == null) {
-                            Log.d("RecordsActivity", "API error: " + response.code());
-                            Toast.makeText(RecordsActivity.this,
-                                    "Không tải được danh sách hồ sơ (" + response.code() + ")",
-                                    Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        CareProfilesResponse data = response.body();
-                        if (data != null && data.isSuccess()) {
-                            List<CareProfile> list = data.getData();
-                            itemRecords.clear();
-                            if (list != null) {
-                                for (CareProfile care : list) {
-                                    // chỉnh getter cho đúng với CareProfile của bạn
+        careProfileService.showOnCardCareProfile().enqueue(new Callback<CareProfilesResponse>() {
+            @Override
+            public void onResponse(Call<CareProfilesResponse> call, Response<CareProfilesResponse> response) {
+                if (!response.isSuccessful() || response.body() == null) {
+                    Log.d("RecordsActivity", "API error: " + response.code());
+                    Toast.makeText(
+                            RecordsActivity.this,
+                            "Khong tai duoc danh sach ho so (" + response.code() + ")",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                    return;
+                }
 
-                                    // đổi construtỏ
-                                    itemRecords.add(new ItemRecord(
-                                            care.getId(),
-                                            care.getFullName(),
-                                            genCareId(care.getId()),
-                                            care.getPhone(),
-                                            care.getRelation(),
-                                            formatDob(care.getDob()),
-                                            care.getGender(),
-                                            care.getProvince(),
-                                            care.getDistrict(),
-                                            care.getWard(),
-                                            care.getAddress()
-                                    ));
-                                }
-                            }
-                        }
+                CareProfilesResponse data = response.body();
+                itemRecords.clear();
 
-                        RecordAdapter adapter = new RecordAdapter(itemRecords);
-                        rcv.setAdapter(adapter);
-
-                        adapter.setOnItemClickListener(item -> {
-                            //name = item.getName();
-
-                            showProfileActionBottomSheet(item);
-                        });
+                if (data.isSuccess() && data.getData() != null) {
+                    for (CareProfile care : data.getData()) {
+                        itemRecords.add(new ItemRecord(
+                                care.getId(),
+                                safe(care.getFullName()),
+                                genCareId(care.getId()),
+                                safe(care.getPhone()),
+                                safe(care.getRelation()),
+                                formatDob(care.getDob()),
+                                safe(care.getGender()),
+                                safe(care.getProvince()),
+                                safe(care.getDistrict()),
+                                safe(care.getWard()),
+                                safe(care.getAddress())
+                        ));
                     }
+                }
 
-                    @Override
-                    public void onFailure(Call<CareProfilesResponse> call, Throwable throwable) {
-                        Log.d("RecordsActivity", "showOnCardRecord failure: " + throwable.getMessage());
-                        Toast.makeText(RecordsActivity.this,
-                                "Lỗi kết nối máy chủ",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+                RecordAdapter adapter = new RecordAdapter(itemRecords);
+                rcv.setAdapter(adapter);
+                adapter.setOnItemClickListener(RecordsActivity.this::showProfileActionBottomSheet);
+            }
+
+            @Override
+            public void onFailure(Call<CareProfilesResponse> call, Throwable throwable) {
+                Log.d("RecordsActivity", "showOnCardRecord failure: " + throwable.getMessage());
+                Toast.makeText(RecordsActivity.this, "Loi ket noi may chu", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void showProfileActionBottomSheet(ItemRecord item) {
@@ -150,7 +134,6 @@ public class RecordsActivity extends AppCompatActivity {
 
         btnViewInfo.setOnClickListener(v -> {
             Intent data = new Intent(this, ProfileActivity.class);
-            data.putExtra("labelName", name);
             data.putExtra("name", item.getName());
             data.putExtra("dob", item.getDob());
             data.putExtra("gender", item.getGender());
@@ -169,37 +152,35 @@ public class RecordsActivity extends AppCompatActivity {
             data.putExtra("careProfileId", item.getCareProfileId());
             data.putExtra("careProfileName", item.getName());
             startActivity(data);
-            // TODO: mở màn hình xem kết quả cận lâm sàng
             bottomSheetDialog.dismiss();
         });
 
         btnViewHistory.setOnClickListener(v -> {
-            // TODO: mở màn hình xem lịch sử đặt khám
             Intent intent = new Intent(this, AppointmentHistoryActivity.class);
             intent.putExtra("careProfileId", item.getCareProfileId());
             intent.putExtra("name", item.getName());
             startActivity(intent);
-
             bottomSheetDialog.dismiss();
         });
 
         btnClose.setOnClickListener(v -> bottomSheetDialog.dismiss());
-
         bottomSheetDialog.show();
     }
 
-    private String genCareId(String careprofileId) {
-        // Lấy 4 ký tự cuối từ appointmentId (nếu dài)
-        String tail = careprofileId;
-        if (careprofileId != null && careprofileId.length() > 4) {
-            tail = careprofileId.substring(careprofileId.length() - 4);
-        }
-        return "HS" + "_" + tail.toUpperCase();
+    private String genCareId(String careProfileId) {
+        if (careProfileId == null || careProfileId.isEmpty()) return "HS";
+        String tail = careProfileId.length() > 4
+                ? careProfileId.substring(careProfileId.length() - 4)
+                : careProfileId;
+        return "HS_" + tail.toUpperCase();
     }
+
     private String formatDob(String isoDate) {
-        if (isoDate == null) return "";
+        if (isoDate == null || isoDate.length() < 10) return "";
         return isoDate.substring(0, 10).replace("-", "/");
     }
 
-
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
 }

@@ -22,6 +22,8 @@ import com.uithealthcare.domain.appointment.AppointmentRequest;
 import com.uithealthcare.domain.doctor.Doctor;
 import com.uithealthcare.domain.doctor.DoctorRespone;
 import com.uithealthcare.domain.doctor.Slot;
+import com.uithealthcare.network.ApiServices;
+import com.uithealthcare.network.SessionInterceptor;
 
 import java.text.ParseException;
 import java.util.*;
@@ -37,6 +39,7 @@ public class ChooseDoctorActivity extends AppCompatActivity {
 
     private AppointmentRequest req;
     private AppointmentInfo appointmentInfo;
+    private DoctorService doctorService;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -53,6 +56,12 @@ public class ChooseDoctorActivity extends AppCompatActivity {
         rvDoctors.setHasFixedSize(true);
 
         list = new ArrayList<>();
+        doctorService = ApiServices.create(DoctorService.class, new SessionInterceptor.TokenProvider() {
+            @Override
+            public String getToken() {
+                return null;
+            }
+        });
         showDoctorSchedule();
     }
 
@@ -60,7 +69,8 @@ public class ChooseDoctorActivity extends AppCompatActivity {
 
         String day = appointmentInfo.getExamDate();
         String nameSpecialty = appointmentInfo.getSpecialty();
-        DoctorService.doctorService.getAvailableDoctors(day, nameSpecialty).enqueue(new Callback<DoctorRespone>() {
+        list.clear();
+        doctorService.getAvailableDoctors(day, nameSpecialty).enqueue(new Callback<DoctorRespone>() {
             @Override
             public void onResponse(Call<DoctorRespone> call, Response<DoctorRespone> response) {
                 DoctorRespone doctorRespone = response.body();

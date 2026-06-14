@@ -5,7 +5,6 @@ const DEFAULT_API_URL =
         ? ['http://', 'localhost', ':4000/api'].join('')
         : 'http://healthcare-backend-alb-1504175061.ap-southeast-1.elb.amazonaws.com/api';
 const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
-const OCR_URL = import.meta.env.VITE_OCR_URL || '';
 const SECRET_HEADER = import.meta.env.VITE_X_SECRET_VERIFY_HEADER || '';
 
 const api = axios.create({
@@ -114,38 +113,14 @@ export const locationAPI = {
 // OCR APIs
 export const ocrAPI = {
     scanPrescription: async (file) => {
-        if (!OCR_URL) {
-            throw new Error('OCR service URL is not configured for this environment.');
-        }
-
         const formData = new FormData();
         formData.append('file', file);
-
-        const apiKey = import.meta.env.VITE_OCR_API_KEY || '';
-        const response = await axios.post(`${OCR_URL}/ocr-cccd`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                ...(apiKey && { 'X-API-Key': apiKey }),
-            },
-        });
-        return response;
+        return api.post('/ocr/cccd', formData);
     },
     scanDocument: async (file) => {
-        if (!OCR_URL) {
-            throw new Error('OCR service URL is not configured for this environment.');
-        }
-
         const formData = new FormData();
         formData.append('file', file);
-
-        const apiKey = import.meta.env.VITE_OCR_API_KEY || '';
-        const response = await axios.post(`${OCR_URL}/ocr-cccd`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-                ...(apiKey && { 'X-API-Key': apiKey }),
-            },
-        });
-        return response;
+        return api.post('/ocr/cccd', formData);
     },
 };
 

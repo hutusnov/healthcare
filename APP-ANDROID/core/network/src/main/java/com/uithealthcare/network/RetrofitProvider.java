@@ -11,14 +11,24 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public final class RetrofitProvider {
     private RetrofitProvider(){}
 
-    private static Retrofit retrofit;
+    private static Retrofit backendRetrofit;
+    private static Retrofit ocrRetrofit;
 
     public static Retrofit get(SessionInterceptor.TokenProvider tokenProvider){
-        if (retrofit == null){
+        if (backendRetrofit == null){
             HttpLoggingInterceptor log = new HttpLoggingInterceptor();
             log.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
+                    .addInterceptor(chain -> {
+                        okhttp3.Request request = chain.request();
+                        if (BuildConfig.X_SECRET_VERIFY_HEADER != null && !BuildConfig.X_SECRET_VERIFY_HEADER.isEmpty()) {
+                            request = request.newBuilder()
+                                    .addHeader("X-Secret-Verify-Header", BuildConfig.X_SECRET_VERIFY_HEADER)
+                                    .build();
+                        }
+                        return chain.proceed(request);
+                    })
                     .addInterceptor(new SessionInterceptor(tokenProvider))
                     .addInterceptor(log)
                     .connectTimeout(30, TimeUnit.SECONDS)  // thời gian chờ connect
@@ -28,21 +38,30 @@ public final class RetrofitProvider {
 
             Gson gson = new GsonBuilder().setLenient().create();
 
-            retrofit = new Retrofit.Builder()
+            backendRetrofit = new Retrofit.Builder()
                     .baseUrl(ApiConfig.BASE_URL)
                     .client(client)
                     .addConverterFactory(GsonConverterFactory.create(gson))
                     .build();
         }
-        return retrofit;
+        return backendRetrofit;
     }
 
     public static Retrofit getOCR(SessionInterceptor.TokenProvider tokenProvider){
-        if (retrofit == null){
+        if (ocrRetrofit == null){
             HttpLoggingInterceptor log = new HttpLoggingInterceptor();
             log.setLevel(HttpLoggingInterceptor.Level.BODY);
 
             OkHttpClient client = new OkHttpClient.Builder()
+                    .addInterceptor(chain -> {
+                        okhttp3.Request request = chain.request();
+                        if (BuildConfig.X_SECRET_VERIFY_HEADER != null && !BuildConfig.X_SECRET_VERIFY_HEADER.isEmpty()) {
+                            request = request.newBuilder()
+                                    .addHeader("X-Secret-Verify-Header", BuildConfig.X_SECRET_VERIFY_HEADER)
+                                    .build();
+                        }
+                        return chain.proceed(request);
+                    })
                     .addInterceptor(new SessionInterceptor(tokenProvider))
                     .addInterceptor(log)
                     .connectTimeout(30, TimeUnit.SECONDS)  // thời gian chờ connect
@@ -52,15 +71,16 @@ public final class RetrofitProvider {
 
             Gson gson = new GsonBuilder().setLenient().create();
 
-            retrofit = new Retrofit.Builder()
-                    .baseUrl(ApiConfig.OCR)
+            ocrRetrofit = new Retrofit.Builder()
+                    .baseUrl(ApiConfig.BASE_URL)
                     .client(client)
                     .addConverterFactory(GsonConverterFactory.create(gson))
                     .build();
         }
-        return retrofit;
+        return ocrRetrofit;
     }
     public static synchronized void reset() {
-        retrofit = null;
+        backendRetrofit = null;
+        ocrRetrofit = null;
     }
 }

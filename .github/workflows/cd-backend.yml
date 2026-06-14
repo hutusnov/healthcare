@@ -67,6 +67,8 @@ jobs:
           MOMO_ENDPOINT: ${{ secrets.MOMO_ENDPOINT }}
           MOMO_RETURN_URL: ${{ secrets.MOMO_RETURN_URL }}
           X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
+          OCR_SERVICE_URLS: ${{ vars.OCR_SERVICE_URLS }}
+          OCR_API_KEY: ${{ secrets.OCR_API_KEY }}
         run: |
           python - <<'PY'
           import json
@@ -94,6 +96,8 @@ jobs:
           MOMO_ENDPOINT={os.environ["MOMO_ENDPOINT"]}
           MOMO_RETURN_URL={os.environ["MOMO_RETURN_URL"]}
           X_SECRET_VERIFY_HEADER={os.environ.get("X_SECRET_VERIFY_HEADER","")}
+          OCR_SERVICE_URLS={os.environ.get("OCR_SERVICE_URLS") or "http://192.168.100.169:30081,http://192.168.100.169:30082,http://192.168.100.169:8001"}
+          OCR_API_KEY={os.environ.get("OCR_API_KEY","")}
           """
           cmds = [
             "set -e",

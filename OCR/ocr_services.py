@@ -60,7 +60,6 @@ def detect(image: np.ndarray):
     model = get_detector()
     output = model.predict(image)
     for res in output:
-        res.print()
         res.save_to_img(save_path=OUTPUT_DIR)
         res.save_to_json(save_path=os.path.join(OUTPUT_DIR, "res.json"))
 
