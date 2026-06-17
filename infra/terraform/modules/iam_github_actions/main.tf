@@ -90,6 +90,17 @@ data "aws_iam_policy_document" "deploy_permissions" {
   }
 
   statement {
+    sid    = "SSMReadHealthcareRuntimeParameters"
+    effect = "Allow"
+    actions = [
+      "ssm:GetParameter"
+    ]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/uit-healthcare/*"
+    ]
+  }
+
+  statement {
     sid    = "EC2DiscoverTaggedBackendInstances"
     effect = "Allow"
     actions = [
