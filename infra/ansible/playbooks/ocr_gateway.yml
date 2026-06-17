@@ -1,0 +1,88 @@
+---
+# Expose the private K3s OCR ClusterIP service to AWS backend nodes through the
+# AWS WireGuard node. This keeps OCR private inside K3s while giving backend EC2
+# a stable internal endpoint: http://10.0.5.40:8001.
+
+- name: Configure OCR gateway on AWS WireGuard node
+  hosts: aws_vpn
+  become: true
+  vars:
+    ocr_gateway_root: /opt/healthcare-ocr-gateway
+    ocr_gateway_listen: "0.0.0.0:8001"
+    ocr_gateway_namespace: uit-healthcare-private
+    ocr_gateway_service: svc/ocr-service
+    ocr_gateway_service_port: "8001"
+    ocr_gateway_kubeconfig_src: "{{ lookup('env', 'HEALTHCARE_KUBECONFIG') | default(lookup('env', 'USERPROFILE') ~ '/.kube/config', true) }}"
+    ocr_gateway_kubeconfig_dest: "{{ ocr_gateway_root }}/kubeconfig"
+    ocr_gateway_kubectl_version: v1.34.1
+
+  tasks:
+    - name: Create OCR gateway directory
+      ansible.builtin.file:
+        path: "{{ ocr_gateway_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Upload kubeconfig used to reach K3s API over WireGuard
+      ansible.builtin.copy:
+        src: "{{ ocr_gateway_kubeconfig_src }}"
+        dest: "{{ ocr_gateway_kubeconfig_dest }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Point kubeconfig at K3s WireGuard API endpoint
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --kubeconfig {{ ocr_gateway_kubeconfig_dest }}
+          config set-cluster default
+          --server=https://10.8.0.2:6443
+          --insecure-skip-tls-verify=true
+      changed_when: true
+
+    - name: Install kubectl if missing
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/{{ ocr_gateway_kubectl_version }}/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: "0755"
+      when: ansible_facts.architecture in ["x86_64", "amd64"]
+
+    - name: Install OCR gateway systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/healthcare-ocr-forward.service
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=UIT Healthcare OCR private service forward
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/kubectl --kubeconfig {{ ocr_gateway_kubeconfig_dest }} -n {{ ocr_gateway_namespace }} port-forward --address {{ ocr_gateway_listen.split(':')[0] }} {{ ocr_gateway_service }} {{ ocr_gateway_listen.split(':')[1] }}:{{ ocr_gateway_service_port }}
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start OCR gateway
+      ansible.builtin.systemd:
+        name: healthcare-ocr-forward.service
+        enabled: true
+        state: restarted
+        daemon_reload: true
+
+    - name: Verify OCR gateway health locally
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ ocr_gateway_listen.split(':')[1] }}/health"
+        return_content: true
+        status_code: 200
+      register: ocr_gateway_health
+      retries: 12
+      delay: 5
+      until: ocr_gateway_health.status == 200

@@ -3,10 +3,9 @@ kind: Service
 metadata:
   name: ocr-service
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 8001
       targetPort: 8001
-      nodePort: 30081
   selector:
     app: ocr-service
