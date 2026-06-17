@@ -69,7 +69,23 @@ jobs:
           X_SECRET_VERIFY_HEADER: ${{ secrets.X_SECRET_VERIFY_HEADER }}
           OCR_SERVICE_URLS: ${{ vars.OCR_SERVICE_URLS }}
           OCR_API_KEY: ${{ secrets.OCR_API_KEY }}
+          OCR_API_KEY_SSM_PARAMETER: ${{ vars.OCR_API_KEY_SSM_PARAMETER || '/uit-healthcare/prod/ocr-api-key' }}
         run: |
+          if [ -z "${OCR_API_KEY:-}" ] && [ -n "${OCR_API_KEY_SSM_PARAMETER:-}" ]; then
+            echo "OCR_API_KEY GitHub secret is empty; resolving OCR key from AWS SSM Parameter Store."
+            OCR_API_KEY="$(aws ssm get-parameter \
+              --name "$OCR_API_KEY_SSM_PARAMETER" \
+              --with-decryption \
+              --query 'Parameter.Value' \
+              --output text)"
+            export OCR_API_KEY
+          fi
+
+          if [ -z "${OCR_API_KEY:-}" ]; then
+            echo "::error::OCR_API_KEY is not configured. Set GitHub secret OCR_API_KEY or SSM parameter ${OCR_API_KEY_SSM_PARAMETER}."
+            exit 1
+          fi
+
           python - <<'PY'
           import json
           import os
