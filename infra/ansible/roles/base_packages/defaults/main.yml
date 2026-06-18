@@ -1,0 +1,19 @@
+---
+base_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - net-tools
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - jq
+  - unzip
+  - fail2ban
+
+fail2ban_ignore_ips:
+  - 127.0.0.1/8
+  - ::1
+

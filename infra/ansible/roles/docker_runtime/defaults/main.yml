@@ -1,0 +1,17 @@
+---
+docker_apt_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+docker_prerequisite_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - python3-debian
+
+docker_users:
+  - ubuntu
+

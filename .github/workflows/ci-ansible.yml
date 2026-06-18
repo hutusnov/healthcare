@@ -57,12 +57,18 @@ jobs:
         playbook:
           - audit.yml
           - backend_app.yml
+          - data_services.yml
           - db_backup.yml
+          - db_backup_schedule.yml
           - docker.yml
+          - monitoring_stack.yml
+          - ocr_gateway.yml
           - packages.yml
           - preflight.yml
           - promtail.yml
           - site.yml
+          - staging_smoke.yml
+          - wazuh.yml
           - wireguard.yml
     defaults:
       run:

@@ -1,0 +1,50 @@
+---
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ system_timezone | default('Asia/Ho_Chi_Minh') }}"
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Configure fail2ban ignore list for automation sources
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.d/healthcare-automation.local
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [DEFAULT]
+      ignoreip = {{ fail2ban_ignore_ips | join(' ') }}
+  notify: Restart fail2ban
+
+- name: Enable and start fail2ban
+  ansible.builtin.systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+
+- name: Load bridge netfilter module
+  ansible.builtin.command: modprobe br_netfilter
+  changed_when: false
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Configure sysctl for k3s networking
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    reload: true
+  loop:
+    - { key: net.ipv4.ip_forward, value: "1" }
+    - { key: net.bridge.bridge-nf-call-iptables, value: "1" }
+    - { key: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+
